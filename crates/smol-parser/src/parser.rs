@@ -69,24 +69,105 @@ fn parse_program(pair: Pair<Rule>, _diagnostics: &mut Vec<Diagnostic>) -> (Vec<C
     (classes, main_stmts)
 }
 
+fn parse_main_block(pair: Pair<Rule>) -> Vec<Stmt> {
+    Vec::new()
+}
+
+/// Parse a class definition
 fn parse_class_def(pair: Pair<Rule>) -> ClassDecl {
-    // return nothing for now, just a placeholder
+    let span = span_from_pair(&pair);
+    let mut is_abstract = false;
+    let mut is_hidden = false;
+    let mut name = String::new();
+    let mut type_params = Vec::new();
+    let mut extends = None;
+    let mut fields = Vec::new();
+    let mut init_fields = Vec::new();
+    let mut classifies = None;
+    let mut retrieves = None;
+    let mut links = Vec::new();
+    let mut methods = Vec::new();
+
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::abstract_kw => is_abstract = true,
+            Rule::hidden_kw => is_hidden = true,
+            Rule::name => name = parse_name(inner),
+            Rule::name_list => type_params = parse_name_list(inner),
+            Rule::type_expr => extends = Some(extract_type_name(parse_type_expr(inner))),
+            Rule::field_decl_list => fields = parse_field_decl_list(inner),
+            Rule::field_decl_init_list => init_fields = parse_field_decl_init_list(inner),
+            Rule::classifies_block => classifies = Some(parse_classifies_block(inner)),
+            Rule::retrieves_block => retrieves = Some(parse_retrieves_block(inner)),
+            Rule::models_block => links = parse_models_block(inner),
+            Rule::method_def => methods.push(parse_method_def(inner)),
+            _ => {}
+        }
+    }
+
     ClassDecl {
-        is_abstract: false,
-        is_hidden: false,
-        name: String::new(),
-        type_params: vec![],
-        extends: None,
-        fields: vec![],
-        init_fields: vec![],
-        classifies: None,
-        retrieves: None,
-        links: vec![],
-        methods: Vec::new(),
-        span: Default::default(),
+        is_abstract,
+        is_hidden,
+        name,
+        type_params,
+        extends,
+        fields,
+        init_fields,
+        classifies,
+        retrieves,
+        links,
+        methods,
+        span,
     }
 }
 
-fn parse_main_block(pair: Pair<Rule>) -> Vec<Stmt> {
-    Vec::new()
+fn span_from_pair(pair: &Pair<Rule>) -> Span {
+    let start = pair.as_span().start();
+    let end = pair.as_span().end();
+    Span::new(start, end)
+}
+
+/// Extract the simple type name from a Type for the extends field
+fn extract_type_name(ty: Type) -> String {
+    match ty {
+        Type::Named(n) => n,
+        Type::Generic(n, _) => n,
+        _ => "Object".to_owned(),
+    }
+}
+
+fn parse_name(pair: Pair<Rule>) -> String {
+    pair.as_str().to_owned()
+}
+
+fn parse_name_list(pair: Pair<Rule>) -> Vec<String> {
+    pair.into_inner()
+        .filter(|p| p.as_rule() == Rule::name)
+        .map(parse_name)
+        .collect()
+}
+
+/// Parse a type expression into a Type AST node
+fn parse_type_expr(pair: Pair<Rule>) -> Type {
+    let inner = pair.into_inner().next().expect("Type expression must have inner");
+    match inner.as_rule() {
+        Rule::simple_type => {
+            let name_str = inner
+                .into_inner()
+                .next()
+                .expect("Simple type must have a name");
+            Type::Named(name_str.as_str().to_owned())
+        }
+        Rule::generic_type => {
+            let mut parts = inner.into_inner();
+            let name_str = parts.next().expect("generic_type must have name");
+            let name = name_str.as_str().to_owned();
+
+            let type_list = parts.next().expect("generic_type must have type_list");
+            let type_params = parse_type_list(type_list);
+            Type::Generic(name, type_params)
+        }
+        Rule::fmu_type => parse_fmu_type(inner),
+        _ => Type::Named("Unknown".to_owned()),
+    }
 }

@@ -111,6 +111,7 @@ class_def = {
     ~ "(" ~ field_decl_list? ~ ")"
     ~ field_decl_init_list?
     ~ models_block?
+    ~ (classifies_block ~ retrieves_block?)?
     ~ method_def*
     ~ end_kw
 }
@@ -144,6 +145,10 @@ field_decl      = { (hidden_kw | domain_kw)? ~ type_expr ~ name }
 
 field_decl_init_list = { field_decl_init+ }
 field_decl_init      = { (hidden_kw | domain_kw)? ~ type_expr ~ name ~ "=" ~ expression ~ ";" }
+
+// Classifies and retrieves blocks (for dynamic adaptation)
+classifies_block = { classifies_kw ~ string_lit ~ ";" }
+retrieves_block  = { retrieves_kw  ~ string_lit ~ ";" }
 
 // Links blocks
 models_block = { complex_models_block | simple_models_block }
