@@ -1,0 +1,57 @@
+[workspace]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+version  = "1.0.0"
+license  = "LGPL-3.0-or-later"
+
+[workspace.dependencies]
+# Intra-workspace
+
+# OWL reasoning (local sibling)
+oxidowl = { git = "https://github.com/sievericcardo/oxidowl", branch = "enhance-owl-api", features = ["sparql-store", "parallel", "cache"] }
+
+# Lexer / parser / diagnostics
+logos    = "0.16.1"
+chumsky  = { version = "0.13.0", features = ["pratt"] }
+ariadne  = "0.6.0"
+pest     = "2.9.0"
+pest_derive = "2.9.0"
+
+# Incremental computation
+salsa = "0.28.2"
+
+# Manifest parsing
+toml  = "1.1.4"
+serde = { version = "1.0.229", features = ["derive"] }
+
+# File globs
+globwalk = "0.9.1"
+
+# CLI
+clap = { version = "4.6.6", features = ["derive"] }
+
+# Async runtime (required by oxidowl ReasoningService)
+tokio = { version = "1.53.1", features = ["rt", "rt-multi-thread", "macros"] }
+
+# Parallelism
+rayon = "1.12.0"
+
+# Utilities
+thiserror = "2.0.20"
+
+# ── Root package (the lockpick binary) ──────────────────────────────────── #
+[package]
+name    = "lockpick"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "lockpick"
+path = "src/main.rs"
+
+[dependencies]
+clap          = { workspace = true }
+ariadne       = { workspace = true }
