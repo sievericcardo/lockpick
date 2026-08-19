@@ -505,3 +505,136 @@ fn parse_single_stmt(pair: Pair<Rule>) -> Stmt {
         }
     }
 }
+
+fn parse_if_stmt(pair: Pair<Rule>) -> Stmt {
+    let span = span_from_pair(&pair);
+    let mut cond = Expr::Null(span);
+    let mut then_body = Vec::new();
+    let mut else_body = Vec::new();
+    let mut found_else = false;
+
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::expression => cond = parse_expression(inner),
+            Rule::statement_list => {
+                if !found_else {
+                    then_body = parse_statement_list(inner);
+                    found_else = true;
+                } else {
+                    else_body = parse_statement_list(inner);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Stmt::If {
+        cond,
+        then_body,
+        else_body,
+        span,
+    }
+}
+
+fn parse_while_stmt(pair: Pair<Rule>) -> Stmt {
+    let span = span_from_pair(&pair);
+    let mut cond = Expr::Null(span);
+    let mut body = Vec::new();
+
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::expression => cond = parse_expression(inner),
+            Rule::statement_list => body = parse_statement_list(inner),
+            _ => {}
+        }
+    }
+
+    Stmt::While { cond, body, span }
+}
+
+fn parse_assign_stmt(pair: Pair<Rule>) -> Stmt {
+    let span = span_from_pair(&pair);
+    let mut exprs = Vec::new();
+
+    for inner in pair.into_inner() {
+        if inner.as_rule() == Rule::expression {
+            exprs.push(parse_expression(inner));
+        }
+    }
+
+    if exprs.len() == 2 {
+        Stmt::Assign {
+            lhs: exprs[0].clone(),
+            rhs: exprs[1].clone(),
+            span,
+        }
+    } else {
+        Stmt::Skip { span }
+    }
+}
+
+fn parse_call_stmt(pair: Pair<Rule>) -> Stmt {
+    let span = span_from_pair(&pair);
+    Stmt::Skip { span }
+}
+
+fn parse_create_stmt(pair: Pair<Rule>) -> Stmt {
+    let span = span_from_pair(&pair);
+    Stmt::Skip { span }
+}
+
+fn parse_sparql_stmt(pair: Pair<Rule>) -> Stmt {
+    let span = span_from_pair(&pair);
+    Stmt::Skip { span }
+}
+
+fn parse_construct_stmt(pair: Pair<Rule>) -> Stmt {
+    let span = span_from_pair(&pair);
+    Stmt::Skip { span }
+}
+
+fn parse_owl_stmt(pair: Pair<Rule>) -> Stmt {
+    let span = span_from_pair(&pair);
+    Stmt::Skip { span }
+}
+
+fn parse_validate_stmt(pair: Pair<Rule>) -> Stmt {
+    let span = span_from_pair(&pair);
+    Stmt::Skip { span }
+}
+
+fn parse_simulate_stmt(pair: Pair<Rule>) -> Stmt {
+    let span = span_from_pair(&pair);
+    Stmt::Skip { span }
+}
+
+fn parse_classify_stmt(pair: Pair<Rule>) -> Stmt {
+    let span = span_from_pair(&pair);
+    Stmt::Skip { span }
+}
+
+fn parse_super_stmt(pair: Pair<Rule>) -> Stmt {
+    let span = span_from_pair(&pair);
+    Stmt::Skip { span }
+}
+
+/// Parse expressions with precedence handling
+fn parse_expression(pair: Pair<Rule>) -> Expr {
+    match pair.as_rule() {
+        Rule::expression => {
+            let inner = pair.into_inner().next().expect("expression must have inner");
+            parse_expression(inner)
+        }
+        Rule::expr_or => parse_expr_or(pair),
+        Rule::expr_and => parse_expr_and(pair),
+        Rule::expr_eq => parse_expr_eq(pair),
+        Rule::expr_cmp => parse_expr_cmp(pair),
+        Rule::expr_add => parse_expr_add(pair),
+        Rule::expr_mul => parse_expr_mul(pair),
+        Rule::expr_unary => parse_expr_unary(pair),
+        Rule::expr_postfix => parse_expr_postfix(pair),
+        Rule::expr_primary => parse_expr_primary(pair),
+        _ => Expr::Null(span_from_pair(&pair)),
+    }
+}
+
