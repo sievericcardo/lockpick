@@ -638,3 +638,286 @@ fn parse_expression(pair: Pair<Rule>) -> Expr {
     }
 }
 
+fn parse_expr_or(pair: Pair<Rule>) -> Expr {
+    let span = span_from_pair(&pair);
+    let terms: Vec<Expr> = pair
+        .into_inner()
+        .filter(|p| p.as_rule() == Rule::expr_and)
+        .map(|p| parse_expression(p))
+        .collect();
+
+    if terms.is_empty() {
+        Expr::Null(span)
+    } else if terms.len() == 1 {
+        terms.into_iter().next().unwrap()
+    } else {
+        let mut result = terms[0].clone();
+        for term in terms.iter().skip(1) {
+            result = Expr::BinOp {
+                op: BinOp::Or,
+                left: Box::new(result),
+                right: Box::new(term.clone()),
+                span,
+            };
+        }
+        result
+    }
+}
+
+fn parse_expr_and(pair: Pair<Rule>) -> Expr {
+    let span = span_from_pair(&pair);
+    let terms: Vec<Expr> = pair
+        .into_inner()
+        .filter(|p| p.as_rule() == Rule::expr_eq)
+        .map(|p| parse_expression(p))
+        .collect();
+
+    if terms.is_empty() {
+        Expr::Null(span)
+    } else if terms.len() == 1 {
+        terms.into_iter().next().unwrap()
+    } else {
+        let mut result = terms[0].clone();
+        for term in terms.iter().skip(1) {
+            result = Expr::BinOp {
+                op: BinOp::And,
+                left: Box::new(result),
+                right: Box::new(term.clone()),
+                span,
+            };
+        }
+        result
+    }
+}
+
+fn parse_expr_eq(pair: Pair<Rule>) -> Expr {
+    let span = span_from_pair(&pair);
+    let pairs: Vec<_> = pair.into_inner().collect();
+
+    if pairs.is_empty() {
+        return Expr::Null(span);
+    }
+
+    let mut result = parse_expression(pairs[0].clone());
+    let mut i = 1;
+
+    while i < pairs.len() {
+        let op_str = pairs[i].as_str();
+        let op = if op_str.contains("==") {
+            BinOp::Eq
+        } else {
+            BinOp::NotEq
+        };
+
+        if i + 1 < pairs.len() {
+            let right = parse_expression(pairs[i + 1].clone());
+            result = Expr::BinOp {
+                op,
+                left: Box::new(result),
+                right: Box::new(right),
+                span,
+            };
+            i += 2;
+        } else {
+            break;
+        }
+    }
+
+    result
+}
+
+fn parse_expr_cmp(pair: Pair<Rule>) -> Expr {
+    let span = span_from_pair(&pair);
+    let mut result = Expr::Null(span);
+
+    for inner in pair.into_inner() {
+        if inner.as_rule() == Rule::expr_add {
+            result = parse_expression(inner);
+        }
+    }
+
+    result
+}
+
+fn parse_expr_add(pair: Pair<Rule>) -> Expr {
+    let span = span_from_pair(&pair);
+    let mut result = Expr::Null(span);
+
+    for inner in pair.into_inner() {
+        if inner.as_rule() == Rule::expr_mul {
+            result = parse_expression(inner);
+        }
+    }
+
+    result
+}
+
+fn parse_expr_mul(pair: Pair<Rule>) -> Expr {
+    let span = span_from_pair(&pair);
+    let mut result = Expr::Null(span);
+
+    for inner in pair.into_inner() {
+        if inner.as_rule() == Rule::expr_unary {
+            result = parse_expression(inner);
+        }
+    }
+
+    result
+}
+
+fn parse_expr_unary(pair: Pair<Rule>) -> Expr {
+    match pair.as_rule() {
+        Rule::not_expr => {
+            let span = span_from_pair(&pair);
+            for inner in pair.into_inner() {
+                if inner.as_rule() == Rule::expr_postfix {
+                    let expr = parse_expression(inner);
+                    return Expr::UnaryOp {
+                        op: UnaryOp::Not,
+                        expr: Box::new(expr),
+                        span,
+                    };
+                }
+            }
+            Expr::Null(span)
+        }
+        Rule::expr_postfix => parse_expression(pair),
+        _ => Expr::Null(span_from_pair(&pair)),
+    }
+}
+
+fn parse_expr_postfix(pair: Pair<Rule>) -> Expr {
+    let mut result = Expr::Null(span_from_pair(&pair));
+
+    for inner in pair.into_inner() {
+        if inner.as_rule() == Rule::expr_primary {
+            result = parse_expression(inner);
+        } else if inner.as_rule() == Rule::postfix {
+            result = apply_postfix(result, inner);
+        }
+    }
+
+    result
+}
+
+fn apply_postfix(expr: Expr, postfix: Pair<Rule>) -> Expr {
+    for inner in postfix.into_inner() {
+        return match inner.as_rule() {
+            Rule::method_call_postfix => {
+                let span = span_from_pair(&inner);
+                let mut method = String::new();
+                let mut args = Vec::new();
+
+                for p in inner.into_inner() {
+                    match p.as_rule() {
+                        Rule::name => method = parse_name(p),
+                        Rule::arg_list => args = parse_arg_list(p),
+                        _ => {}
+                    }
+                }
+
+                Expr::MethodCall {
+                    receiver: Box::new(expr),
+                    method,
+                    args,
+                    span,
+                }
+            }
+            Rule::field_access_postfix => {
+                let span = span_from_pair(&inner);
+                let field = inner
+                    .into_inner()
+                    .next()
+                    .map(|n| parse_name(n))
+                    .unwrap_or_default();
+
+                Expr::Field {
+                    receiver: Box::new(expr),
+                    field,
+                    span,
+                }
+            }
+            Rule::port_access => {
+                let span = span_from_pair(&inner);
+                let port = inner
+                    .into_inner()
+                    .find(|p| p.as_rule() == Rule::string_lit)
+                    .map(parse_string_lit)
+                    .unwrap_or_default();
+
+                Expr::Port {
+                    receiver: Box::new(expr),
+                    port,
+                    span,
+                }
+            }
+            _ => expr,
+        };
+    }
+    expr
+}
+
+fn parse_expr_primary(pair: Pair<Rule>) -> Expr {
+    let span = span_from_pair(&pair);
+    let inner = pair.into_inner().next().expect("primary must have inner");
+
+    match inner.as_rule() {
+        Rule::integer_lit => {
+            let n: i64 = inner.as_str().parse().unwrap_or(0);
+            Expr::IntLit(n, span)
+        }
+        Rule::float_lit => {
+            let f: f64 = inner.as_str().parse().unwrap_or(0.0);
+            Expr::FloatLit(f, span)
+        }
+        Rule::string_lit => {
+            let s = parse_string_lit(inner);
+            Expr::StrLit(s, span)
+        }
+        Rule::true_lit => Expr::BoolLit(true, span),
+        Rule::false_lit => Expr::BoolLit(false, span),
+        Rule::null_lit => Expr::Null(span),
+        Rule::unit_lit => Expr::Null(span),
+        Rule::this_expr => Expr::Var("this".to_owned(), span),
+        Rule::name_expr => {
+            let name = parse_name(inner);
+            Expr::Var(name, span)
+        }
+        Rule::conversion_expr => parse_conversion_expr(inner),
+        Rule::expression => parse_expression(inner),
+        _ => Expr::Null(span),
+    }
+}
+
+fn parse_conversion_expr(pair: Pair<Rule>) -> Expr {
+    let span = span_from_pair(&pair);
+    let mut name = String::new();
+    let mut args = Vec::new();
+
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::conversion => name = inner.as_str().to_owned(),
+            Rule::expression => args.push(parse_expression(inner)),
+            _ => {}
+        }
+    }
+
+    Expr::BuiltinCall { name, args, span }
+}
+
+fn parse_arg_list(pair: Pair<Rule>) -> Vec<Expr> {
+    pair.into_inner()
+        .filter(|p| p.as_rule() == Rule::expression)
+        .map(parse_expression)
+        .collect()
+}
+
+fn parse_string_lit(pair: Pair<Rule>) -> String {
+    let s = pair.as_str();
+    if s.starts_with('"') && s.ends_with('"') {
+        let unquoted = &s[1..s.len() - 1];
+        unquoted.replace("\\\"", "\"")
+    } else {
+        s.to_owned()
+    }
+}
