@@ -51,6 +51,42 @@ pub fn parse(path: &str, src: &str) -> (File, Vec<Diagnostic>) {
 }
 
 fn parse_program(pair: Pair<Rule>, _diagnostics: &mut Vec<Diagnostic>) -> (Vec<ClassDecl>, Option<Vec<Stmt>>) {
-    // return nothing for now
-    (Vec::new(), None)
+    let mut classes = Vec::new();
+    let mut main_stmts = None;
+
+    for  inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::class_def => {
+                classes.push(parse_class_def(inner));
+            }
+            Rule::main_block => {
+                main_stmts = Some(parse_main_block(inner));
+            }
+            _ => {}
+        }
+    }
+
+    (classes, main_stmts)
+}
+
+fn parse_class_def(pair: Pair<Rule>) -> ClassDecl {
+    // return nothing for now, just a placeholder
+    ClassDecl {
+        is_abstract: false,
+        is_hidden: false,
+        name: String::new(),
+        type_params: vec![],
+        extends: None,
+        fields: vec![],
+        init_fields: vec![],
+        classifies: None,
+        retrieves: None,
+        links: vec![],
+        methods: Vec::new(),
+        span: Default::default(),
+    }
+}
+
+fn parse_main_block(pair: Pair<Rule>) -> Vec<Stmt> {
+    Vec::new()
 }
