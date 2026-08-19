@@ -171,3 +171,46 @@ fn parse_type_expr(pair: Pair<Rule>) -> Type {
         _ => Type::Named("Unknown".to_owned()),
     }
 }
+
+fn parse_type_list(pair: Pair<Rule>) -> Vec<Type> {
+    pair.into_inner()
+        .filter(|p| p.as_rule() == Rule::type_expr)
+        .map(parse_type_expr)
+        .collect()
+}
+
+fn parse_fmu_type(pair: Pair<Rule>) -> Type {
+    let mut ports = Vec::new();
+    for inner in pair.into_inner() {
+        if inner.as_rule() == Rule::fmu_param_list {
+            ports = parse_fmu_param_list(inner);
+        }
+    }
+    Type::Fmo(ports)
+}
+
+fn parse_fmu_param_list(pair: Pair<Rule>) -> Vec<FmoPort> {
+    pair.into_inner()
+        .filter(|p| p.as_rule() == Rule::fmu_param)
+        .map(parse_fmu_param)
+        .collect()
+}
+
+fn parse_fmu_param(pair: Pair<Rule>) -> FmoPort {
+    let span = span_from_pair(&pair);
+    let mut direction = FmoDirection::In;
+    let mut ty = Type::Int;
+    let mut name = String::new();
+
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::fmu_in => direction = FmoDirection::In,
+            Rule::fmu_out => direction = FmoDirection::Out,
+            Rule::type_expr => ty = parse_type_expr(inner),
+            Rule::name => name = parse_name(inner),
+            _ => {}
+        }
+    }
+
+    FmoPort { direction, ty, name, span }
+}
