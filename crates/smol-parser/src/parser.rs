@@ -281,3 +281,84 @@ fn parse_field_decl_init(pair: Pair<Rule>) -> InitFieldDecl {
         span,
     }
 }
+
+fn parse_classifies_block(pair: Pair<Rule>) -> ClassifiesAnnotation {
+    let span = span_from_pair(&pair);
+    for inner in pair.into_inner() {
+        if inner.as_rule() == Rule::string_lit {
+            let iri = parse_string_lit(inner);
+            return ClassifiesAnnotation { iri, span };
+        }
+    }
+
+    ClassifiesAnnotation {
+        iri: String::new(),
+        span,
+    }
+}
+
+fn parse_retrieves_block(pair: Pair<Rule>) -> RetrievesAnnotation {
+    let span = span_from_pair(&pair);
+    for inner in pair.into_inner() {
+        if inner.as_rule() == Rule::string_lit {
+            let sparql = parse_string_lit(inner);
+            return RetrievesAnnotation { sparql, span };
+        }
+    }
+
+    RetrievesAnnotation {
+        sparql: String::new(),
+        span,
+    }
+}
+
+fn parse_models_block(pair: Pair<Rule>) -> Vec<LinksAnnotation> {
+    let mut links = Vec::new();
+    let inner_list: Vec<_> = pair.into_inner().collect();
+
+    for inner in inner_list {
+        match inner.as_rule() {
+            Rule::simple_models_block => {
+                for p in inner.into_inner() {
+                    if p.as_rule() == Rule::string_lit {
+                        let span = span_from_pair(&p);
+                        let turtle = parse_string_list(p);
+                        links.push(LinksAnnotation {
+                            turtle,
+                            guard: None,
+                            span,
+                        });
+                    }
+                }
+            }
+            Rule::complex_models_block => {
+                let block_span = span_from_pair(&inner);
+                let mut guard_expr = None;
+                let mut turtle_str = String::new();
+
+                for p in inner.into_inner() {
+                    match p.as_rule() {
+                        Rule::expression => {
+                            guard_expr = Some(Box::new(parse_expression(p)));
+                        },
+                        Rule::string_lit => {
+                            turtle_str = parse_string_lit(p);
+                        },
+                        _ => {}
+                    }
+                }
+
+                if !turtle_str.is_empty() {
+                    links.push(LinksAnnotation {
+                        turtle: turtle_str,
+                        guard: guard_expr,
+                        span: block_span,
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+
+    links
+}
