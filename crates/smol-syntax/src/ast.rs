@@ -105,7 +105,7 @@ pub enum FieldModifier {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FieldDecl {
     pub modifier: FieldModifier,
-    pub types:    Type,
+    pub ty:    Type,
     pub name:    String,
     pub span:     Span,
 }
@@ -115,7 +115,7 @@ pub struct FieldDecl {
 /// A formal parameter in a method signature.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Param {
-    pub types: Type,
+    pub ty: Type,
     pub name: String,
     pub span: Span,
 }
@@ -136,7 +136,7 @@ pub struct MethodFlags {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MethodDecl {
     pub flags:      MethodFlags,
-    pub ret_types:     Type,
+    pub ret_type:     Type,
     pub name:       String,
     pub params:     Vec<Param>,
     /// Classes mentioned in `adapts Foo, Bar`.
