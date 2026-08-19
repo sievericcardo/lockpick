@@ -322,7 +322,7 @@ fn parse_models_block(pair: Pair<Rule>) -> Vec<LinksAnnotation> {
                 for p in inner.into_inner() {
                     if p.as_rule() == Rule::string_lit {
                         let span = span_from_pair(&p);
-                        let turtle = parse_string_list(p);
+                        let turtle = parse_string_lit(p);
                         links.push(LinksAnnotation {
                             turtle,
                             guard: None,
@@ -381,7 +381,7 @@ fn parse_method_def(pair: Pair<Rule>) -> MethodDecl {
             Rule::type_expr => ret_type = parse_type_expr(inner),
             Rule::name => name = parse_name(inner),
             Rule::param_list => params = parse_param_list(inner),
-            Rule::name_list => params = parse_name_list(inner),
+            Rule::name_list => adapts = parse_name_list(inner),
             Rule::statement_list => body = parse_statement_list(inner),
             _ => {}
         }
