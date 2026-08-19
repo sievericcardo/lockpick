@@ -362,3 +362,146 @@ fn parse_models_block(pair: Pair<Rule>) -> Vec<LinksAnnotation> {
 
     links
 }
+
+fn parse_method_def(pair: Pair<Rule>) -> MethodDecl {
+    let span = span_from_pair(&pair);
+    let mut flags = MethodFlags::default();
+    let mut ret_type = Type::Unit;
+    let mut name = String::new();
+    let mut params = Vec::new();
+    let mut adapts = Vec::new();
+    let mut body = Vec::new();
+
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::abstract_kw => flags.is_abstract = true,
+            Rule::rule_kw => flags.is_rule = true,
+            Rule::domain_kw => flags.is_domain = true,
+            Rule::override_kw => flags.is_override = true,
+            Rule::type_expr => ret_type = parse_type_expr(inner),
+            Rule::name => name = parse_name(inner),
+            Rule::param_list => params = parse_param_list(inner),
+            Rule::name_list => params = parse_name_list(inner),
+            Rule::statement_list => body = parse_statement_list(inner),
+            _ => {}
+        }
+    }
+
+    MethodDecl {
+        flags,
+        ret_type,
+        name,
+        params,
+        adapts,
+        body,
+        span,
+    }
+}
+
+fn parse_param_list(pair: Pair<Rule>) -> Vec<Param> {
+    pair.into_inner()
+        .filter(|p| p.as_rule() == Rule::param)
+        .map(parse_param)
+        .collect()
+}
+
+fn parse_param(pair: Pair<Rule>) -> Param {
+    let span = span_from_pair(&pair);
+    let mut ty = Type::Int;
+    let mut name = String::new();
+
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::type_expr => ty = parse_type_expr(inner),
+            Rule::name => name = parse_name(inner),
+            _ => {}
+        }
+    }
+
+    Param { ty, name, span }
+}
+
+fn parse_statement_list(pair: Pair<Rule>) -> Vec<Stmt> {
+    pair.into_inner()
+        .filter(|p| p.as_rule() == Rule::single_stmt)
+        .map(parse_statement)
+        .collect()
+}
+
+fn parse_statement(pair: Pair<Rule>) -> Stmt {
+    let inner = pair.into_inner().next().expect("statement must have inner");
+    parse_single_stmt(inner)
+}
+
+fn parse_single_stmt(pair: Pair<Rule>) -> Stmt {
+    match pair.as_rule() {
+        Rule::skip_stmt => {
+            let span = span_from_pair(&pair);
+            Stmt::Skip { span }
+        }
+        Rule::return_stmt => {
+            let span = span_from_pair(&pair);
+            let mut value = None;
+            for inner in pair.into_inner() {
+                if inner.as_rule() == Rule::expression {
+                    value = Some(parse_expression(inner));
+                }
+            }
+            Stmt::Return { value, span }
+        }
+        Rule::breakpoint_stmt => {
+            let span = span_from_pair(&pair);
+            Stmt::Breakpoint { span }
+        }
+        Rule::output_stmt => {
+            let span = span_from_pair(&pair);
+            let mut value = Expr::Null(span);
+            for inner in pair.into_inner() {
+                if inner.as_rule() == Rule::expression {
+                    value = parse_expression(inner);
+                }
+            }
+            Stmt::Print { value, span }
+        }
+        Rule::destroy_stmt => {
+            let span = span_from_pair(&pair);
+            let mut value = Expr::Null(span);
+            for inner in pair.into_inner() {
+                if inner.as_rule() == Rule::expression {
+                    value = parse_expression(inner);
+                }
+            }
+            Stmt::Destroy { value, span }
+        }
+        Rule::adapt_stmt => {
+            let span = span_from_pair(&pair);
+            let mut expr = Expr::Null(span);
+            for inner in pair.into_inner() {
+                if inner.as_rule() == Rule::expression {
+                    expr = parse_expression(inner);
+                }
+            }
+            Stmt::Adapt { expr, span }
+        }
+        Rule::tick_stmt => {
+            let span = span_from_pair(&pair);
+            Stmt::Skip { span }
+        }
+        Rule::if_stmt => parse_if_stmt(pair),
+        Rule::while_stmt => parse_while_stmt(pair),
+        Rule::assign_stmt => parse_assign_stmt(pair),
+        Rule::call_stmt => parse_call_stmt(pair),
+        Rule::create_stmt => parse_create_stmt(pair),
+        Rule::sparql_stmt => parse_sparql_stmt(pair),
+        Rule::construct_stmt => parse_construct_stmt(pair),
+        Rule::owl_stmt => parse_owl_stmt(pair),
+        Rule::validate_stmt => parse_validate_stmt(pair),
+        Rule::simulate_stmt => parse_simulate_stmt(pair),
+        Rule::classify_stmt => parse_classify_stmt(pair),
+        Rule::super_stmt => parse_super_stmt(pair),
+        _ => {
+            let span = span_from_pair(&pair);
+            Stmt::Skip { span }
+        }
+    }
+}
