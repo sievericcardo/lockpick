@@ -1,0 +1,12 @@
+[package]
+name    = "smol-ontology"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+smol-syntax = { workspace = true }
+oxidowl     = { workspace = true }
+tokio       = { workspace = true }
+thiserror   = { workspace = true }
+libc        = "1.0.0-alpha.4"
