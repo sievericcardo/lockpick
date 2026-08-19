@@ -1,0 +1,392 @@
+// smol.pest — SMOL (Semantic Micro Object Language) PEG Grammar
+//
+// Translated from While.g4 (ANTLR LL(*)) to PEG.
+//
+// Key transformation choices:
+//  - Left-recursive binary-expression rules rewritten as iterative precedence
+//    levels (infix Pratt-style).
+//  - ANTLR `fragment` rules -> pest atomic (`@`) rules or silent (`_`) helpers.
+//  - ANTLR implicit whitespace -> explicit `WHITESPACE` / `COMMENT` silent rules.
+//  - Keywords matched before identifiers in every alternation.
+//  - ALL keyword rules are ATOMIC (@{}) so the !lod_ word-boundary check is
+//    performed immediately after the keyword characters without consuming
+//    whitespace first (a non-atomic rule would let WHITESPACE eat the space
+//    between the keyword and the next token, causing !lod_ to see the following
+//    identifier character and fail).
+
+// Whitespaces and comments
+WHITESPACE   = _{ " " | "\t" | "\r\n" | "\n" | "\r" }
+// In pest, only WHITESPACE and COMMENT are auto-inserted between tokens.
+// Both block comments and line comments go into COMMENT so they are skipped.
+COMMENT      = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" | "//" ~ (!NEWLINE ~ ANY)* }
+
+dig     = _{ '0'..'9' }
+let_    = _{ 'a'..'z' | 'A'..'Z' | "_" }
+lod_    = _{ let_ | dig }
+exp_    = _{ ("e" | "E") ~ ("+" | "-")? ~ dig+ }
+
+// String literal: "…" with \" escaping
+string_lit = @{ "\"" ~ ( "\\\"" | (!("\"") ~ ANY) )* ~ "\"" }
+
+// Numeric literals — integers may be negative
+//   Pest note: only the sign is part of INTEGER when there is no preceding
+//   name/ident character, so negative integers embedded in expressions require
+//   the parser to handle them inside expr_primary.
+integer_lit = @{ "-"? ~ ( "0" | ('1'..'9' ~ dig*) ) }
+float_lit   = @{ "-"? ~ ( ('0'..'9'+ ~ "." ~ dig* ) | ("." ~ dig+) ) ~ exp_? }
+
+// Identifier — must NOT be a reserved keyword.
+// The negative lookahead `!keyword` prevents "this", "if", "then", etc.
+// from matching as a plain name wherever a name is expected.
+keyword = @{
+    ( "abstract" | "access" | "breakpoint" | "class" | "construct"
+    | "destroy"  | "do"     | "domain"     | "else"  | "end"
+    | "extends"  | "False"  | "hidden"     | "if"    | "in"
+    | "links"    | "main"   | "member"     | "new"   | "null"
+    | "out"      | "override" | "port"     | "print" | "return"
+    | "rule"     | "simulate" | "skip"     | "super" | "then"
+    | "this"     | "tick"   | "True"       | "unit"  | "validate"
+    | "while"    | "adapts" | "classifies" | "adapt" | "retrieves"
+    | "classify" | "context" | "SPARQL"   | "INFLUXDB"  )
+    ~ !lod_
+}
+
+// Dynamic adaptation keywords
+adapts_kw     = @{ "adapts"     ~ !lod_ }
+classifies_kw = @{ "classifies" ~ !lod_ }
+retrieves_kw  = @{ "retrieves"  ~ !lod_ }
+adapt_kw      = @{ "adapt"      ~ !lod_ }
+classify_kw   = @{ "classify"   ~ !lod_ }
+context_kw    = @{ "context"    ~ !lod_ }
+
+// General identifier: any letter or underscore start, not a keyword.
+// Used for variable names, method names, and class names.
+name = @{ !keyword ~ let_ ~ lod_* }
+
+// Type names always start with an uppercase letter (SMOL convention).
+// Using a separate rule avoids treating lowercase variable names as types.
+type_name = @{ !keyword ~ 'A'..'Z' ~ lod_* }
+
+// Boolean / null / unit literals
+true_lit  = @{ "True"  ~ !lod_ }
+false_lit = @{ "False" ~ !lod_ }
+null_lit  = @{ "null"  ~ !lod_ }
+unit_lit  = @{ "unit"  ~ !lod_ }
+
+// Type conversion
+conversion = { "intToString" | "doubleToString" | "intToDouble" | "doubleToInt" | "booleanToString" }
+
+// Type expression
+type_expr = { fmu_type | generic_type | simple_type }
+
+simple_type  = { type_name }
+generic_type = { type_name ~ "<" ~ type_list ~ ">" }
+type_list    = { type_expr ~ ("," ~ type_expr)* }
+
+// FMU type: FMO[in T name, out T name, …]
+fmu_type        = { "FMO" ~ "[" ~ fmu_param_list? ~ "]" }
+fmu_param_list  = { fmu_param ~ ("," ~ fmu_param)* }
+fmu_param       = { fmu_direction ~ type_expr ~ name }
+fmu_direction   = { fmu_in | fmu_out }
+fmu_in          = @{ "in"  ~ !lod_ }
+fmu_out         = @{ "out" ~ !lod_ }
+
+// Program entry point
+program = { SOI ~ class_def* ~ main_block ~ class_def* ~ EOI }
+
+main_kw    = @{ "main" ~ !lod_ }
+end_kw     = @{ "end"  ~ !lod_ }
+main_block = { main_kw ~ statement_list ~ end_kw }
+
+// Class definition
+class_kw   = @{ "class"   ~ !lod_ }
+extends_kw = @{ "extends" ~ !lod_ }
+
+class_def = {
+    abstract_kw? ~ hidden_kw?
+    ~ class_kw
+    ~ name
+    ~ ("<" ~ name_list ~ ">")?
+    ~ (extends_kw ~ type_expr)?
+    ~ "(" ~ field_decl_list? ~ ")"
+    ~ field_decl_init_list?
+    ~ models_block?
+    ~ method_def*
+    ~ end_kw
+}
+
+abstract_kw = @{ "abstract"  ~ !lod_ }
+hidden_kw   = @{ "hidden"    ~ !lod_ }
+name_list   = { name ~ ("," ~ name)* }
+
+// Method definitions
+method_def = {
+    abstract_kw?
+    ~ rule_kw?
+    ~ domain_kw?
+    ~ override_kw?
+    ~ type_expr
+    ~ name
+    ~ "(" ~ param_list? ~ ")"
+    ~ (statement_list ~ end_kw)?
+}
+
+rule_kw     = @{ "rule"     ~ !lod_ }
+domain_kw   = @{ "domain"   ~ !lod_ }
+override_kw = @{ "override" ~ !lod_ }
+
+param_list  = { param ~ ("," ~ param)* }
+param       = { type_expr ~ name }
+
+// Field declarations
+field_decl_list = { field_decl ~ ("," ~ field_decl)* }
+field_decl      = { (hidden_kw | domain_kw)? ~ type_expr ~ name }
+
+field_decl_init_list = { field_decl_init+ }
+field_decl_init      = { (hidden_kw | domain_kw)? ~ type_expr ~ name ~ "=" ~ expression ~ ";" }
+
+// Links blocks
+models_block = { complex_models_block | simple_models_block }
+
+links_kw = @{ "links" ~ !lod_ }
+
+simple_models_block  = { links_kw ~ string_lit ~ ";" }
+complex_models_block = { links_kw ~ "(" ~ expression ~ ")" ~ string_lit ~ ";" ~ models_block }
+
+// Statements
+// Note: `statement` is left-recursive in a logical sense (seq = stmt stmt)
+// but we handle sequencing in the parser by parsing one statement at a time
+// and combining them.  Each statement rule already handles its own `next`
+// pointer where the grammar needs it (if/while).
+// A statement_list is one or more statements in sequence.
+statement_list = { single_stmt+ }
+
+statement = {
+    skip_stmt
+  | return_stmt
+  | breakpoint_stmt
+  | output_stmt
+  | destroy_stmt
+  | tick_stmt
+  | super_stmt
+  | if_stmt
+  | while_stmt
+  | sparql_stmt
+  | construct_stmt
+  | owl_stmt
+  | validate_stmt
+  | simulate_stmt
+  | adapt_stmt
+  | classify_stmt
+  | create_stmt
+  | call_stmt
+  | assign_stmt
+}
+
+// `adapt(expr);`
+adapt_stmt = { adapt_kw ~ "(" ~ expression ~ ")" ~ ";" }
+
+// `(Type target =)? classify(expr);`
+classify_stmt = { (type_expr ~ !("="))? ~ (expression ~ "=")? ~ classify_kw ~ "(" ~ expression ~ ")" ~ ";" }
+
+skip_kw       = @{ "skip"       ~ !lod_ }
+return_kw     = @{ "return"     ~ !lod_ }
+breakpoint_kw = @{ "breakpoint" ~ !lod_ }
+print_kw      = @{ "print"      ~ !lod_ }
+destroy_kw    = @{ "destroy"    ~ !lod_ }
+tick_kw       = @{ "tick"       ~ !lod_ }
+
+// `skip;`
+skip_stmt = { skip_kw ~ ";" }
+
+// `return expr;`
+return_stmt = { return_kw ~ expression ~ ";" }
+
+// `breakpoint;`
+breakpoint_stmt = { breakpoint_kw ~ ";" }
+
+// `print(expr);`
+output_stmt = { print_kw ~ "(" ~ expression ~ ")" ~ ";" }
+
+// `destroy(expr);`
+destroy_stmt = { destroy_kw ~ "(" ~ expression ~ ")" ~ ";" }
+
+// `fmu.tick(time);`
+tick_stmt = { expression ~ "." ~ tick_kw ~ "(" ~ expression ~ ")" ~ ";" }
+
+super_kw = @{ "super" ~ !lod_ }
+new_kw   = @{ "new"   ~ !lod_ }
+
+// `(Type target =)? super(args…);`
+super_stmt = {
+    (type_expr ~ expression ~ "=")?
+    ~ super_kw ~ "(" ~ arg_list? ~ ")" ~ ";"
+}
+
+// assign: `(Type)? lhs = rhs;`
+assign_stmt = { (type_expr ~ !("=")) ? ~ expression ~ "=" ~ expression ~ ";" }
+
+// method call: `(Type? target =)? receiver.method(args…);`
+// NB: The receiver uses `call_receiver` (no method-call postfixes) so that
+//     `.name(args)` stays as the explicit trailing segment.  This prevents
+//     the greedy `expression` rule from swallowing the whole call chain.
+// Port: ANTLR allows `((declType = type)? target=expression ASS)?` so the
+// target may be any expression, not just a plain name.
+call_stmt = {
+    (type_expr ~ !("="))? ~ expression ~ "=" ~ call_receiver ~ "." ~ name ~ "(" ~ arg_list? ~ ")" ~ ";"
+  |                           call_receiver ~ "." ~ name ~ "(" ~ arg_list? ~ ")" ~ ";"
+}
+
+// A receiver expression: primary with only field/port postfixes (no method calls).
+// Used by call_stmt so the trailing `.method(args)` is unambiguous.
+// `field_in_receiver` stops before `.(name)(` so the call tail is preserved.
+call_receiver = { expr_primary ~ (port_access | field_in_receiver)* }
+field_in_receiver = { "." ~ name ~ !("(") }
+
+// create: `(Type target =)? target = new T(args…) (links "desc")?;`
+create_stmt = {
+    (type_expr ~ !("="))? ~ expression ~ "="
+    ~ new_kw ~ type_expr ~ "(" ~ arg_list? ~ ")"
+    ~ (links_kw ~ expression)?
+    ~ ";"
+}
+
+access_kw    = @{ "access"    ~ !lod_ }
+construct_kw = @{ "construct" ~ !lod_ }
+member_kw    = @{ "member"    ~ !lod_ }
+validate_kw  = @{ "validate"  ~ !lod_ }
+simulate_kw  = @{ "simulate"  ~ !lod_ }
+
+// access: `(Type target =)? target = access(query, mode?, params…);`
+sparql_stmt = {
+    (type_expr ~ !("="))? ~ expression ~ "="
+    ~ access_kw ~ "(" ~ expression
+    ~ ("," ~ mode_expression)?
+    ~ ("," ~ expression)*
+    ~ ")" ~ ";"
+}
+
+// construct: `(Type target =)? target = construct(query, params…);`
+construct_stmt = {
+    (type_expr ~ !("="))? ~ expression ~ "="
+    ~ construct_kw ~ "(" ~ expression ~ ("," ~ expression)* ~ ")" ~ ";"
+}
+
+// member: OWL DL membership
+owl_stmt = {
+    (type_expr ~ !("="))? ~ expression ~ "="
+    ~ member_kw ~ "(" ~ expression ~ ")" ~ ";"
+}
+
+// validate: SHACL validation
+validate_stmt = {
+    (type_expr ~ !("="))? ~ expression ~ "="
+    ~ validate_kw ~ "(" ~ expression ~ ")" ~ ";"
+}
+
+// simulate: load FMU
+simulate_stmt = {
+    (type_expr ~ !("="))? ~ expression ~ "="
+    ~ simulate_kw ~ "(" ~ string_lit ~ ("," ~ var_init_list)? ~ ")" ~ ";"
+}
+
+if_kw    = @{ "if"    ~ !lod_ }
+then_kw  = @{ "then"  ~ !lod_ }
+else_kw  = @{ "else"  ~ !lod_ }
+while_kw = @{ "while" ~ !lod_ }
+do_kw    = @{ "do"    ~ !lod_ }
+
+// if / while
+if_stmt = {
+    if_kw ~ expression ~ then_kw ~ statement_list
+    ~ (else_kw ~ statement_list)?
+    ~ end_kw
+}
+while_stmt = {
+    while_kw ~ expression ~ do_kw ~ statement_list
+    ~ end_kw
+}
+
+// Sequential composition: kept for backwards compat but no longer primary
+sequence_stmt = { single_stmt ~ statement }
+single_stmt   = _{
+    skip_stmt | return_stmt | breakpoint_stmt | output_stmt | destroy_stmt
+    | tick_stmt | super_stmt | if_stmt | while_stmt
+    | sparql_stmt | construct_stmt | owl_stmt | validate_stmt | simulate_stmt
+    | create_stmt | call_stmt | assign_stmt
+}
+
+// Access queries
+sparql_kw   = @{ "SPARQL"  ~ !lod_ }
+influxdb_kw = @{ "INFLUXDB" ~ !lod_ }
+
+mode_expression = { influx_mode | sparql_mode }
+sparql_mode     = { sparql_kw }
+influx_mode     = { influxdb_kw ~ "(" ~ expression ~ ")" }
+
+// Argument lists and init of variables
+arg_list     = { expression ~ ("," ~ expression)* }
+var_init_list = { var_init ~ ("," ~ var_init)* }
+var_init      = { name ~ "=" ~ expression }
+
+// Operator precedence (descending) mirrors Java/Kotlin:
+//   1. or  ( | )
+//   2. and ( & )
+//   3. equality  ( == != )
+//   4. relational ( <= >= < > )
+//   5. additive  ( + ++ - )
+//   6. multiplicative ( * / % )
+//   7. unary prefix ( ! )
+//   8. postfix  ( .field  .port("name") )
+//   9. primary  ( literals, this, conversions, ( expr ) )
+expression = { expr_or }
+
+expr_or  = { expr_and  ~ (or_op  ~ expr_and)* }
+expr_and = { expr_eq   ~ (and_op ~ expr_eq)* }
+expr_eq  = { expr_cmp  ~ (eq_op  ~ expr_cmp)* }
+expr_cmp = { expr_add  ~ (cmp_op ~ expr_add)* }
+expr_add = { expr_mul  ~ (add_op ~ expr_mul)* }
+expr_mul = { expr_unary ~ (mul_op ~ expr_unary)* }
+
+expr_unary = { not_expr | expr_postfix }
+not_expr   = { "!" ~ expr_postfix }
+
+// Postfix: method call, field access, and port access (left-associative chain)
+// NB: method_call_postfix MUST come before field_access_postfix so `.name(`
+//     is not consumed as a field access leaving `(…)` unmatched.
+expr_postfix = { expr_primary ~ postfix* }
+postfix      = _{ port_access | method_call_postfix | field_access_postfix }
+port_kw     = @{ "port" ~ !lod_ }
+port_access = { "." ~ port_kw ~ "(" ~ string_lit ~ ")" }
+method_call_postfix  = { "." ~ name ~ "(" ~ arg_list? ~ ")" }
+field_access_postfix = { "." ~ name }
+
+// Primary expressions
+// NB: `this_field_expr` is intentionally absent here.  `this.field` is now
+//     parsed as `this_expr` + `field_access_postfix`, and `this.method()` as
+//     `this_expr` + `method_call_postfix`.  This is cleaner and avoids the
+//     greedy `this.name` consuming the dot before `method_call_postfix` can.
+expr_primary = {
+    "(" ~ expression ~ ")"
+  | conversion_expr
+  | true_lit | false_lit | null_lit | unit_lit
+  | this_expr
+  | float_lit
+  | integer_lit
+  | string_lit
+  | name_expr
+}
+
+this_kw         = @{ "this" ~ !lod_ }
+this_expr       = { this_kw }
+this_field_expr = { this_kw ~ "." ~ name }
+name_expr       = { name }
+conversion_expr = { conversion ~ "(" ~ expression ~ ")" }
+
+// Operator terminals
+or_op  = { "|" }
+and_op = { "&" }
+eq_op  = { "==" | "!=" }
+cmp_op = { "<=" | ">=" | "<" | ">" }
+add_op = { "++" | "+" | "-" }
+mul_op = { "*" | "/" | "%" }
