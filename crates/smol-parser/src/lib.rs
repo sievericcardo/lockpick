@@ -1,17 +1,13 @@
-mod parser;
-mod lexer;
+//! `smol-parser` — pest PEG parser for SMOL source files.
+//!
+//! Entry points:
+//! - [`lex`]           — tokenise a source string using logos; returns `Vec<SpannedToken>`.
+//! - [`parse`]         — parse a source string using pest PEG grammar; returns an AST [`File`].
+//!
+//! Diagnostics are collected as [`Diagnostic`] values and returned alongside
+//! partial ASTs so that multiple errors per file are always reported.
+pub mod parser;
+pub mod lexer;
 
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use lexer::lex;
+pub use parser::parse;
