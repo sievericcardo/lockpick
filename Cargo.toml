@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "crates/smol-parser",
     "crates/smol-syntax"
 ]
 resolver = "2"
@@ -12,6 +13,7 @@ license  = "LGPL-3.0-or-later"
 [workspace.dependencies]
 # Intra-workspace
 smol-syntax   = { path = "crates/smol-syntax" }
+smol-parser   = { path = "crates/smol-parser" }
 
 # OWL reasoning (local sibling)
 oxidowl = { git = "https://github.com/sievericcardo/oxidowl", branch = "enhance-owl-api", features = ["sparql-store", "parallel", "cache"] }

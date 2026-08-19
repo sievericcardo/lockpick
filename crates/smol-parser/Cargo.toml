@@ -1,0 +1,17 @@
+[package]
+name    = "smol-parser"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+smol-syntax = { workspace = true }
+logos       = { workspace = true }
+chumsky     = { workspace = true }
+ariadne     = { workspace = true }
+thiserror   = { workspace = true }
+pest        = { workspace = true }
+pest_derive = { workspace = true }
+
+[dev-dependencies]
+glob = "0.3.4"
