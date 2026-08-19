@@ -214,3 +214,70 @@ fn parse_fmu_param(pair: Pair<Rule>) -> FmoPort {
 
     FmoPort { direction, ty, name, span }
 }
+
+fn parse_field_decl_list(pair: Pair<Rule>) -> Vec<FieldDecl> {
+    pair.into_inner()
+        .filter(|p| p.as_rule() == Rule::field_decl)
+        .map(parse_field_decl)
+        .collect()
+}
+
+fn parse_field_decl(pair: Pair<Rule>) -> FieldDecl {
+    let span = span_from_pair(&pair);
+    let mut modifier = FieldModifier::None;
+    let mut ty = Type::Int;
+    let mut name = String::new();
+
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::hidden_kw => modifier = FieldModifier::Hidden,
+            Rule::domain_kw => modifier = FieldModifier::Domain,
+            Rule::context_kw => modifier = FieldModifier::Context,
+            Rule::type_expr => ty = parse_type_expr(inner),
+            Rule::name => name = parse_name(inner),
+            _ => {}
+        }
+    }
+
+    FieldDecl {
+        modifier,
+        ty,
+        name,
+        span,
+    }
+}
+
+fn parse_field_decl_init_list(pair: Pair<Rule>) -> Vec<InitFieldDecl> {
+    pair.into_inner()
+        .filter(|p| p.as_rule() == Rule::field_decl_init)
+        .map(parse_field_decl_init)
+        .collect()
+}
+
+fn parse_field_decl_init(pair: Pair<Rule>) -> InitFieldDecl {
+    let span = span_from_pair(&pair);
+    let mut modifier = FieldModifier::None;
+    let mut ty = Type::Int;
+    let mut name = String::new();
+    let mut init = Expr::Null(span);
+
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::hidden_kw => modifier = FieldModifier::Hidden,
+            Rule::domain_kw => modifier = FieldModifier::Domain,
+            Rule::context_kw => modifier = FieldModifier::Context,
+            Rule::type_expr => ty = parse_type_expr(inner),
+            Rule::name => name = parse_name(inner),
+            Rule::expression => init = parse_expression(inner),
+            _ => {}
+        }
+    }
+
+    InitFieldDecl {
+        modifier,
+        ty,
+        name,
+        init,
+        span,
+    }
+}
