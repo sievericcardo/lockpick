@@ -3,6 +3,7 @@
 //! Uses a simple scope-stack `VarEnv` (no `salsa` persistence here — the
 //! incremental layer is at the declaration pass).
 
+use std::collections::HashMap;
 use smol_syntax::ast::{FieldDecl, MethodDecl, Type};
 use smol_syntax::span::Span;
 
@@ -38,4 +39,10 @@ impl ClassInfo {
     pub fn own_method(&self, name: &str) -> Option<&MethodDecl> {
         self.methods.iter().find(|m| m.name == name)
     }
+}
+
+/// The complete class environment for one SMOL project.
+#[derive(Debug, Default)]
+pub struct ClassEnv {
+    classes: HashMap<String, ClassInfo>,
 }
