@@ -1,3 +1,7 @@
+mod body_pass;
+mod decl_pass;
+mod class_env;
+
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
 }
