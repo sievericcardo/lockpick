@@ -271,3 +271,419 @@ fn extract_ttl_prefixes(ttl: &str) -> HashMap<String, String> {
     }
     out
 }
+
+/// Verify the `classifies` annotation — supports three forms:
+/// 1. SPARQL SELECT or ASK query
+/// 2. Manchester OWL class expression (e.g. `<domain:models> some <ast:Class>`)
+/// 3. Plain IRI or prefixed name (e.g. `domain:Sensor`)
+fn check_classifies_annotation(
+    iri: &str,
+    store: &SparqlStore,
+    prefix_map: &HashMap<String, String>,
+    file: &File,
+    span: Span,
+    diags: &mut Vec<Diagnostic>,
+) {
+    // Detect SPARQL queries: after stripping PREFIX/BASE prologue, starts with SELECT or ASK.
+    if is_sparql_query(iri) {
+        check_sparql_syntax(iri, "classifies", file, span, prefix_map, diags);
+        return;
+    }
+
+    // Manchester / IRI form: extract all angle-bracketed IRIs and validate each.
+    let bracketed_iris = extract_angle_iris(iri);
+    if !bracketed_iris.is_empty() {
+        for full_iri in bracketed_iris {
+            validate_iri_as_owl_class(&full_iri, store, file, span, diags);
+        }
+        return;
+    }
+
+    // No angle-bracketed IRIs — fall back to existing prefix / plain-name resolution.
+    check_classifies_plain_iri(iri, store, prefix_map, file, span, diags);
+}
+
+/// Returns true if `s` looks like a SPARQL query (SELECT or ASK after prologue).
+fn is_sparql_query(s: &str) -> bool {
+    let after_prologue = strip_sparql_prologue(s);
+    let trimmed = after_prologue.trim().to_uppercase();
+    trimmed.starts_with("SELECT ") || trimmed.starts_with("ASK ")
+}
+
+/// Strip SPARQL PREFIX/BASE declarations and blank/comment lines from the
+/// beginning of a query string, returning the remainder starting at the
+/// first substantive line.
+fn strip_sparql_prologue(s: &str) -> &str {
+    let mut byte_pos = 0;
+    for line in s.lines() {
+        let trimmed = line.trim();
+        let upper = trimmed.to_uppercase();
+        if upper.starts_with("PREFIX ") || upper.starts_with("BASE ") || trimmed.starts_with('#') || trimmed.is_empty() {
+            byte_pos += line.len() + 1; // +1 for the newline
+        } else {
+            break;
+        }
+    }
+    if byte_pos >= s.len() { s } else { &s[byte_pos..] }
+}
+
+/// Extract all `<IRI>` segments from a Manchester-style expression, returning
+/// just the bare IRI strings (without angle brackets).
+fn extract_angle_iris(s: &str) -> Vec<String> {
+    let mut iris = Vec::new();
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'<' {
+            let start = i + 1;
+            i += 1;
+            while i < bytes.len() && bytes[i] != b'>' {
+                i += 1;
+            }
+            if i < bytes.len() {
+                iris.push(s[start..i].to_owned());
+            }
+        }
+        i += 1;
+    }
+    iris
+}
+
+/// Resolve a plain (non-angle-bracketed) IRI using prefix-map or local name.
+fn check_classifies_plain_iri(
+    iri: &str,
+    store: &SparqlStore,
+    prefix_map: &HashMap<String, String>,
+    file: &File,
+    span: Span,
+    diags: &mut Vec<Diagnostic>,
+) {
+    // Already a full IRI in angle brackets: `<http://...>`
+    if iri.starts_with('<') {
+        let full = iri.trim_matches(|c| c == '<' || c == '>');
+        validate_iri_as_owl_class(full, store, file, span, diags);
+        return;
+    }
+
+    // Prefixed name: `domain:Sensor`
+    if let Some(colon_pos) = iri.find(':') {
+        let prefix = &iri[..colon_pos];
+        let local  = &iri[colon_pos + 1..];
+        if let Some(base) = prefix_map.get(prefix) {
+            let full = format!("{base}{local}");
+            validate_iri_as_owl_class(&full, store, file, span, diags);
+        } else {
+            diags.push(
+                Diagnostic::warning(
+                    DiagnosticCode::UnknownPrefix,
+                    format!(
+                        "unknown prefix `{prefix}:` in `classifies` annotation \
+                         — add `--prefix {prefix}=<IRI>` or `[prefixes]` in smol.toml"
+                    ),
+                )
+                    .with_file(&file.path)
+                    .with_span(span),
+            );
+        }
+        return;
+    }
+
+    // Plain local name — validate directly.
+    validate_iri_as_owl_class(iri, store, file, span, diags);
+}
+
+/// Issue an error if `iri` is not declared as `owl:Class` in the store.
+fn validate_iri_as_owl_class(
+    iri: &str,
+    store: &SparqlStore,
+    file: &File,
+    span: Span,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let query = format!(
+        "ASK {{ <{iri}> a <http://www.w3.org/2002/07/owl#Class> }}"
+    );
+    if let Ok(false) = store.execute_ask(&query) {
+        diags.push(
+            Diagnostic::error(
+                DiagnosticCode::UnknownOntologyClass,
+                format!("IRI `{iri}` is not declared as owl:Class in the ontology"),
+            )
+                .with_file(&file.path)
+                .with_span(span),
+        );
+    }
+}
+
+/// Validate SPARQL syntax by running the query against an empty store.
+/// Prepends `prefix_map` entries so abbreviated names in queries resolve.
+fn check_sparql_syntax(
+    sparql: &str,
+    context: &str,
+    file: &File,
+    span: Span,
+    prefix_map: &HashMap<String, String>,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let normalised = replace_smol_placeholders(sparql);
+    let preamble = build_sparql_preamble(prefix_map);
+    let with_prefixes = format!("{preamble}{normalised}");
+    let Ok(test_store) = with_suppressed_output(SparqlStore::new) else {
+        return;
+    };
+    if let Err(e) = test_store.execute_select(&with_prefixes) {
+        diags.push(
+            Diagnostic::error(
+                DiagnosticCode::SparqlSyntaxError,
+                format!("{context} SPARQL syntax error: {e}"),
+            )
+                .with_file(&file.path)
+                .with_span(span),
+        );
+    }
+}
+
+/// Validate `retrieves` SPARQL: must be a syntactically-valid SELECT query.
+fn check_retrieves_sparql(
+    sparql: &str,
+    file: &File,
+    span: Span,
+    prefix_map: &HashMap<String, String>,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let normalised = replace_smol_placeholders(sparql);
+
+    // Enforce SELECT.
+    if !is_select_query(&normalised) {
+        diags.push(
+            Diagnostic::error(
+                DiagnosticCode::RetrievesNotSelect,
+                "retrieves must be a SELECT SPARQL query".to_owned(),
+            )
+                .with_file(&file.path)
+                .with_span(span),
+        );
+        return;
+    }
+
+    let preamble = build_sparql_preamble(prefix_map);
+    let with_prefixes = format!("{preamble}{normalised}");
+    let Ok(test_store) = with_suppressed_output(SparqlStore::new) else {
+        return;
+    };
+    if let Err(e) = test_store.execute_select(&with_prefixes) {
+        diags.push(
+            Diagnostic::error(
+                DiagnosticCode::SparqlSyntaxError,
+                format!("retrieves SPARQL syntax error: {e}"),
+            )
+                .with_file(&file.path)
+                .with_span(span),
+        );
+    }
+}
+
+/// Returns true if `s` (with placeholders already replaced) is a SELECT query,
+/// after stripping any PREFIX/BASE prologue.
+fn is_select_query(s: &str) -> bool {
+    let after_prologue = strip_sparql_prologue(s);
+    after_prologue.trim().to_uppercase().starts_with("SELECT ")
+}
+
+/// Validate `links` Turtle triples by wrapping with a blank-node subject,
+/// prepending prefix declarations, and parsing as Turtle.
+fn check_links(
+    links: &[smol_syntax::ast::LinksAnnotation],
+    prefix_map: &HashMap<String, String>,
+    file: &File,
+    diags: &mut Vec<Diagnostic>,
+) {
+    for link in links {
+        let normalised = replace_smol_placeholders(&link.turtle);
+        // Ensure the fragment ends with a dot so Turtle property lists terminate.
+        let terminated = if normalised.trim_end().ends_with('.') {
+            normalised
+        } else {
+            format!("{normalised} .")
+        };
+        let preamble = build_sparql_preamble(prefix_map);
+        let wrapped = format!("{preamble}\n[] {terminated}");
+
+        let Ok(mut test_store) = with_suppressed_output(SparqlStore::new) else {
+            continue;
+        };
+        if let Err(e) = with_suppressed_output(|| test_store.load_turtle(&wrapped)) {
+            diags.push(
+                Diagnostic::error(
+                    DiagnosticCode::LinkTurtleInvalid,
+                    format!("links Turtle syntax error: {e}"),
+                )
+                    .with_file(&file.path)
+                    .with_span(link.span),
+            );
+        }
+    }
+}
+
+/// Build a SPARQL preamble string with standard prefixes + caller-supplied map.
+fn build_sparql_preamble(prefix_map: &HashMap<String, String>) -> String {
+    let mut preamble = String::from(
+        "PREFIX prog:   <https://www.smolang.org/prog/>\n\
+         PREFIX rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n\
+         PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>\n\
+         PREFIX owl:    <http://www.w3.org/2002/07/owl#>\n\
+         PREFIX xsd:    <http://www.w3.org/2001/XMLSchema#>\n\
+         PREFIX smol:   <https://www.smolang.org/smol/>\n\
+         PREFIX run:    <https://www.smolang.org/run/>\n\
+          PREFIX domain: <http://example.org/domain/>\n",
+    );
+    for (name, iri) in prefix_map {
+        let skip = matches!(
+                name.as_str(),
+                "prog" | "rdf" | "rdfs" | "owl" | "xsd" | "smol" | "run" | "domain"
+            );
+        if !skip {
+            let _ = writeln!(preamble, "PREFIX {name}: <{iri}>");
+        }
+    }
+    preamble
+}
+
+/// Replace SMOL argument placeholders (`%1`, `%2`, …, `%N`) with SPARQL dummy
+/// literals so the query can be parsed.
+fn replace_smol_placeholders(sparql: &str) -> String {
+    let mut result = sparql.to_owned();
+    // Replace named placeholders (%word) and positional (%N).
+    let re_pos   = regex_lite::Regex::new(r"%(\d+)").unwrap();
+    let re_named = regex_lite::Regex::new(r"%(\w+)").unwrap();
+    result = re_pos  .replace_all(&result, r#""__smol_arg__""#).into_owned();
+    result = re_named.replace_all(&result, r#""__smol_arg__""#).into_owned();
+    result
+}
+
+// Walk AST looking for Construct/Access/Retrieves expressions
+fn check_method_sparql(
+    stmts: &[smol_syntax::ast::Stmt],
+    file: &File,
+    prefix_map: &HashMap<String, String>,
+    diags: &mut Vec<Diagnostic>,
+) {
+    check_stmts_sparql(stmts, file, prefix_map, diags);
+}
+
+#[allow(clippy::match_same_arms)]
+fn check_stmts_sparql(
+    stmts: &[smol_syntax::ast::Stmt],
+    file: &File,
+    prefix_map: &HashMap<String, String>,
+    diags: &mut Vec<Diagnostic>,
+) {
+    use smol_syntax::ast::Stmt;
+    for stmt in stmts {
+        #[allow(clippy::match_same_arms)]
+        match stmt {
+            Stmt::VarDecl { init, .. }     => check_expr_sparql(init, file, prefix_map, diags),
+            Stmt::Assign  { rhs, lhs, .. } => {
+                check_expr_sparql(lhs, file, prefix_map, diags);
+                check_expr_sparql(rhs, file, prefix_map, diags);
+            }
+            Stmt::Expr    { expr, .. }     => check_expr_sparql(expr, file, prefix_map, diags),
+            Stmt::Return  { value, .. }    => {
+                if let Some(e) = value { check_expr_sparql(e, file, prefix_map, diags); }
+            }
+            Stmt::If      { cond, then_body, else_body, .. } => {
+                check_expr_sparql(cond, file, prefix_map, diags);
+                check_stmts_sparql(then_body, file, prefix_map, diags);
+                check_stmts_sparql(else_body, file, prefix_map, diags);
+            }
+            Stmt::While   { cond, body, .. } => {
+                check_expr_sparql(cond, file, prefix_map, diags);
+                check_stmts_sparql(body, file, prefix_map, diags);
+            }
+            Stmt::Print { value, .. }
+            | Stmt::Destroy { value, .. }
+            | Stmt::Adapt { expr: value, .. } => {
+                check_expr_sparql(value, file, prefix_map, diags);
+            }
+            Stmt::Skip { .. } | Stmt::Breakpoint { .. } => {}
+        }
+    }
+}
+
+#[allow(clippy::match_same_arms)]
+fn check_expr_sparql(
+    expr: &smol_syntax::ast::Expr,
+    file: &File,
+    prefix_map: &HashMap<String, String>,
+    diags: &mut Vec<Diagnostic>,
+) {
+    use smol_syntax::ast::Expr;
+    match expr {
+        Expr::Construct { sparql, args, span } => {
+            check_sparql_syntax(sparql, "construct", file, *span, prefix_map, diags);
+            for arg in args { check_expr_sparql(arg, file, prefix_map, diags); }
+        }
+        Expr::Access { connector, args, .. } => {
+            // access() accepts non-SPARQL query languages (e.g. InfluxDB Flux),
+            // so the query string is intentionally not validated as SPARQL.
+            if let Some(c) = connector { check_expr_sparql(c, file, prefix_map, diags); }
+            for arg in args { check_expr_sparql(arg, file, prefix_map, diags); }
+        }
+        Expr::MethodCall { receiver, args, .. } => {
+            check_expr_sparql(receiver, file, prefix_map, diags);
+            for a in args { check_expr_sparql(a, file, prefix_map, diags); }
+        }
+        Expr::BinOp { left, right, .. } => {
+            check_expr_sparql(left,  file, prefix_map, diags);
+            check_expr_sparql(right, file, prefix_map, diags);
+        }
+        Expr::UnaryOp { expr: inner, .. }   => check_expr_sparql(inner, file, prefix_map, diags),
+        Expr::New      { args, .. }          => { for a in args { check_expr_sparql(a, file, prefix_map, diags); } }
+        Expr::Field    { receiver, .. }      => check_expr_sparql(receiver, file, prefix_map, diags),
+        Expr::Classify { expr: inner, .. }   => check_expr_sparql(inner, file, prefix_map, diags),
+        Expr::Simulate { args, .. }          => { for a in args { check_expr_sparql(a, file, prefix_map, diags); } }
+        Expr::Port     { receiver, .. }      => check_expr_sparql(receiver, file, prefix_map, diags),
+        Expr::Super    { args, .. }          => { for a in args { check_expr_sparql(a, file, prefix_map, diags); } }
+        // Member / Validate / literal / variable expressions: no SPARQL to check.
+        _ => {}
+    }
+}
+
+// regex_lite helper (small inline regex, avoids pulling in full `regex`)
+mod regex_lite {
+    /// Trivial hand-rolled placeholder substitution without a regex crate.
+    #[allow(dead_code)]
+    pub struct Regex(String);
+
+    impl Regex {
+        #[allow(clippy::unnecessary_wraps)]
+        pub fn new(pattern: &str) -> Result<Self, ()> {
+            Ok(Self(pattern.to_owned()))
+        }
+
+        /// Replace `%N` (digits) or `%word` occurrences with `replacement`.
+        #[allow(clippy::unused_self)]
+        pub fn replace_all<'a>(&self, text: &'a str, replacement: &str) -> std::borrow::Cow<'a, str> {
+            // Simple character-scan replacement for %N and %word patterns.
+            let mut result = String::with_capacity(text.len());
+            let bytes = text.as_bytes();
+            let mut i = 0;
+            while i < bytes.len() {
+                if bytes[i] == b'%' && i + 1 < bytes.len() {
+                    let rest = &text[i + 1..];
+                    let end = rest
+                        .find(|c: char| !c.is_alphanumeric() && c != '_')
+                        .unwrap_or(rest.len());
+                    if end > 0 {
+                        result.push_str(replacement);
+                        i += 1 + end;
+                        continue;
+                    }
+                }
+                result.push(bytes[i] as char);
+                i += 1;
+            }
+            std::borrow::Cow::Owned(result)
+        }
+    }
+}
