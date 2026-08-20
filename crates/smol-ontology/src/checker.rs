@@ -215,3 +215,59 @@ pub fn check_ontology(
 
     diags
 }
+
+/// Build the merged prefix map: extra > ttl-extracted > built-ins.
+fn build_prefix_map(
+    extra: &HashMap<String, String>,
+    ttl: &HashMap<String, String>,
+) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    // Built-ins (lowest priority)
+    map.insert("prog".into(),  "https://www.smolang.org/prog/".into());
+    map.insert("rdf".into(),   "http://www.w3.org/1999/02/22-rdf-syntax-ns#".into());
+    map.insert("rdfs".into(),  "http://www.w3.org/2000/01/rdf-schema#".into());
+    map.insert("owl".into(),   "http://www.w3.org/2002/07/owl#".into());
+    map.insert("xsd".into(),   "http://www.w3.org/2001/XMLSchema#".into());
+    map.insert("smol".into(),  "https://www.smolang.org/smol/".into());
+    map.insert("run".into(),   "https://www.smolang.org/run/".into());
+    map.insert("domain".into(), "http://example.org/domain/".into());
+    // TTL-extracted (medium priority)
+    for (k, v) in ttl {
+        map.insert(k.clone(), v.clone());
+    }
+    // Caller-supplied (highest priority)
+    for (k, v) in extra {
+        map.insert(k.clone(), v.clone());
+    }
+    map
+}
+
+/// Extract `@prefix name: <IRI> .` declarations from a Turtle string.
+fn extract_ttl_prefixes(ttl: &str) -> HashMap<String, String> {
+    let mut out = HashMap::new();
+    for line in ttl.lines() {
+        let trimmed = line.trim();
+        // Handle both `@prefix` and SPARQL-style `PREFIX` declarations.
+        let rest = if let Some(r) = trimmed.strip_prefix("@prefix") {
+            r
+        } else if let Some(_r) = trimmed.to_lowercase().strip_prefix("prefix") {
+            // SPARQL BASE / PREFIX blocks in TTL are not standard, but be lenient.
+            &trimmed[6..]
+        } else {
+            continue;
+        };
+        let rest = rest.trim();
+        // rest: `name: <IRI> .`  or  `name: <IRI>`
+        if let Some(colon_pos) = rest.find(':') {
+            let prefix_name = rest[..colon_pos].trim();
+            let after_colon = rest[colon_pos + 1..].trim();
+            if let Some(iri_start) = after_colon.find('<') {
+                if let Some(iri_end) = after_colon[iri_start..].find('>') {
+                    let iri = &after_colon[iri_start + 1..iri_start + iri_end];
+                    out.insert(prefix_name.to_owned(), iri.to_owned());
+                }
+            }
+        }
+    }
+    out
+}
