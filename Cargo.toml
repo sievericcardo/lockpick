@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/smol-checker",
+    "crates/smol-model",
     "crates/smol-ontology",
     "crates/smol-parser",
     "crates/smol-syntax"
@@ -18,6 +19,7 @@ smol-syntax   = { path = "crates/smol-syntax" }
 smol-parser   = { path = "crates/smol-parser" }
 smol-ontology = { path = "crates/smol-ontology" }
 smol-checker  = { path = "crates/smol-checker" }
+smol-model  = { path = "crates/smol-model" }
 
 # OWL reasoning (local sibling)
 oxidowl = { git = "https://github.com/sievericcardo/oxidowl", branch = "enhance-owl-api", features = ["sparql-store", "parallel", "cache"] }

@@ -2639,6 +2639,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "smol-model"
+version = "1.0.0"
+dependencies = [
+ "smol-parser",
+ "smol-syntax",
+]
+
+[[package]]
 name = "smol-ontology"
 version = "1.0.0"
 dependencies = [
