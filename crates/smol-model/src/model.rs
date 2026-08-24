@@ -130,3 +130,34 @@ pub fn build_class_map(files: &[File]) -> ClassMap {
     }
     map
 }
+
+/// A reclassifiable state: a class that carries a `classifies` annotation.
+#[derive(Clone, Debug)]
+pub struct StateClass {
+    pub name: String,
+    pub iri: String,
+    /// The entity type being classified (from a `context` field).
+    pub root: String,
+    pub file: String,
+    pub span: Span,
+}
+
+/// A classification root: one entity type and states it can be classified into.
+#[derive(Clone, Debug)]
+pub struct Root {
+    pub entity: String,
+    pub states: Vec<String>,
+    /// True when some `adapt`/`classify` site targets this entity.
+    pub adapted: bool,
+}
+
+/// THe extracted classification model
+#[derive(Clone, Debug)]
+pub struct Extracted {
+    /// Every `classifies` state class (including orphans with no root).
+    pub states: Vec<StateClass>,
+    /// Classification roots (one per entity type that has state classes).
+    pub roots: Vec<Root>,
+    /// Maps a state-class name to its root entity.
+    pub state_roots: HashMap<String, String>, // state class -> root entity
+}
