@@ -255,6 +255,7 @@ pub fn context_holders(map: &ClassMap, entity: &str) -> Vec<String> {
 }
 
 /// A simplified resolved type used only for model-level reasoning.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResolvedType {
     /// A named (user-defined) class type.
     Class(String),
@@ -379,4 +380,17 @@ impl<'a> Resolver<'a> {
 
         None
     }
+}
+
+/// An explicit-state transition system (Kripke-style) for CTL model checking.
+#[derive(Debug, Clone)]
+pub struct TransitionSystem {
+    /// Number of states
+    pub n: usize,
+    /// The initial states (one per classification root, "unclassified")
+    pub initials: Vec<usize>,
+    /// Successor lists,
+    pub successor: Vec<Vec<usize>>,
+    /// Name of each state (`""` for unclassified roots)
+    pub names: Vec<String>,
 }
