@@ -129,6 +129,7 @@ method_def = {
     ~ type_expr
     ~ name
     ~ "(" ~ param_list? ~ ")"
+    ~ (adapts_kw ~ name_list)?
     ~ (statement_list ~ end_kw)?
 }
 
@@ -141,7 +142,7 @@ param       = { type_expr ~ name }
 
 // Field declarations
 field_decl_list = { field_decl ~ ("," ~ field_decl)* }
-field_decl      = { (hidden_kw | domain_kw)? ~ type_expr ~ name }
+field_decl      = { (hidden_kw | domain_kw | context_kw)? ~ type_expr ~ name }
 
 field_decl_init_list = { field_decl_init+ }
 field_decl_init      = { (hidden_kw | domain_kw)? ~ type_expr ~ name ~ "=" ~ expression ~ ";" }
@@ -192,7 +193,20 @@ statement = {
 adapt_stmt = { adapt_kw ~ "(" ~ expression ~ ")" ~ ";" }
 
 // `(Type target =)? classify(expr);`
-classify_stmt = { (type_expr ~ !("="))? ~ (expression ~ "=")? ~ classify_kw ~ "(" ~ expression ~ ")" ~ ";" }
+classify_stmt = {
+    classify_assignment?
+    ~ classify_kw
+    ~ "(" ~ expression ~ ")"
+    ~ ";"
+}
+
+classify_assignment = {
+    type_expr? ~ assignment_target ~ "="
+}
+
+assignment_target = {
+    name_expr ~ (field_access_postfix | port_access)*
+}
 
 skip_kw       = @{ "skip"       ~ !lod_ }
 return_kw     = @{ "return"     ~ !lod_ }
@@ -318,7 +332,7 @@ single_stmt   = _{
     skip_stmt | return_stmt | breakpoint_stmt | output_stmt | destroy_stmt
     | tick_stmt | super_stmt | if_stmt | while_stmt
     | sparql_stmt | construct_stmt | owl_stmt | validate_stmt | simulate_stmt
-    | create_stmt | call_stmt | assign_stmt
+    | create_stmt | call_stmt | assign_stmt | adapt_stmt | classify_stmt
 }
 
 // Access queries
@@ -395,3 +409,4 @@ eq_op  = { "==" | "!=" }
 cmp_op = { "<=" | ">=" | "<" | ">" }
 add_op = { "++" | "+" | "-" }
 mul_op = { "*" | "/" | "%" }
+not_op = { "!" }
