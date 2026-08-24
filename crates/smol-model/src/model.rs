@@ -264,6 +264,8 @@ pub enum ResolvedType {
     Fmo(Vec<String>),
     /// A primitive type: `Int`, `Double`, `String`, `Boolean`, or `Unit`.
     Primitive(String),
+    /// An unknown type (e.g., a variable that cannot be resolved).
+    Unknown,
 }
 
 /// Convert an AST `Type` into a simplified resolved type.
@@ -281,5 +283,100 @@ pub fn resolve_type(ty: &Type) -> ResolvedType {
         Type::Int | Type::Double | Type::String | Type::Boolean | Type::Unit => {
             ResolvedType::Primitive(format!("{:?}", ty))
         }
+        _ => ResolvedType::Unknown,
+    }
+}
+
+/// A lexical scope for resolving variable / field types inside a method body.
+pub struct Resolver<'a> {
+    pub map: &'a ClassMap,
+    pub local_vars: HashMap<String, ResolvedType>,
+    pub this: String,
+}
+
+impl<'a> Resolver<'a> {
+    #[must_use]
+    pub fn new(map: &'a ClassMap, this: &str) -> Self {
+        Self {
+            map,
+            local_vars: HashMap::new(),
+            this: this.to_owned(),
+        }
+    }
+
+    /// Resolve the (simplified) type of an expression, if possible.
+    #[must_use]
+    pub fn resolve_expression(&self, expression: &Expr) -> ResolvedType {
+        match expression {
+            Expr::Var(name, _) => {
+                if name == "this" {
+                    ResolvedType::Class(self.this.clone())
+                } else if let Some(resolved_type) = self.local_vars.get(name) {
+                    resolved_type.clone()
+                } else if let Some(f) = self.map.field(&self.this, name) {
+                    resolve_type(&f.ty)
+                } else {
+                    ResolvedType::Unknown
+                }
+            }
+            Expr::Field { receiver, field, .. } => {
+                let receiver_type = self.resolve_expression(receiver);
+                match receiver_type {
+                    ResolvedType::List(inner) => match field.as_str() {
+                        "content" => *inner,
+                        "next" => ResolvedType::List(inner),
+                        _ => ResolvedType::Unknown,
+                    }
+                    ResolvedType::Class(class_name) => self
+                        .map
+                        .field(&class_name, field)
+                        .map_or(ResolvedType::Unknown, |f| {
+                            resolve_type(&f.ty)
+                        }),
+                    _ => ResolvedType::Unknown,
+                }
+            }
+            Expr::New { class, .. } => ResolvedType::Class(class.clone()),
+            Expr::Classify { expr: inner, .. } => self.resolve_expression(inner),
+            Expr::BuiltinCall { .. } | Expr::Construct { .. } | Expr::Access { .. } => ResolvedType::Unknown,
+            Expr::IntLit(_, _)
+            | Expr::FloatLit(_, _)
+            | Expr::StrLit(_, _)
+            | Expr::BoolLit(_, _) => ResolvedType::Primitive(format!("{:?}", expression)),
+            Expr::Null(_)
+            | Expr::BinOp { .. }
+            | Expr::UnaryOp { .. }
+            | Expr::Member { .. }
+            | Expr::Validate { .. }
+            | Expr::Simulate { .. }
+            | Expr::Port { .. }
+            | Expr::Super { .. } => ResolvedType::Unknown,
+            _ => ResolvedType::Unknown
+        }
+    }
+
+    /// Return the classification root for a resolved expression, if known.
+    #[must_use]
+    pub fn root_of(&self, resolved_type: &ResolvedType, state_roots: &HashMap<String, String>) -> Option<String> {
+        let ResolvedType::Class(name) = resolved_type else {
+            return None;
+        };
+        if let Some(root) = state_roots.get(name) {
+            return Some(root.clone());
+        }
+        for ancestor in self.map.ancestors(name) {
+            if let Some(root) = state_roots.get(&ancestor) {
+                return Some(root.clone());
+            }
+            if let Some(entity) = self.map.context_entity(&ancestor) {
+                return Some(entity);
+            }
+        }
+
+        if state_roots.values().any(|r| r == name) {
+            return Some(name.clone());
+        }
+
+        None
     }
 }
