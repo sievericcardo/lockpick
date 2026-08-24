@@ -270,6 +270,7 @@ pub enum ResolvedType {
 }
 
 /// Convert an AST `Type` into a simplified resolved type.
+#[allow(unreachable_patterns)]
 #[must_use]
 pub fn resolve_type(ty: &Type) -> ResolvedType {
     match ty {
