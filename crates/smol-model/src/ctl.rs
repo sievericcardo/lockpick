@@ -301,3 +301,44 @@ pub fn parse_prop(input: &str) -> Result<Property, String> {
     }
     Ok(prop)
 }
+
+/// Lower a [`Property`] into a [`citreelo`] [`CTLFormula`].
+fn lower(prop: &Property) -> CTLFormula<Ap> {
+    use CTLFormula as Formula;
+    match prop {
+        Property::True => Formula::Leaf(CTLFormulaLeaf::True),
+        Property::False => Formula::Leaf(CTLFormulaLeaf::False),
+        Property::Atom(a) => Formula::Leaf(CTLFormulaLeaf::AtomicProp(Ap(a.clone()))),
+        Property::Not(p) => Formula::Unary(UnaryCTLOperator::Not, Box::new(lower(p))),
+        Property::And(a, b) => {
+            Formula::Binary(BinaryCTLOperator::And, Box::new(lower(a)), Box::new(lower(b)))
+        }
+        Property::Or(a, b) => {
+            Formula::Binary(BinaryCTLOperator::Or, Box::new(lower(a)), Box::new(lower(b)))
+        }
+        Property::Implies(a, b) => {
+            Formula::Binary(BinaryCTLOperator::Imply, Box::new(lower(a)), Box::new(lower(b)))
+        }
+        Property::Ax(p) => Formula::Unary(UnaryCTLOperator::AX, Box::new(lower(p))),
+        Property::Ex(p) => Formula::Unary(UnaryCTLOperator::EX, Box::new(lower(p))),
+        Property::Ag(p) => Formula::Unary(UnaryCTLOperator::AG, Box::new(lower(p))),
+        Property::Ef(p) => Formula::Unary(UnaryCTLOperator::EF, Box::new(lower(p))),
+        Property::Af(p) => Formula::Unary(UnaryCTLOperator::AF, Box::new(lower(p))),
+        Property::Eg(p) => Formula::Unary(UnaryCTLOperator::EG, Box::new(lower(p))),
+        Property::Au(a, b) => {
+            Formula::Binary(BinaryCTLOperator::AU, Box::new(lower(a)), Box::new(lower(b)))
+        }
+        Property::Eu(a, b) => {
+            Formula::Binary(BinaryCTLOperator::EU, Box::new(lower(a)), Box::new(lower(b)))
+        }
+    }
+}
+
+/// Evaluate `prop` on every state, returning a satisfaction bitvector.
+#[must_use]
+pub fn check(ts: &TransitionSystem, prop: &Property) -> Vec<bool> {
+    let kripke = to_kripke(ts);
+    let checker = CtlModelChecker::new(&kripke);
+    let sat = checker.get_sat_set(&lower(prop));
+    (0..ts.n).map(|i| sat.contains(&i)).collect()
+}
