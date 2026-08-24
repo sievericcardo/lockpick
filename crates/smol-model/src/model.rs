@@ -236,3 +236,20 @@ pub fn extract(map: &ClassMap) -> Extracted {
         state_roots,
     }
 }
+
+/// Return the names of all classes that *directly* declare a `context` field of
+/// type `entity`.  These are the state-holder classes for that entity.
+#[must_use]
+pub fn context_hodels(map: &ClassMap, entity: &str) -> Vec<String> {
+    let mut result = Vec::new();
+    for (name, entry) in map.iter() {
+        let has = entry.decl.fields.iter().any(|f| {
+            f.modifier == FieldModifier::Context
+                && matches!(&f.ty, Type::Named(n) if n == entity)
+        });
+        if has {
+            result.push(name.clone());
+        }
+    }
+    result
+}
