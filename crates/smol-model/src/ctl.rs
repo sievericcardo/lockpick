@@ -138,3 +138,166 @@ fn tokenize(input: &str) -> Result<Vec<Token>, String> {
     }
     Ok(toks)
 }
+
+struct Parser {
+    toks: Vec<Token>,
+    pos: usize,
+}
+
+impl Parser {
+    fn peek(&self) -> Option<&Token> {
+        self.toks.get(self.pos)
+    }
+
+    fn bump(&mut self) -> Option<Token> {
+        let t = self.toks.get(self.pos).cloned();
+        if t.is_some() {
+            self.pos += 1;
+        }
+        t
+    }
+
+    fn expect(&mut self, tok: Token) -> Result<(), String> {
+        if self.peek() == Some(&tok) {
+            self.bump();
+            Ok(())
+        } else {
+            Err(format!("expected {tok:?}, got {:?}", self.peek()))
+        }
+    }
+
+    fn parse_expr(&mut self) -> Result<Property, String> {
+        self.parse_impl()
+    }
+
+    fn parse_impl(&mut self) -> Result<Property, String> {
+        let mut left = self.parse_or()?;
+        while self.peek() == Some(&Token::Implies) {
+            self.bump();
+            let right = self.parse_or()?;
+            left = Property::Implies(Box::new(left), Box::new(right));
+        }
+        Ok(left)
+    }
+
+    fn parse_or(&mut self) -> Result<Property, String> {
+        let mut left = self.parse_and()?;
+        while self.peek() == Some(&Token::Or) {
+            self.bump();
+            let right = self.parse_and()?;
+            left = Property::Or(Box::new(left), Box::new(right));
+        }
+        Ok(left)
+    }
+
+    fn parse_and(&mut self) -> Result<Property, String> {
+        let mut left = self.parse_unary()?;
+        while self.peek() == Some(&Token::And) {
+            self.bump();
+            let right = self.parse_unary()?;
+            left = Property::And(Box::new(left), Box::new(right));
+        }
+        Ok(left)
+    }
+
+    fn parse_unary(&mut self) -> Result<Property, String> {
+        match self.peek().cloned() {
+            Some(Token::Not) => {
+                self.bump();
+                Ok(Property::Not(Box::new(self.parse_unary()?)))
+            }
+            Some(Token::Ident(ref kw)) => {
+                let kw = kw.clone();
+                // `A`/`E` are path quantifiers only when followed by `[`.
+                let next_is_bracket =
+                    matches!(self.toks.get(self.pos + 1), Some(Token::LBracket));
+                match kw.as_str() {
+                    "AX" => {
+                        self.bump();
+                        Ok(Property::Ax(Box::new(self.parse_unary()?)))
+                    }
+                    "EX" => {
+                        self.bump();
+                        Ok(Property::Ex(Box::new(self.parse_unary()?)))
+                    }
+                    "AG" => {
+                        self.bump();
+                        Ok(Property::Ag(Box::new(self.parse_unary()?)))
+                    }
+                    "EF" => {
+                        self.bump();
+                        Ok(Property::Ef(Box::new(self.parse_unary()?)))
+                    }
+                    "AF" => {
+                        self.bump();
+                        Ok(Property::Af(Box::new(self.parse_unary()?)))
+                    }
+                    "EG" => {
+                        self.bump();
+                        Ok(Property::Eg(Box::new(self.parse_unary()?)))
+                    }
+                    "A" if next_is_bracket => {
+                        self.bump();
+                        self.expect(Token::LBracket)?;
+                        let l = self.parse_expr()?;
+                        self.eat_until_ident()?;
+                        let r = self.parse_expr()?;
+                        self.expect(Token::RBracket)?;
+                        Ok(Property::Au(Box::new(l), Box::new(r)))
+                    }
+                    "E" if next_is_bracket => {
+                        self.bump();
+                        self.expect(Token::LBracket)?;
+                        let l = self.parse_expr()?;
+                        self.eat_until_ident()?;
+                        let r = self.parse_expr()?;
+                        self.expect(Token::RBracket)?;
+                        Ok(Property::Eu(Box::new(l), Box::new(r)))
+                    }
+                    _ => self.parse_primary(),
+                }
+            }
+            _ => self.parse_primary(),
+        }
+    }
+
+    fn eat_until_ident(&mut self) -> Result<(), String> {
+        // After parsing the left operand of an until, consume the `U` keyword.
+        match self.bump() {
+            Some(Token::Ident(u)) if u == "U" => Ok(()),
+            other => Err(format!("expected `U`, got {other:?}")),
+        }
+    }
+
+    fn parse_primary(&mut self) -> Result<Property, String> {
+        match self.bump() {
+            Some(Token::Ident(s)) if s == "true" => Ok(Property::True),
+            Some(Token::Ident(s)) if s == "false" => Ok(Property::False),
+            Some(Token::Ident(s)) => Ok(Property::Atom(s)),
+            Some(Token::LParen) => {
+                let e = self.parse_expr()?;
+                self.expect(Token::RParen)?;
+                Ok(e)
+            }
+            other => Err(format!("unexpected token {other:?}")),
+        }
+    }
+}
+
+/// Parse a CTL property string.
+///
+/// # Errors
+///
+/// Returns a message describing the parse failure.
+pub fn parse_prop(input: &str) -> Result<Property, String> {
+    let toks = tokenize(input)?;
+    let mut p = Parser { toks, pos: 0 };
+    let prop = p.parse_expr()?;
+    if p.pos != p.toks.len() {
+        return Err(format!(
+            "unexpected trailing tokens starting at `{:?}`",
+            p.peek()
+        ));
+    }
+    Ok(prop)
+}
