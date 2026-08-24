@@ -342,3 +342,110 @@ pub fn check(ts: &TransitionSystem, prop: &Property) -> Vec<bool> {
     let sat = checker.get_sat_set(&lower(prop));
     (0..ts.n).map(|i| sat.contains(&i)).collect()
 }
+
+/// Verify that `prop` holds in every initial state of `ts`.
+///
+/// Returns `Ok(())` if it holds, or `Err(message)` describing a counterexample.
+#[must_use]
+pub fn verify(ts: &TransitionSystem, prop: &Property) -> Result<(), String> {
+    let kripke = to_kripke(ts);
+    let checker = CtlModelChecker::new(&kripke);
+    let sat_of = |p: &Property| -> Vec<bool> {
+        let sat = checker.get_sat_set(&lower(p));
+        (0..ts.n).map(|i| sat.contains(&i)).collect()
+    };
+
+    let sat = sat_of(prop);
+    let bad_inits: Vec<usize> = ts
+        .initials
+        .iter()
+        .copied()
+        .filter(|&s| !sat[s])
+        .collect();
+    if bad_inits.is_empty() {
+        return Ok(());
+    }
+
+    // Produce a more informative counterexample where possible.
+    let reach = crate::model::reachable(ts);
+
+    let name_of = |idx: usize| -> String {
+        if ts.names[idx].is_empty() {
+            "<unclassified>".to_owned()
+        } else {
+            ts.names[idx].clone()
+        }
+    };
+
+    let msg = match prop {
+        Property::Ag(inner) => {
+            // A reachable state where the inner formula fails, preferring a
+            // named (classified) state over the unclassified initial state.
+            let inner_sat = sat_of(inner);
+            let witness = (0..ts.n)
+                .filter(|&s| reach.contains(&s) && !inner_sat[s] && !ts.names[s].is_empty())
+                .map(|s| name_of(s))
+                .next()
+                .or_else(|| {
+                    (0..ts.n)
+                        .find(|&s| reach.contains(&s) && !inner_sat[s])
+                        .map(|s| name_of(s))
+                });
+            match witness {
+                Some(w) => format!(
+                    "invariant AG {} is violated at state `{w}` (reachable)",
+                    inner
+                ),
+                None => format!("invariant AG {} is violated in the initial state", inner),
+            }
+        }
+        Property::Ef(inner) => {
+            let inner_sat = sat_of(inner);
+            let any = (0..ts.n).any(|s| reach.contains(&s) && inner_sat[s]);
+            if any {
+                format!("property EF {} unexpectedly failed", inner)
+            } else {
+                format!("no reachable state satisfies EF {}", inner)
+            }
+        }
+        Property::Af(inner) => {
+            let inner_sat = sat_of(inner);
+            let witness = (0..ts.n)
+                .filter(|&s| reach.contains(&s) && !inner_sat[s] && !ts.names[s].is_empty())
+                .map(|s| name_of(s))
+                .next()
+                .or_else(|| {
+                    (0..ts.n)
+                        .find(|&s| reach.contains(&s) && !inner_sat[s])
+                        .map(|s| name_of(s))
+                });
+            match witness {
+                Some(w) => format!(
+                    "from state `{w}`, AF {} may never hold (liveness)",
+                    inner
+                ),
+                None => format!("liveness AF {} is violated", inner),
+            }
+        }
+        Property::Ax(inner) => {
+            let inner_sat = sat_of(inner);
+            let witness = (0..ts.n)
+                .find(|&s| {
+                    reach.contains(&s)
+                        && ts.successors[s].iter().any(|&n| !inner_sat[n])
+                })
+                .map(|s| name_of(s));
+            match witness {
+                Some(w) => format!("at state `{w}`, AX {} is violated", inner),
+                None => format!("AX {} is violated", inner),
+            }
+        }
+        _ => format!(
+            "property {} fails in initial state `{}`",
+            prop,
+            name_of(bad_inits[0])
+        ),
+    };
+
+    Err(msg)
+}
