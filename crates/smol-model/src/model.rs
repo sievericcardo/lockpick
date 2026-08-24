@@ -161,3 +161,78 @@ pub struct Extracted {
     /// Maps a state-class name to its root entity.
     pub state_roots: HashMap<String, String>, // state class -> root entity
 }
+
+/// Determine the classification root (entity type) of a state class `name`.
+///
+/// Two patterns are supported:
+/// 1. *State-holder* pattern: `Healthy extends HealthState` where `HealthState`
+///    declares `context Plant` — the root is the context entity (`Plant`).
+/// 2. *Direct reclassification* pattern: `OperatingPump extends Pump` — the root
+///    is the nearest ancestor without its own `classifies` annotation (`Pump`).
+#[must_use]
+pub fn state_root(map: &ClassMap, name: &str) -> Option<String> {
+    // 1. A `context` field on an ancestor defines the root entity type.
+    if let Some(root) = map.context_entity(name) {
+        return Some(root);
+    }
+    // 2. Nearest ancestor without its own `classifies` annotation is the root.
+    for ancestor in map.ancestors(name) {
+        if ancestor == name {
+            continue;
+        }
+        let has_classifies: bool = map
+            .get(&ancestor)
+            .map_or(false, |e| e.decl.classifies.is_some());
+        if !has_classifies {
+            return Some(ancestor);
+        }
+    }
+    None
+}
+
+/// Collect all `classifies` state classes and group them by root entity.
+/// A state class whose root cannot be determined is kept in `states` with an
+/// empty `root` and flagged separately.
+#[must_use]
+pub fn extract(map: &ClassMap) -> Extracted {
+    let mut states = Vec::new();
+    let mut state_roots = HashMap::new();
+    let mut roots_map: HashMap<String, Root> = HashMap::new();
+
+    for (name, entry) in map.iter() {
+        let Some(annotation) = &entry.decl.classifies else {
+            continue;
+        };
+        let root = state_root(map, name);
+        let state = StateClass {
+            name: name.clone(),
+            iri: annotation.iri.clone(),
+            root: root.clone().unwrap_or_default(),
+            file: entry.file.clone(),
+            span: annotation.span,
+        };
+        if let Some(root) = root {
+            state_roots.insert(name.clone(), root.clone());
+            roots_map.entry(root.clone()).or_insert_with(|| Root {
+                entity: root.clone(),
+                states: Vec::new(),
+                adapted: false,
+            });
+            states.push(state);
+        }
+    }
+
+    for state in &states {
+        if !state.root.is_empty() {
+            if let Some(root) = roots_map.get_mut(&state.root) {
+                root.states.push(state.name.clone());
+            }
+        }
+    }
+
+    Extracted {
+        states,
+        roots: roots_map.into_values().collect(),
+        state_roots,
+    }
+}
