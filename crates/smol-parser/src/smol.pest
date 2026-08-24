@@ -92,7 +92,7 @@ fmu_in          = @{ "in"  ~ !lod_ }
 fmu_out         = @{ "out" ~ !lod_ }
 
 // Program entry point
-program = { SOI ~ class_def* ~ main_block ~ class_def* ~ EOI }
+program = { SOI ~ class_def* ~ main_block? ~ class_def* ~ EOI }
 
 main_kw    = @{ "main" ~ !lod_ }
 end_kw     = @{ "end"  ~ !lod_ }

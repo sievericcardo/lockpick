@@ -293,7 +293,12 @@ fn check_classifies_annotation(
     // Manchester / IRI form: extract all angle-bracketed IRIs and validate each.
     let bracketed_iris = extract_angle_iris(iri);
     if !bracketed_iris.is_empty() {
-        for full_iri in bracketed_iris {
+        for bare_iri in bracketed_iris {
+            let Some(full_iri) =
+                resolve_iri(&bare_iri, prefix_map, file, span, diags)
+            else {
+                continue;
+            };
             validate_iri_as_owl_class(&full_iri, store, file, span, diags);
         }
         return;
@@ -349,6 +354,52 @@ fn extract_angle_iris(s: &str) -> Vec<String> {
     iris
 }
 
+/// Resolve a plain or angle-bracketed IRI to its full form.
+///
+/// Handles three shapes:
+/// - `<http://…>` — already a full IRI (brackets stripped).
+/// - `prefix:Local` — expanded via `prefix_map`; emits an `UnknownPrefix`
+///   warning when the prefix is not known.
+/// - a bare local name — returned unchanged.
+///
+/// Returns `None` (after emitting a warning) when the prefix is unresolved.
+fn resolve_iri<'a>(
+    iri: &'a str,
+    prefix_map: &HashMap<String, String>,
+    file: &File,
+    span: Span,
+    diags: &mut Vec<Diagnostic>,
+) -> Option<String> {
+    // Already a full IRI in angle brackets: `<http://...>`
+    if iri.starts_with('<') {
+        return Some(iri.trim_matches(|c| c == '<' || c == '>').to_owned());
+    }
+
+    // Prefixed name: `domain:Sensor`
+    if let Some(colon_pos) = iri.find(':') {
+        let prefix = &iri[..colon_pos];
+        let local  = &iri[colon_pos + 1..];
+        if let Some(base) = prefix_map.get(prefix) {
+            return Some(format!("{base}{local}"));
+        }
+        diags.push(
+            Diagnostic::warning(
+                DiagnosticCode::UnknownPrefix,
+                format!(
+                    "unknown prefix `{prefix}:` in `classifies` annotation \
+                     — add `--prefix {prefix}=<IRI>` or `[prefixes]` in smol.toml"
+                ),
+            )
+                .with_file(&file.path)
+                .with_span(span),
+        );
+        return None;
+    }
+
+    // Plain local name.
+    Some(iri.to_owned())
+}
+
 /// Resolve a plain (non-angle-bracketed) IRI using prefix-map or local name.
 fn check_classifies_plain_iri(
     iri: &str,
@@ -358,38 +409,10 @@ fn check_classifies_plain_iri(
     span: Span,
     diags: &mut Vec<Diagnostic>,
 ) {
-    // Already a full IRI in angle brackets: `<http://...>`
-    if iri.starts_with('<') {
-        let full = iri.trim_matches(|c| c == '<' || c == '>');
-        validate_iri_as_owl_class(full, store, file, span, diags);
+    let Some(full) = resolve_iri(iri, prefix_map, file, span, diags) else {
         return;
-    }
-
-    // Prefixed name: `domain:Sensor`
-    if let Some(colon_pos) = iri.find(':') {
-        let prefix = &iri[..colon_pos];
-        let local  = &iri[colon_pos + 1..];
-        if let Some(base) = prefix_map.get(prefix) {
-            let full = format!("{base}{local}");
-            validate_iri_as_owl_class(&full, store, file, span, diags);
-        } else {
-            diags.push(
-                Diagnostic::warning(
-                    DiagnosticCode::UnknownPrefix,
-                    format!(
-                        "unknown prefix `{prefix}:` in `classifies` annotation \
-                         — add `--prefix {prefix}=<IRI>` or `[prefixes]` in smol.toml"
-                    ),
-                )
-                    .with_file(&file.path)
-                    .with_span(span),
-            );
-        }
-        return;
-    }
-
-    // Plain local name — validate directly.
-    validate_iri_as_owl_class(iri, store, file, span, diags);
+    };
+    validate_iri_as_owl_class(&full, store, file, span, diags);
 }
 
 /// Issue an error if `iri` is not declared as `owl:Class` in the store.

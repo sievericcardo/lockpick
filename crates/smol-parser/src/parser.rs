@@ -136,6 +136,24 @@ fn extract_type_name(ty: Type) -> String {
     }
 }
 
+/// Interpret the `Type` following `new` as `(class_name, generic_param?)`.
+/// `new List<BaseModel>(…)` yields `("List", Some(BaseModel))`.
+fn new_class_info(ty: Type) -> (String, Option<Box<Type>>) {
+    match ty {
+        Type::List(inner) => ("List".to_owned(), Some(inner)),
+        Type::ExplList(inner) => ("ExplList".to_owned(), Some(inner)),
+        Type::Generic(n, mut params) => {
+            let param = if params.is_empty() {
+                None
+            } else {
+                Some(Box::new(params.remove(0)))
+            };
+            (n, param)
+        }
+        other => (extract_type_name(other), None),
+    }
+}
+
 fn parse_name(pair: Pair<Rule>) -> String {
     pair.as_str().to_owned()
 }
@@ -156,7 +174,18 @@ fn parse_type_expr(pair: Pair<Rule>) -> Type {
                 .into_inner()
                 .next()
                 .expect("Simple type must have a name");
-            Type::Named(name_str.as_str().to_owned())
+            let name = name_str.as_str();
+            // Primitive types are capitalised in SMOL (`Int`, `String`, …), so
+            // they land here as `type_name`.  Normalise them to the dedicated
+            // AST variants so the type checker treats them as primitives.
+            match name {
+                "Int" => Type::Int,
+                "Double" => Type::Double,
+                "Boolean" => Type::Boolean,
+                "String" => Type::String,
+                "Unit" => Type::Unit,
+                _ => Type::Named(name.to_owned()),
+            }
         }
         Rule::generic_type => {
             let mut parts = inner.into_inner();
@@ -165,6 +194,16 @@ fn parse_type_expr(pair: Pair<Rule>) -> Type {
 
             let type_list = parts.next().expect("generic_type must have type_list");
             let type_params = parse_type_list(type_list);
+            // `List<T>` and `ExplList<T>` are first-class list types, not generic
+            // containers — normalise them so both the model resolver and the
+            // type checker can recognise their list semantics.
+            if type_params.len() == 1 {
+                match name.as_str() {
+                    "List"    => return Type::List(Box::new(type_params[0].clone())),
+                    "ExplList" => return Type::ExplList(Box::new(type_params[0].clone())),
+                    _ => {}
+                }
+            }
             Type::Generic(name, type_params)
         }
         Rule::fmu_type => parse_fmu_type(inner),
@@ -422,15 +461,11 @@ fn parse_param(pair: Pair<Rule>) -> Param {
 }
 
 fn parse_statement_list(pair: Pair<Rule>) -> Vec<Stmt> {
-    pair.into_inner()
-        .filter(|p| p.as_rule() == Rule::single_stmt)
-        .map(parse_statement)
-        .collect()
-}
-
-fn parse_statement(pair: Pair<Rule>) -> Stmt {
-    let inner = pair.into_inner().next().expect("statement must have inner");
-    parse_single_stmt(inner)
+    // `single_stmt` in the grammar is a *silent* rule (`_{ … }`), so its
+    // non-silent children (skip_stmt, if_stmt, while_stmt, …) are inlined
+    // directly under `statement_list`.  Mapping over every direct child (rather
+    // than filtering for `single_stmt`, which never appears) recovers the body.
+    pair.into_inner().map(parse_single_stmt).collect()
 }
 
 fn parse_single_stmt(pair: Pair<Rule>) -> Stmt {
@@ -552,22 +587,54 @@ fn parse_while_stmt(pair: Pair<Rule>) -> Stmt {
     Stmt::While { cond, body, span }
 }
 
-fn parse_assign_stmt(pair: Pair<Rule>) -> Stmt {
-    let span = span_from_pair(&pair);
-    let mut exprs = Vec::new();
-
-    for inner in pair.into_inner() {
-        if inner.as_rule() == Rule::expression {
-            exprs.push(parse_expression(inner));
+/// Build a declaration (`Type name = …`) when a leading type and a plain-name
+/// target are present, otherwise fall back to a plain assignment.
+///
+/// Declarations matter for the model checker: registering the declared type of
+/// local variables (e.g. `List<Bathroom> x = construct(…)`) lets the resolver
+/// recognise list-typed loop variables so checks like "while loop does not
+/// advance" can fire.
+fn decl_or_assign(span: Span, ty: Option<Type>, target: Expr, rhs: Expr) -> Stmt {
+    if let Some(ty) = ty {
+        if let Expr::Var(name, _) = &target {
+            return Stmt::VarDecl {
+                ty,
+                name: name.clone(),
+                init: rhs,
+                span,
+            };
         }
     }
+    Stmt::Assign {
+        lhs: target,
+        rhs,
+        span,
+    }
+}
+
+/// Collect the leading optional type and the ordered `expression` sub-pairs of
+/// an assignment-like statement (`[type] target = …`).
+fn collect_assignment_parts(
+    pair: &Pair<Rule>,
+) -> (Option<Type>, Vec<Expr>) {
+    let mut ty = None;
+    let mut exprs = Vec::new();
+    for inner in pair.clone().into_inner() {
+        match inner.as_rule() {
+            Rule::type_expr => ty = Some(parse_type_expr(inner)),
+            Rule::expression => exprs.push(parse_expression(inner)),
+            _ => {}
+        }
+    }
+    (ty, exprs)
+}
+
+fn parse_assign_stmt(pair: Pair<Rule>) -> Stmt {
+    let span = span_from_pair(&pair);
+    let (ty, exprs) = collect_assignment_parts(&pair);
 
     if exprs.len() == 2 {
-        Stmt::Assign {
-            lhs: exprs[0].clone(),
-            rhs: exprs[1].clone(),
-            span,
-        }
+        decl_or_assign(span, ty, exprs[0].clone(), exprs[1].clone())
     } else {
         Stmt::Skip { span }
     }
@@ -575,22 +642,130 @@ fn parse_assign_stmt(pair: Pair<Rule>) -> Stmt {
 
 fn parse_call_stmt(pair: Pair<Rule>) -> Stmt {
     let span = span_from_pair(&pair);
-    Stmt::Skip { span }
+    let mut ty = None;
+    let mut target = None;
+    let mut receiver = None;
+    let mut method = String::new();
+    let mut args = Vec::new();
+
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::type_expr => ty = Some(parse_type_expr(inner)),
+            Rule::expression => {
+                if target.is_none() {
+                    target = Some(parse_expression(inner));
+                }
+            }
+            Rule::call_receiver => {
+                for r in inner.into_inner() {
+                    if r.as_rule() == Rule::expr_primary {
+                        receiver = Some(parse_expression(r));
+                        break;
+                    }
+                }
+            }
+            Rule::name => method = parse_name(inner),
+            Rule::arg_list => args = parse_arg_list(inner),
+            _ => {}
+        }
+    }
+
+    let Some(rec) = receiver else {
+        return Stmt::Skip { span };
+    };
+    let rhs = Expr::MethodCall {
+        receiver: Box::new(rec),
+        method,
+        args,
+        span,
+    };
+    match target {
+        Some(target) => decl_or_assign(span, ty, target, rhs),
+        None => Stmt::Expr { expr: rhs, span },
+    }
 }
 
 fn parse_create_stmt(pair: Pair<Rule>) -> Stmt {
     let span = span_from_pair(&pair);
-    Stmt::Skip { span }
+    let mut decl_ty = None;
+    let mut class_ty = None;
+    let mut target = None;
+    let mut args = Vec::new();
+    let mut seen_new = false;
+
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::type_expr => {
+                let t = parse_type_expr(inner);
+                // The type expression before `new` is the declaration type of
+                // the target; the one after `new` is the class being created.
+                if seen_new {
+                    class_ty = Some(t);
+                } else {
+                    decl_ty = Some(t);
+                }
+            }
+            Rule::new_kw => seen_new = true,
+            Rule::expression => {
+                if target.is_none() {
+                    target = Some(parse_expression(inner));
+                }
+            }
+            Rule::arg_list => args = parse_arg_list(inner),
+            _ => {}
+        }
+    }
+
+    let (class, ty_param) = class_ty
+        .map(new_class_info)
+        .unwrap_or_else(|| (String::new(), None));
+    let rhs = Expr::New {
+        class,
+        ty_param,
+        args,
+        span,
+    };
+    let target = target.unwrap_or_else(|| Expr::Null(span));
+    decl_or_assign(span, decl_ty, target, rhs)
 }
 
 fn parse_sparql_stmt(pair: Pair<Rule>) -> Stmt {
     let span = span_from_pair(&pair);
-    Stmt::Skip { span }
+    let (ty, exprs) = collect_assignment_parts(&pair);
+
+    let target = exprs.first().cloned().unwrap_or_else(|| Expr::Null(span));
+    let rest: Vec<Expr> = exprs.into_iter().skip(1).collect();
+    let sparql = match rest.first() {
+        Some(Expr::StrLit(s, _)) => s.clone(),
+        _ => String::new(),
+    };
+    let connector = None;
+    let args = if rest.is_empty() {
+        rest
+    } else {
+        rest[1..].to_vec()
+    };
+    let rhs = Expr::Access {
+        sparql,
+        connector,
+        args,
+        span,
+    };
+    decl_or_assign(span, ty, target, rhs)
 }
 
 fn parse_construct_stmt(pair: Pair<Rule>) -> Stmt {
     let span = span_from_pair(&pair);
-    Stmt::Skip { span }
+    let (ty, exprs) = collect_assignment_parts(&pair);
+
+    let target = exprs.first().cloned().unwrap_or_else(|| Expr::Null(span));
+    let args: Vec<Expr> = exprs.into_iter().skip(1).collect();
+    let sparql = match args.first() {
+        Some(Expr::StrLit(s, _)) => s.clone(),
+        _ => String::new(),
+    };
+    let rhs = Expr::Construct { sparql, args, span };
+    decl_or_assign(span, ty, target, rhs)
 }
 
 fn parse_owl_stmt(pair: Pair<Rule>) -> Stmt {
@@ -766,12 +941,18 @@ fn parse_expr_mul(pair: Pair<Rule>) -> Expr {
 }
 
 fn parse_expr_unary(pair: Pair<Rule>) -> Expr {
-    match pair.as_rule() {
+    // `expr_unary = { not_expr | expr_postfix }` — descend into its single child.
+    let outer_span = span_from_pair(&pair);
+    let mut inner = pair.into_inner();
+    let Some(child) = inner.next() else {
+        return Expr::Null(outer_span);
+    };
+    let span = span_from_pair(&child);
+    match child.as_rule() {
         Rule::not_expr => {
-            let span = span_from_pair(&pair);
-            for inner in pair.into_inner() {
-                if inner.as_rule() == Rule::expr_postfix {
-                    let expr = parse_expression(inner);
+            for sub in child.into_inner() {
+                if sub.as_rule() == Rule::expr_postfix {
+                    let expr = parse_expression(sub);
                     return Expr::UnaryOp {
                         op: UnaryOp::Not,
                         expr: Box::new(expr),
@@ -781,8 +962,8 @@ fn parse_expr_unary(pair: Pair<Rule>) -> Expr {
             }
             Expr::Null(span)
         }
-        Rule::expr_postfix => parse_expression(pair),
-        _ => Expr::Null(span_from_pair(&pair)),
+        Rule::expr_postfix => parse_expression(child),
+        _ => Expr::Null(span),
     }
 }
 
@@ -792,7 +973,7 @@ fn parse_expr_postfix(pair: Pair<Rule>) -> Expr {
     for inner in pair.into_inner() {
         if inner.as_rule() == Rule::expr_primary {
             result = parse_expression(inner);
-        } else if inner.as_rule() == Rule::postfix {
+        } else {
             result = apply_postfix(result, inner);
         }
     }
@@ -800,61 +981,61 @@ fn parse_expr_postfix(pair: Pair<Rule>) -> Expr {
     result
 }
 
-fn apply_postfix(expr: Expr, postfix: Pair<Rule>) -> Expr {
-    for inner in postfix.into_inner() {
-        return match inner.as_rule() {
-            Rule::method_call_postfix => {
-                let span = span_from_pair(&inner);
-                let mut method = String::new();
-                let mut args = Vec::new();
+fn apply_postfix(expr: Expr, inner: Pair<Rule>) -> Expr {
+    // `postfix` is a silent rule ({ port_access | method_call_postfix |
+    // field_access_postfix }) so its non-silent children are inlined directly
+    // under `expr_postfix`; `inner` is therefore one of those three rules.
+    match inner.as_rule() {
+        Rule::method_call_postfix => {
+            let span = span_from_pair(&inner);
+            let mut method = String::new();
+            let mut args = Vec::new();
 
-                for p in inner.into_inner() {
-                    match p.as_rule() {
-                        Rule::name => method = parse_name(p),
-                        Rule::arg_list => args = parse_arg_list(p),
-                        _ => {}
-                    }
-                }
-
-                Expr::MethodCall {
-                    receiver: Box::new(expr),
-                    method,
-                    args,
-                    span,
+            for p in inner.into_inner() {
+                match p.as_rule() {
+                    Rule::name => method = parse_name(p),
+                    Rule::arg_list => args = parse_arg_list(p),
+                    _ => {}
                 }
             }
-            Rule::field_access_postfix => {
-                let span = span_from_pair(&inner);
-                let field = inner
-                    .into_inner()
-                    .next()
-                    .map(|n| parse_name(n))
-                    .unwrap_or_default();
 
-                Expr::Field {
-                    receiver: Box::new(expr),
-                    field,
-                    span,
-                }
+            Expr::MethodCall {
+                receiver: Box::new(expr),
+                method,
+                args,
+                span,
             }
-            Rule::port_access => {
-                let span = span_from_pair(&inner);
-                let port = inner
-                    .into_inner()
-                    .find(|p| p.as_rule() == Rule::string_lit)
-                    .map(parse_string_lit)
-                    .unwrap_or_default();
+        }
+        Rule::field_access_postfix => {
+            let span = span_from_pair(&inner);
+            let field = inner
+                .into_inner()
+                .next()
+                .map(|n| parse_name(n))
+                .unwrap_or_default();
 
-                Expr::Port {
-                    receiver: Box::new(expr),
-                    port,
-                    span,
-                }
+            Expr::Field {
+                receiver: Box::new(expr),
+                field,
+                span,
             }
-            _ => expr,
-        };
+        }
+        Rule::port_access => {
+            let span = span_from_pair(&inner);
+            let port = inner
+                .into_inner()
+                .find(|p| p.as_rule() == Rule::string_lit)
+                .map(parse_string_lit)
+                .unwrap_or_default();
+
+            Expr::Port {
+                receiver: Box::new(expr),
+                port,
+                span,
+            }
+        }
+        _ => expr,
     }
-    expr
 }
 
 fn parse_expr_primary(pair: Pair<Rule>) -> Expr {
