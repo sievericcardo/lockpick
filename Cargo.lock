@@ -2795,6 +2795,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "smol-verifier"
+version = "1.0.0"
+
+[[package]]
 name = "socket2"
 version = "0.6.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

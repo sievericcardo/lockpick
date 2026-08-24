@@ -5,7 +5,7 @@ members = [
     "crates/smol-ontology",
     "crates/smol-parser",
     "crates/smol-syntax"
-]
+, "crates/smol-verifier"]
 resolver = "2"
 
 [workspace.package]
