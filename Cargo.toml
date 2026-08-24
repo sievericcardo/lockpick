@@ -4,8 +4,9 @@ members = [
     "crates/smol-model",
     "crates/smol-ontology",
     "crates/smol-parser",
-    "crates/smol-syntax"
-, "crates/smol-verifier"]
+    "crates/smol-syntax",
+    "crates/smol-verifier"
+]
 resolver = "2"
 
 [workspace.package]
@@ -20,6 +21,7 @@ smol-parser   = { path = "crates/smol-parser" }
 smol-ontology = { path = "crates/smol-ontology" }
 smol-checker  = { path = "crates/smol-checker" }
 smol-model  = { path = "crates/smol-model" }
+smol-verifier = { path = "crates/smol-verifier" }
 
 # OWL reasoning (local sibling)
 oxidowl = { git = "https://github.com/sievericcardo/oxidowl", branch = "enhance-owl-api", features = ["sparql-store", "parallel", "cache"] }
