@@ -5,9 +5,9 @@
 //! pub fn check(files: &[smol_syntax::ast::File]) -> Vec<Diagnostic>
 //! ```
 
+pub mod body_pass;
 pub mod class_env;
 pub mod decl_pass;
-pub mod body_pass;
 
 use smol_syntax::ast::File;
 use smol_syntax::diagnostic::Diagnostic;

@@ -129,9 +129,9 @@ fn parse_greenhouse_smol_files() {
     use std::path::Path;
 
     let smol_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()  // crates/
+        .parent() // crates/
         .unwrap()
-        .parent()  // workspace root
+        .parent() // workspace root
         .unwrap()
         .join("examples/greenhouse-adapt/SMOL");
 
@@ -141,7 +141,7 @@ fn parse_greenhouse_smol_files() {
 
     for entry in std::fs::read_dir(&smol_dir).unwrap() {
         let entry = entry.unwrap();
-        let path  = entry.path();
+        let path = entry.path();
         if path.extension().and_then(|e| e.to_str()) == Some("smol") {
             let src = std::fs::read_to_string(&path).unwrap();
             let (_, diags) = parse(&path.to_string_lossy(), &src);

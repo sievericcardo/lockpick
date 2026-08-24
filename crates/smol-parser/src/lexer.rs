@@ -40,57 +40,113 @@ enum LexToken {
     BlockComment,
 
     // ── Keywords ──────────────────────────────────────────────────────────── //
-    #[token("abstract")]  Abstract,
-    #[token("access")]    Access,
-    #[token("adapts")]    Adapts,
-    #[token("class")]     Class,
-    #[token("classifies")] Classifies,
-    #[token("classify")]  Classify,
-    #[token("construct")] Construct,
-    #[token("context")]   Context,
-    #[token("destroy")]   Destroy,
-    #[token("do")]        Do,
-    #[token("domain")]    Domain,
-    #[token("else")]      Else,
-    #[token("end")]       End,
-    #[token("extends")]   Extends,
-    #[token("false")]     False,
-    #[token("hidden")]    Hidden,
-    #[token("if")]        If,
-    #[token("links")]     Links,
-    #[token("main")]      Main,
-    #[token("new")]       New,
-    #[token("null")]      Null,
-    #[token("override")]  Override,
-    #[token("print")]     Print,
-    #[token("retrieves")] Retrieves,
-    #[token("return")]    Return,    #[token("rule")]      Rule,    #[token("simulate")]  Simulate,    #[token("skip")]     Skip,    #[token("super")]     Super,    #[token("then")]      Then,
-    #[token("tick")]      Tick,
-    #[token("this")]      This,
-    #[token("true")]      True,
-    #[token("validate")]  Validate,
-    #[token("while")]     While,
+    #[token("abstract")]
+    Abstract,
+    #[token("access")]
+    Access,
+    #[token("adapts")]
+    Adapts,
+    #[token("class")]
+    Class,
+    #[token("classifies")]
+    Classifies,
+    #[token("classify")]
+    Classify,
+    #[token("construct")]
+    Construct,
+    #[token("context")]
+    Context,
+    #[token("destroy")]
+    Destroy,
+    #[token("do")]
+    Do,
+    #[token("domain")]
+    Domain,
+    #[token("else")]
+    Else,
+    #[token("end")]
+    End,
+    #[token("extends")]
+    Extends,
+    #[token("false")]
+    False,
+    #[token("hidden")]
+    Hidden,
+    #[token("if")]
+    If,
+    #[token("links")]
+    Links,
+    #[token("main")]
+    Main,
+    #[token("new")]
+    New,
+    #[token("null")]
+    Null,
+    #[token("override")]
+    Override,
+    #[token("print")]
+    Print,
+    #[token("retrieves")]
+    Retrieves,
+    #[token("return")]
+    Return,
+    #[token("rule")]
+    Rule,
+    #[token("simulate")]
+    Simulate,
+    #[token("skip")]
+    Skip,
+    #[token("super")]
+    Super,
+    #[token("then")]
+    Then,
+    #[token("tick")]
+    Tick,
+    #[token("this")]
+    This,
+    #[token("true")]
+    True,
+    #[token("validate")]
+    Validate,
+    #[token("while")]
+    While,
 
-    #[token("adapt")]     Adapt,
-    #[token("breakpoint")] Breakpoint,
-    #[token("member")]    Member,
-    #[token("out")]       KwOut,
-    #[token("in")]        KwIn,
-    #[token("port")]      Port,
+    #[token("adapt")]
+    Adapt,
+    #[token("breakpoint")]
+    Breakpoint,
+    #[token("member")]
+    Member,
+    #[token("out")]
+    KwOut,
+    #[token("in")]
+    KwIn,
+    #[token("port")]
+    Port,
 
     // ── Built-in type keywords ───────────────────────────────────────────────── //
-    #[token("Boolean")] KwBoolean,
-    #[token("Double")]  KwDouble,
-    #[token("Int")]     KwInt,
-    #[token("List")]    KwList,
-    #[token("ExplList")] KwExplList,
-    #[token("String")]  KwString,
-    #[token("Unit")]    KwUnit,
+    #[token("Boolean")]
+    KwBoolean,
+    #[token("Double")]
+    KwDouble,
+    #[token("Int")]
+    KwInt,
+    #[token("List")]
+    KwList,
+    #[token("ExplList")]
+    KwExplList,
+    #[token("String")]
+    KwString,
+    #[token("Unit")]
+    KwUnit,
 
     // ── Data connector keywords ────────────────────────────────────────────── //
-    #[token("INFLUXDB")] Influxdb,
-    #[token("SPARQL")]   KwSparql,
-    #[token("FMO")]      KwFmo,
+    #[token("INFLUXDB")]
+    Influxdb,
+    #[token("SPARQL")]
+    KwSparql,
+    #[token("FMO")]
+    KwFmo,
 
     // ── Literals ──────────────────────────────────────────────────────────── //
     #[regex(r"-?[0-9]+\.[0-9]+([eE][+-]?[0-9]+)?")]
@@ -108,32 +164,56 @@ enum LexToken {
     Ident,
 
     // ── Operators ────────────────────────────────────────────────────────── //
-    #[token("++")] PlusPlus,
-    #[token("+")] Plus,
-    #[token("-")] Minus,
-    #[token("*")] Star,
-    #[token("/")] Slash,
-    #[token("%")] Percent,
-    #[token("==")] Eq,
-    #[token("!=")] NotEq,
-    #[token("<=")] LtEq,
-    #[token(">=")] GtEq,
-    #[token("<")]  Lt,
-    #[token(">")]  Gt,
-    #[token("=")] Assign,
-    #[token("!")] Bang,
-    #[token("&&")] And,
-    #[token("||")] Or,
+    #[token("++")]
+    PlusPlus,
+    #[token("+")]
+    Plus,
+    #[token("-")]
+    Minus,
+    #[token("*")]
+    Star,
+    #[token("/")]
+    Slash,
+    #[token("%")]
+    Percent,
+    #[token("==")]
+    Eq,
+    #[token("!=")]
+    NotEq,
+    #[token("<=")]
+    LtEq,
+    #[token(">=")]
+    GtEq,
+    #[token("<")]
+    Lt,
+    #[token(">")]
+    Gt,
+    #[token("=")]
+    Assign,
+    #[token("!")]
+    Bang,
+    #[token("&&")]
+    And,
+    #[token("||")]
+    Or,
 
     // ── Delimiters ────────────────────────────────────────────────────────── //
-    #[token("(")] LParen,
-    #[token(")")] RParen,
-    #[token(",")] Comma,
-    #[token(".")] Dot,
-    #[token(";")] SemiColon,
-    #[token(":")] Colon,
-    #[token("[")] LBracket,
-    #[token("]")] RBracket,
+    #[token("(")]
+    LParen,
+    #[token(")")]
+    RParen,
+    #[token(",")]
+    Comma,
+    #[token(".")]
+    Dot,
+    #[token(";")]
+    SemiColon,
+    #[token(":")]
+    Colon,
+    #[token("[")]
+    LBracket,
+    #[token("]")]
+    RBracket,
 }
 
 impl LexToken {
@@ -142,59 +222,59 @@ impl LexToken {
             LexToken::LineComment | LexToken::BlockComment => {
                 unreachable!("trivia filtered before this call")
             }
-            LexToken::Abstract    => Token::Abstract,
-            LexToken::Access      => Token::Access,
-            LexToken::Adapts      => Token::Adapts,
-            LexToken::Class       => Token::Class,
-            LexToken::Classifies  => Token::Classifies,
-            LexToken::Classify    => Token::Classify,
-            LexToken::Construct   => Token::Construct,
-            LexToken::Context     => Token::Context,
-            LexToken::Destroy     => Token::Destroy,
-            LexToken::Do          => Token::Do,
-            LexToken::Domain      => Token::Domain,
-            LexToken::Else        => Token::Else,
-            LexToken::End         => Token::End,
-            LexToken::Extends     => Token::Extends,
-            LexToken::False       => Token::Bool(false),
-            LexToken::Hidden      => Token::Hidden,
-            LexToken::If          => Token::If,
-            LexToken::Links       => Token::Links,
-            LexToken::Main        => Token::Main,
-            LexToken::New         => Token::New,
-            LexToken::Null        => Token::Null,
-            LexToken::Override    => Token::Override,
-            LexToken::Print       => Token::Print,
-            LexToken::Retrieves   => Token::Retrieves,
-            LexToken::Return      => Token::Return,
-            LexToken::Rule        => Token::Rule,
-            LexToken::Simulate    => Token::Simulate,
-            LexToken::Skip        => Token::Skip,
-            LexToken::Super       => Token::Super,
-            LexToken::Then        => Token::Then,
-            LexToken::Tick        => Token::Tick,
-            LexToken::This        => Token::This,
-            LexToken::True        => Token::Bool(true),
-            LexToken::Validate    => Token::Validate,
-            LexToken::While       => Token::While,
+            LexToken::Abstract => Token::Abstract,
+            LexToken::Access => Token::Access,
+            LexToken::Adapts => Token::Adapts,
+            LexToken::Class => Token::Class,
+            LexToken::Classifies => Token::Classifies,
+            LexToken::Classify => Token::Classify,
+            LexToken::Construct => Token::Construct,
+            LexToken::Context => Token::Context,
+            LexToken::Destroy => Token::Destroy,
+            LexToken::Do => Token::Do,
+            LexToken::Domain => Token::Domain,
+            LexToken::Else => Token::Else,
+            LexToken::End => Token::End,
+            LexToken::Extends => Token::Extends,
+            LexToken::False => Token::Bool(false),
+            LexToken::Hidden => Token::Hidden,
+            LexToken::If => Token::If,
+            LexToken::Links => Token::Links,
+            LexToken::Main => Token::Main,
+            LexToken::New => Token::New,
+            LexToken::Null => Token::Null,
+            LexToken::Override => Token::Override,
+            LexToken::Print => Token::Print,
+            LexToken::Retrieves => Token::Retrieves,
+            LexToken::Return => Token::Return,
+            LexToken::Rule => Token::Rule,
+            LexToken::Simulate => Token::Simulate,
+            LexToken::Skip => Token::Skip,
+            LexToken::Super => Token::Super,
+            LexToken::Then => Token::Then,
+            LexToken::Tick => Token::Tick,
+            LexToken::This => Token::This,
+            LexToken::True => Token::Bool(true),
+            LexToken::Validate => Token::Validate,
+            LexToken::While => Token::While,
 
-            LexToken::Adapt       => Token::Adapt,
-            LexToken::Breakpoint  => Token::Breakpoint,
-            LexToken::Member      => Token::Member,
-            LexToken::KwOut       => Token::KwOut,
-            LexToken::KwIn        => Token::KwIn,
-            LexToken::Port        => Token::Port,
+            LexToken::Adapt => Token::Adapt,
+            LexToken::Breakpoint => Token::Breakpoint,
+            LexToken::Member => Token::Member,
+            LexToken::KwOut => Token::KwOut,
+            LexToken::KwIn => Token::KwIn,
+            LexToken::Port => Token::Port,
 
-            LexToken::KwBoolean   => Token::KwBoolean,
-            LexToken::KwDouble    => Token::KwDouble,
-            LexToken::KwInt       => Token::KwInt,
-            LexToken::KwList      => Token::KwList,
-            LexToken::KwExplList  => Token::KwExplList,
-            LexToken::KwString    => Token::KwString,
-            LexToken::KwUnit      => Token::KwUnit,
-            LexToken::Influxdb    => Token::Influxdb,
-            LexToken::KwSparql    => Token::KwSparql,
-            LexToken::KwFmo       => Token::KwFmo,
+            LexToken::KwBoolean => Token::KwBoolean,
+            LexToken::KwDouble => Token::KwDouble,
+            LexToken::KwInt => Token::KwInt,
+            LexToken::KwList => Token::KwList,
+            LexToken::KwExplList => Token::KwExplList,
+            LexToken::KwString => Token::KwString,
+            LexToken::KwUnit => Token::KwUnit,
+            LexToken::Influxdb => Token::Influxdb,
+            LexToken::KwSparql => Token::KwSparql,
+            LexToken::KwFmo => Token::KwFmo,
 
             LexToken::IntLit => {
                 let text = &src[span.start..span.end];
@@ -211,31 +291,31 @@ impl LexToken {
             }
             LexToken::Ident => Token::Ident(src[span.start..span.end].to_owned()),
 
-            LexToken::PlusPlus   => Token::PlusPlus,
-            LexToken::Plus       => Token::Plus,
-            LexToken::Minus      => Token::Minus,
-            LexToken::Star       => Token::Star,
-            LexToken::Slash      => Token::Slash,
-            LexToken::Percent    => Token::Percent,
-            LexToken::Eq         => Token::Eq,
-            LexToken::NotEq      => Token::NotEq,
-            LexToken::LtEq       => Token::LtEq,
-            LexToken::GtEq       => Token::GtEq,
-            LexToken::Lt         => Token::Lt,
-            LexToken::Gt         => Token::Gt,
-            LexToken::Assign     => Token::Assign,
-            LexToken::Bang       => Token::Bang,
-            LexToken::And        => Token::And,
-            LexToken::Or         => Token::Or,
+            LexToken::PlusPlus => Token::PlusPlus,
+            LexToken::Plus => Token::Plus,
+            LexToken::Minus => Token::Minus,
+            LexToken::Star => Token::Star,
+            LexToken::Slash => Token::Slash,
+            LexToken::Percent => Token::Percent,
+            LexToken::Eq => Token::Eq,
+            LexToken::NotEq => Token::NotEq,
+            LexToken::LtEq => Token::LtEq,
+            LexToken::GtEq => Token::GtEq,
+            LexToken::Lt => Token::Lt,
+            LexToken::Gt => Token::Gt,
+            LexToken::Assign => Token::Assign,
+            LexToken::Bang => Token::Bang,
+            LexToken::And => Token::And,
+            LexToken::Or => Token::Or,
 
-            LexToken::LParen     => Token::LParen,
-            LexToken::RParen     => Token::RParen,
-            LexToken::Comma      => Token::Comma,
-            LexToken::Dot        => Token::Dot,
-            LexToken::SemiColon  => Token::SemiColon,
-            LexToken::Colon      => Token::Colon,
-            LexToken::LBracket   => Token::LBracket,
-            LexToken::RBracket   => Token::RBracket,
+            LexToken::LParen => Token::LParen,
+            LexToken::RParen => Token::RParen,
+            LexToken::Comma => Token::Comma,
+            LexToken::Dot => Token::Dot,
+            LexToken::SemiColon => Token::SemiColon,
+            LexToken::Colon => Token::Colon,
+            LexToken::LBracket => Token::LBracket,
+            LexToken::RBracket => Token::RBracket,
         }
     }
 }
@@ -247,12 +327,15 @@ fn unescape(s: &str) -> String {
     while let Some(c) = chars.next() {
         if c == '\\' {
             match chars.next() {
-                Some('n')  => out.push('\n'),
-                Some('t')  => out.push('\t'),
-                Some('r')  => out.push('\r'),
-                Some('"')  => out.push('"'),
+                Some('n') => out.push('\n'),
+                Some('t') => out.push('\t'),
+                Some('r') => out.push('\r'),
+                Some('"') => out.push('"'),
                 Some('\\') | None => out.push('\\'),
-                Some(c)    => { out.push('\\'); out.push(c); }
+                Some(c) => {
+                    out.push('\\');
+                    out.push(c);
+                }
             }
         } else {
             out.push(c);

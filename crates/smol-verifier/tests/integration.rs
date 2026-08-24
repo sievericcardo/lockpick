@@ -25,8 +25,7 @@ fn workspace_root() -> PathBuf {
 fn greenhouse_adapt_flags_list_fields() {
     use smol_syntax::diagnostic::DiagnosticCode;
 
-    let manifest = workspace_root()
-        .join("examples/greenhouse-adapt/smol.toml");
+    let manifest = workspace_root().join("examples/greenhouse-adapt/smol.toml");
 
     if !manifest.exists() {
         eprintln!("SKIP: manifest not found at {}", manifest.display());
@@ -35,7 +34,9 @@ fn greenhouse_adapt_flags_list_fields() {
 
     let diags = smol_verifier::verify_manifest(&manifest);
     assert!(
-        diags.iter().any(|d| d.code == DiagnosticCode::ListFieldNotExplicit),
+        diags
+            .iter()
+            .any(|d| d.code == DiagnosticCode::ListFieldNotExplicit),
         "expected ListFieldNotExplicit for greenhouse-adapt, got: {diags:?}"
     );
 }
@@ -44,8 +45,7 @@ fn greenhouse_adapt_flags_list_fields() {
 fn bedreflyt_flags_list_fields() {
     use smol_syntax::diagnostic::DiagnosticCode;
 
-    let manifest = workspace_root()
-        .join("examples/bedreflyt/smol.toml");
+    let manifest = workspace_root().join("examples/bedreflyt/smol.toml");
 
     if !manifest.exists() {
         eprintln!("SKIP: manifest not found at {}", manifest.display());
@@ -54,7 +54,9 @@ fn bedreflyt_flags_list_fields() {
 
     let diags = smol_verifier::verify_manifest(&manifest);
     assert!(
-        diags.iter().any(|d| d.code == DiagnosticCode::ListFieldNotExplicit),
+        diags
+            .iter()
+            .any(|d| d.code == DiagnosticCode::ListFieldNotExplicit),
         "expected ListFieldNotExplicit for bedreflyt, got: {diags:?}"
     );
 }
@@ -62,8 +64,7 @@ fn bedreflyt_flags_list_fields() {
 // odrl: uses ExplList<T> fields, must be clean
 #[test]
 fn odrl_no_errors() {
-    let manifest = workspace_root()
-        .join("examples/odrl/smol.toml");
+    let manifest = workspace_root().join("examples/odrl/smol.toml");
 
     if !manifest.exists() {
         eprintln!("SKIP: manifest not found at {}", manifest.display());
@@ -74,7 +75,12 @@ fn odrl_no_errors() {
     let errors: Vec<_> = diags.iter().filter(|d| d.is_error()).collect();
 
     for e in &errors {
-        eprintln!("[{}] {}: {}", e.code, e.file.as_deref().unwrap_or("?"), e.message);
+        eprintln!(
+            "[{}] {}: {}",
+            e.code,
+            e.file.as_deref().unwrap_or("?"),
+            e.message
+        );
     }
 
     assert!(
@@ -135,7 +141,9 @@ end
     let _ = std::fs::remove_file(&tmp);
 
     assert!(
-        diags.iter().any(|d| d.code == DiagnosticCode::InvariantViolation),
+        diags
+            .iter()
+            .any(|d| d.code == DiagnosticCode::InvariantViolation),
         "expected InvariantViolation, got: {diags:?}"
     );
 }
@@ -166,7 +174,9 @@ end
     let _ = std::fs::remove_file(&tmp);
 
     assert!(
-        !diags.iter().any(|d| d.code == DiagnosticCode::InvariantViolation),
+        !diags
+            .iter()
+            .any(|d| d.code == DiagnosticCode::InvariantViolation),
         "expected no InvariantViolation, got: {diags:?}"
     );
 }
@@ -187,9 +197,7 @@ end
     let diags = smol_verifier::verify_files(&[tmp.clone()], &[]);
     let _ = std::fs::remove_file(&tmp);
 
-    let has_unknown = diags.iter().any(|d| {
-        d.code == DiagnosticCode::UnknownClass
-    });
+    let has_unknown = diags.iter().any(|d| d.code == DiagnosticCode::UnknownClass);
     assert!(
         has_unknown,
         "expected UnknownClass diagnostic; got: {diags:?}"
@@ -217,9 +225,9 @@ end
     let diags = smol_verifier::verify_files(&[tmp.clone()], &[]);
     let _ = std::fs::remove_file(&tmp);
 
-    let has_err = diags.iter().any(|d| {
-        d.code == DiagnosticCode::AbstractInstantiation
-    });
+    let has_err = diags
+        .iter()
+        .any(|d| d.code == DiagnosticCode::AbstractInstantiation);
     assert!(
         has_err,
         "expected AbstractInstantiation diagnostic; got: {diags:?}"
@@ -245,9 +253,9 @@ end
     let diags = smol_verifier::verify_files(&[tmp.clone()], &[]);
     let _ = std::fs::remove_file(&tmp);
 
-    let has_err = diags.iter().any(|d| {
-        d.code == DiagnosticCode::OverrideWithoutParent
-    });
+    let has_err = diags
+        .iter()
+        .any(|d| d.code == DiagnosticCode::OverrideWithoutParent);
     assert!(
         has_err,
         "expected OverrideWithoutParent diagnostic; got: {diags:?}"
@@ -271,6 +279,8 @@ fn error_duplicate_class() {
     let _ = std::fs::remove_file(&tmp_a);
     let _ = std::fs::remove_file(&tmp_b);
 
-    let has_err = diags.iter().any(|d| d.code == DiagnosticCode::DuplicateClass);
+    let has_err = diags
+        .iter()
+        .any(|d| d.code == DiagnosticCode::DuplicateClass);
     assert!(has_err, "expected DuplicateClass; got: {diags:?}");
 }

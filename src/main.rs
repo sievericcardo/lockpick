@@ -89,8 +89,11 @@ fn main() {
                 smol_verifier::verify_manifest_with_prefixes(&manifest, &extra_prefixes)
             };
 
-            let error_count   = diags.iter().filter(|d| d.is_error()).count();
-            let warning_count = diags.iter().filter(|d| d.severity == Severity::Warning).count();
+            let error_count = diags.iter().filter(|d| d.is_error()).count();
+            let warning_count = diags
+                .iter()
+                .filter(|d| d.severity == Severity::Warning)
+                .count();
 
             print_diagnostics(&diags);
 
@@ -113,11 +116,11 @@ fn main() {
 fn print_diagnostics(diags: &[Diagnostic]) {
     // Group diagnostics by file; diagnostics without a file use "<unknown>".
     for diag in diags {
-        let file_id   = diag.file.as_deref().unwrap_or("<unknown>");
-        let kind      = match diag.severity {
-            Severity::Error   => ReportKind::Error,
+        let file_id = diag.file.as_deref().unwrap_or("<unknown>");
+        let kind = match diag.severity {
+            Severity::Error => ReportKind::Error,
             Severity::Warning => ReportKind::Warning,
-            Severity::Note    => ReportKind::Advice,
+            Severity::Note => ReportKind::Advice,
         };
 
         // Read source for span-accurate reporting, falling back to empty source.
@@ -139,7 +142,11 @@ fn print_diagnostics(diags: &[Diagnostic]) {
         report = report.with_label(
             Label::new((file_id, span_range))
                 .with_message(diag.message.clone())
-                .with_color(if diag.is_error() { Color::Red } else { Color::Yellow }),
+                .with_color(if diag.is_error() {
+                    Color::Red
+                } else {
+                    Color::Yellow
+                }),
         );
 
         for label in &diag.labels {

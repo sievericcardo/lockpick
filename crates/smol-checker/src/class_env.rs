@@ -3,27 +3,27 @@
 //! Built by the declaration pass from the merged AST of all source files.
 //! Stored in a plain `HashMap` so it can be shared cheaply by the body pass.
 
-use std::collections::HashMap;
 use smol_syntax::ast::{FieldDecl, MethodDecl, Type};
 use smol_syntax::span::Span;
+use std::collections::HashMap;
 
 /// Resolved information about a single SMOL class, indexed by name.
 #[derive(Debug, Clone)]
 pub struct ClassInfo {
-    pub name:        String,
+    pub name: String,
     /// Direct superclass name (already validated to exist).
-    pub extends:     Option<String>,
+    pub extends: Option<String>,
     pub is_abstract: bool,
     /// Flattened field list (inherited fields first, own fields at the end).
-    pub fields:      Vec<FieldDecl>,
+    pub fields: Vec<FieldDecl>,
     /// Own method declarations.
-    pub methods:     Vec<MethodDecl>,
+    pub methods: Vec<MethodDecl>,
     /// `classifies` IRI, if any.
-    pub classifies:  Option<String>,
+    pub classifies: Option<String>,
     /// Definition span.
-    pub span:        Span,
+    pub span: Span,
     /// Source file.
-    pub file:        String,
+    pub file: String,
 }
 
 impl ClassInfo {
@@ -148,11 +148,11 @@ impl ClassEnv {
         match (from, to) {
             // null is represented as Type::Named("_null") internally — allow any ref type.
             (Type::Named(a), Type::Named(_)) if a == "_null" => true,
-            (Type::Int,     Type::Int)
-            | (Type::Double,  Type::Double)
-            | (Type::String,  Type::String)
+            (Type::Int, Type::Int)
+            | (Type::Double, Type::Double)
+            | (Type::String, Type::String)
             | (Type::Boolean, Type::Boolean)
-            | (Type::Unit,    Type::Unit) => true,
+            | (Type::Unit, Type::Unit) => true,
             (Type::List(a), Type::List(b)) => self.is_assignable(a, b),
             (Type::ExplList(a), Type::ExplList(b)) => self.is_assignable(a, b),
             (Type::Named(a), Type::Named(b)) => self.is_subtype(a, b),

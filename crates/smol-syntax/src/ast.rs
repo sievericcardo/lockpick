@@ -20,9 +20,9 @@ pub enum FmoDirection {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct FmoPort {
     pub direction: FmoDirection,
-    pub ty:     Type,
-    pub name:     String,
-    pub span:      Span,
+    pub ty: Type,
+    pub name: String,
+    pub span: Span,
 }
 
 /// A type expression as it appears in field declarations, method signatures,
@@ -54,18 +54,20 @@ pub enum Type {
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::Int     => write!(f, "Int"),
-            Type::Double  => write!(f, "Double"),
-            Type::String  => write!(f, "String"),
+            Type::Int => write!(f, "Int"),
+            Type::Double => write!(f, "Double"),
+            Type::String => write!(f, "String"),
             Type::Boolean => write!(f, "Boolean"),
-            Type::Unit    => write!(f, "Unit"),
+            Type::Unit => write!(f, "Unit"),
             Type::List(t) => write!(f, "List<{t}>"),
             Type::ExplList(t) => write!(f, "ExplList<{t}>"),
             Type::Named(n) => write!(f, "{n}"),
             Type::Generic(n, params) => {
                 write!(f, "{n}<")?;
                 for (i, p) in params.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{p}")?;
                 }
                 write!(f, ">")
@@ -73,9 +75,11 @@ impl std::fmt::Display for Type {
             Type::Fmo(ports) => {
                 write!(f, "FMO[")?;
                 for (i, p) in ports.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     let dir = match p.direction {
-                        FmoDirection::In  => "in",
+                        FmoDirection::In => "in",
                         FmoDirection::Out => "out",
                     };
                     write!(f, "{dir} {} {}", p.ty, p.name)?;
@@ -105,9 +109,9 @@ pub enum FieldModifier {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct FieldDecl {
     pub modifier: FieldModifier,
-    pub ty:    Type,
-    pub name:    String,
-    pub span:     Span,
+    pub ty: Type,
+    pub name: String,
+    pub span: Span,
 }
 
 // Method / parameter
@@ -127,23 +131,23 @@ pub struct MethodFlags {
     pub is_abstract: bool,
     pub is_override: bool,
     /// `rule` modifier — method may only call other rule methods.
-    pub is_rule:     bool,
+    pub is_rule: bool,
     /// `domain` modifier — method is exposed in the RDF knowledge graph.
-    pub is_domain:   bool,
+    pub is_domain: bool,
 }
 
 /// A method (or abstract method declaration).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MethodDecl {
-    pub flags:      MethodFlags,
-    pub ret_type:     Type,
-    pub name:       String,
-    pub params:     Vec<Param>,
+    pub flags: MethodFlags,
+    pub ret_type: Type,
+    pub name: String,
+    pub params: Vec<Param>,
     /// Classes mentioned in `adapts Foo, Bar`.
-    pub adapts:     Vec<String>,
+    pub adapts: Vec<String>,
     /// Body statements; empty for abstract methods.
-    pub body:       Vec<Stmt>,
-    pub span:       Span,
+    pub body: Vec<Stmt>,
+    pub span: Span,
 }
 
 // Class annotations
@@ -153,7 +157,7 @@ pub struct MethodDecl {
 pub struct ClassifiesAnnotation {
     /// The IRI string between the angle-brackets in the source.
     /// E.g. `"ast:Healthy"`.
-    pub iri:  String,
+    pub iri: String,
     pub span: Span,
 }
 
@@ -161,7 +165,7 @@ pub struct ClassifiesAnnotation {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct RetrievesAnnotation {
     pub sparql: String,
-    pub span:   Span,
+    pub span: Span,
 }
 
 /// `links "..."` annotation — Turtle property list fragment.
@@ -170,18 +174,18 @@ pub struct RetrievesAnnotation {
 pub struct LinksAnnotation {
     pub turtle: String,
     /// Optional guard expression for conditional links.
-    pub guard:  Option<Box<Expr>>,
-    pub span:   Span,
+    pub guard: Option<Box<Expr>>,
+    pub span: Span,
 }
 
 /// An initialized internal field in a class body: `[modifier] Type name = expr;`
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct InitFieldDecl {
     pub modifier: FieldModifier,
-    pub ty:       Type,
-    pub name:     String,
-    pub init:     Expr,
-    pub span:     Span,
+    pub ty: Type,
+    pub name: String,
+    pub init: Expr,
+    pub span: Span,
 }
 
 // Class declaration
@@ -189,22 +193,22 @@ pub struct InitFieldDecl {
 /// A full class or `abstract class` declaration.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ClassDecl {
-    pub is_abstract:  bool,
+    pub is_abstract: bool,
     /// `hidden class` — not exposed in the RDF layer.
-    pub is_hidden:    bool,
-    pub name:         String,
+    pub is_hidden: bool,
+    pub name: String,
     /// Generic type parameters: `class Foo<A, B>`
-    pub type_params:  Vec<String>,
-    pub extends:      Option<String>,
-    pub fields:       Vec<FieldDecl>,
+    pub type_params: Vec<String>,
+    pub extends: Option<String>,
+    pub fields: Vec<FieldDecl>,
     /// Initialized internal fields: `Int count = 0;`
-    pub init_fields:  Vec<InitFieldDecl>,
-    pub classifies:   Option<ClassifiesAnnotation>,
-    pub retrieves:    Option<RetrievesAnnotation>,
+    pub init_fields: Vec<InitFieldDecl>,
+    pub classifies: Option<ClassifiesAnnotation>,
+    pub retrieves: Option<RetrievesAnnotation>,
     /// Possibly multiple `links` annotations (including conditional ones).
-    pub links:        Vec<LinksAnnotation>,
-    pub methods:      Vec<MethodDecl>,
-    pub span:         Span,
+    pub links: Vec<LinksAnnotation>,
+    pub methods: Vec<MethodDecl>,
+    pub span: Span,
 }
 
 // Statements
@@ -214,33 +218,23 @@ pub struct ClassDecl {
 pub enum Stmt {
     /// `Type var = expr;`
     VarDecl {
-        ty:    Type,
-        name:  String,
-        init:  Expr,
-        span:  Span,
-    },
-    /// `lhs = rhs;`
-    Assign {
-        lhs:   Expr,
-        rhs:   Expr,
-        span:  Span,
-    },
-    /// `expr;` — call or standalone expression.
-    Expr {
-        expr: Expr,
+        ty: Type,
+        name: String,
+        init: Expr,
         span: Span,
     },
+    /// `lhs = rhs;`
+    Assign { lhs: Expr, rhs: Expr, span: Span },
+    /// `expr;` — call or standalone expression.
+    Expr { expr: Expr, span: Span },
     /// `return expr;` or bare `return;`
-    Return {
-        value: Option<Expr>,
-        span:  Span,
-    },
+    Return { value: Option<Expr>, span: Span },
     /// `if cond then stmts [else stmts] end`
     If {
-        cond:      Expr,
+        cond: Expr,
         then_body: Vec<Stmt>,
         else_body: Vec<Stmt>,
-        span:      Span,
+        span: Span,
     },
     /// `while cond do stmts end`
     While {
@@ -249,28 +243,15 @@ pub enum Stmt {
         span: Span,
     },
     /// `print(expr);`
-    Print {
-        value: Expr,
-        span:  Span,
-    },
+    Print { value: Expr, span: Span },
     /// `destroy(expr);`
-    Destroy {
-        value: Expr,
-        span:  Span,
-    },
+    Destroy { value: Expr, span: Span },
     /// `skip;` — no-operation statement.
-    Skip {
-        span: Span,
-    },
+    Skip { span: Span },
     /// `adapt(expr);` — trigger an adaptation.
-    Adapt {
-        expr: Expr,
-        span: Span,
-    },
+    Adapt { expr: Expr, span: Span },
     /// `breakpoint;` — debug breakpoint (no runtime semantics).
-    Breakpoint {
-        span: Span,
-    },
+    Breakpoint { span: Span },
 }
 
 // Expressions
@@ -291,24 +272,24 @@ pub enum Expr {
     /// `expr.field` or `expr.method(args)`
     Field {
         receiver: Box<Expr>,
-        field:    String,
-        span:     Span,
+        field: String,
+        span: Span,
     },
     MethodCall {
         receiver: Box<Expr>,
-        method:   String,
-        args:     Vec<Expr>,
-        span:     Span,
+        method: String,
+        args: Vec<Expr>,
+        span: Span,
     },
 
     // Object creation
     /// `new ClassName(arg, ...)` or `new List<T>(args)`
     New {
-        class:    String,
+        class: String,
         /// Generic type parameter, e.g. `BaseModel` in `new List<BaseModel>(...)`.
         ty_param: Option<Box<Type>>,
-        args:     Vec<Expr>,
-        span:     Span,
+        args: Vec<Expr>,
+        span: Span,
     },
 
     // SMOL builtins
@@ -316,15 +297,15 @@ pub enum Expr {
     Construct {
         sparql: String,
         /// Optional positional binding arguments (`%1`, `%2`, …).
-        args:   Vec<Expr>,
-        span:   Span,
+        args: Vec<Expr>,
+        span: Span,
     },
     /// `access("SPARQL" [, connector, args...])`
     Access {
-        sparql:    String,
+        sparql: String,
         connector: Option<Box<Expr>>,
-        args:      Vec<Expr>,
-        span:      Span,
+        args: Vec<Expr>,
+        span: Span,
     },
     /// `classify(expr)`
     Classify {
@@ -352,14 +333,14 @@ pub enum Expr {
     /// `simulate("sparql" [, arg, ...])`
     Simulate {
         sparql: String,
-        args:   Vec<Expr>,
-        span:   Span,
+        args: Vec<Expr>,
+        span: Span,
     },
     /// `fmu.port("name")` — access a named FMO port.
     Port {
         receiver: Box<Expr>,
-        port:     String,
-        span:     Span,
+        port: String,
+        span: Span,
     },
     /// `super(args)` — call parent class method.
     Super {
@@ -369,15 +350,15 @@ pub enum Expr {
 
     // Binary operators
     BinOp {
-        op:    BinOp,
-        left:  Box<Expr>,
+        op: BinOp,
+        left: Box<Expr>,
         right: Box<Expr>,
-        span:  Span,
+        span: Span,
     },
 
     // Unary operators
     UnaryOp {
-        op:   UnaryOp,
+        op: UnaryOp,
         expr: Box<Expr>,
         span: Span,
     },
@@ -388,23 +369,26 @@ impl Expr {
     #[allow(clippy::match_same_arms)]
     pub fn span(&self) -> Span {
         match self {
-            Expr::IntLit(_, s)    | Expr::FloatLit(_, s)
-            | Expr::StrLit(_, s)  | Expr::BoolLit(_, s)
-            | Expr::Null(s)       | Expr::Var(_, s)          => *s,
-            Expr::Field       { span, .. } => *span,
-            Expr::MethodCall  { span, .. } => *span,
-            Expr::New         { span, .. } => *span,
-            Expr::Construct   { span, .. } => *span,
-            Expr::Access      { span, .. } => *span,
-            Expr::Classify    { span, .. } => *span,
+            Expr::IntLit(_, s)
+            | Expr::FloatLit(_, s)
+            | Expr::StrLit(_, s)
+            | Expr::BoolLit(_, s)
+            | Expr::Null(s)
+            | Expr::Var(_, s) => *s,
+            Expr::Field { span, .. } => *span,
+            Expr::MethodCall { span, .. } => *span,
+            Expr::New { span, .. } => *span,
+            Expr::Construct { span, .. } => *span,
+            Expr::Access { span, .. } => *span,
+            Expr::Classify { span, .. } => *span,
             Expr::BuiltinCall { span, .. } => *span,
-            Expr::BinOp       { span, .. } => *span,
-            Expr::UnaryOp     { span, .. } => *span,
-            Expr::Member      { span, .. } => *span,
-            Expr::Validate    { span, .. } => *span,
-            Expr::Simulate    { span, .. } => *span,
-            Expr::Port        { span, .. } => *span,
-            Expr::Super       { span, .. } => *span,
+            Expr::BinOp { span, .. } => *span,
+            Expr::UnaryOp { span, .. } => *span,
+            Expr::Member { span, .. } => *span,
+            Expr::Validate { span, .. } => *span,
+            Expr::Simulate { span, .. } => *span,
+            Expr::Port { span, .. } => *span,
+            Expr::Super { span, .. } => *span,
         }
     }
 }
@@ -412,9 +396,19 @@ impl Expr {
 /// Binary operator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum BinOp {
-    Add, Sub, Mul, Div, Mod,
-    Eq, NotEq, Lt, LtEq, Gt, GtEq,
-    And, Or,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+    Eq,
+    NotEq,
+    Lt,
+    LtEq,
+    Gt,
+    GtEq,
+    And,
+    Or,
     Concat, // ++
 }
 
@@ -431,8 +425,8 @@ pub enum UnaryOp {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct File {
     /// Absolute path to the source file.
-    pub path:    String,
+    pub path: String,
     pub classes: Vec<ClassDecl>,
     /// Statements in the `main` block, if present.
-    pub main:    Option<Vec<Stmt>>,
+    pub main: Option<Vec<Stmt>>,
 }

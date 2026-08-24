@@ -22,14 +22,14 @@ use smol_syntax::diagnostic::{Diagnostic, DiagnosticCode};
 
 #[derive(Debug, Deserialize)]
 pub struct Manifest {
-    pub project:    ProjectSection,
-    pub sources:    SourcesSection,
+    pub project: ProjectSection,
+    pub sources: SourcesSection,
     pub ontologies: Option<OntologiesSection>,
-    pub entry:      Option<EntrySection>,
+    pub entry: Option<EntrySection>,
     /// Optional SHACL shapes files.
-    pub shacl:      Option<ShaclSection>,
+    pub shacl: Option<ShaclSection>,
     /// Optional user-defined SPARQL prefixes.
-    pub prefixes:   Option<PrefixesSection>,
+    pub prefixes: Option<PrefixesSection>,
     /// Optional CTL properties to model-check.
     pub properties: Option<PropertiesSection>,
 }
@@ -87,15 +87,15 @@ pub struct PropertiesSection {
 
 /// The fully-resolved file lists for a project.
 pub struct ResolvedManifest {
-    pub project_name:    String,
-    pub smol_files:      Vec<PathBuf>,
-    pub ontology_files:  Vec<PathBuf>,
-    pub shacl_files:     Vec<PathBuf>,
-    pub entry_file:      Option<PathBuf>,
+    pub project_name: String,
+    pub smol_files: Vec<PathBuf>,
+    pub ontology_files: Vec<PathBuf>,
+    pub shacl_files: Vec<PathBuf>,
+    pub entry_file: Option<PathBuf>,
     /// Prefixes declared in `[prefixes]` section of `smol.toml`.
-    pub prefixes:        std::collections::HashMap<String, String>,
+    pub prefixes: std::collections::HashMap<String, String>,
     /// CTL formulas declared in `[properties]` section of `smol.toml`.
-    pub properties:      Vec<String>,
+    pub properties: Vec<String>,
 }
 
 /// Load and resolve a `smol.toml` manifest file.
@@ -138,27 +138,18 @@ pub fn load(manifest_path: &Path) -> Result<ResolvedManifest, Vec<Diagnostic>> {
         .map(|s| expand_globs(&s.files, dir, &mut errors))
         .unwrap_or_default();
 
-    let entry_file = manifest
-        .entry
-        .as_ref()
-        .map(|e| dir.join(&e.main));
+    let entry_file = manifest.entry.as_ref().map(|e| dir.join(&e.main));
 
     if !errors.is_empty() {
         return Err(errors);
     }
 
-    let prefixes = manifest
-        .prefixes
-        .map(|p| p.map)
-        .unwrap_or_default();
+    let prefixes = manifest.prefixes.map(|p| p.map).unwrap_or_default();
 
-    let properties = manifest
-        .properties
-        .map(|p| p.check)
-        .unwrap_or_default();
+    let properties = manifest.properties.map(|p| p.check).unwrap_or_default();
 
     Ok(ResolvedManifest {
-        project_name:   manifest.project.name,
+        project_name: manifest.project.name,
         smol_files,
         ontology_files,
         shacl_files,
@@ -168,11 +159,7 @@ pub fn load(manifest_path: &Path) -> Result<ResolvedManifest, Vec<Diagnostic>> {
     })
 }
 
-fn expand_globs(
-    patterns: &[String],
-    base: &Path,
-    errors: &mut Vec<Diagnostic>,
-) -> Vec<PathBuf> {
+fn expand_globs(patterns: &[String], base: &Path, errors: &mut Vec<Diagnostic>) -> Vec<PathBuf> {
     let mut paths = Vec::new();
     for pat in patterns {
         match globwalk::GlobWalkerBuilder::from_patterns(base, &[pat.as_str()])
@@ -182,7 +169,7 @@ fn expand_globs(
             Ok(walker) => {
                 for entry in walker {
                     match entry {
-                        Ok(e)  => paths.push(e.path().to_path_buf()),
+                        Ok(e) => paths.push(e.path().to_path_buf()),
                         Err(e) => errors.push(Diagnostic::error(
                             DiagnosticCode::GlobExpansionFailed,
                             format!("glob `{pat}` entry error: {e}"),

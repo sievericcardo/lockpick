@@ -22,7 +22,7 @@ use crate::class_env::{ClassEnv, ClassInfo};
 #[must_use]
 #[allow(clippy::too_many_lines)]
 pub fn build_class_env(files: &[File]) -> (ClassEnv, Vec<Diagnostic>) {
-    let mut env   = ClassEnv::default();
+    let mut env = ClassEnv::default();
     let mut diags = Vec::new();
 
     // Insert all class declarations
@@ -34,20 +34,20 @@ pub fn build_class_env(files: &[File]) -> (ClassEnv, Vec<Diagnostic>) {
                         DiagnosticCode::DuplicateClass,
                         format!("duplicate class `{}`", cls.name),
                     )
-                        .with_file(&file.path)
-                        .with_span(cls.span),
+                    .with_file(&file.path)
+                    .with_span(cls.span),
                 );
                 continue;
             }
             env.insert(ClassInfo {
-                name:        cls.name.clone(),
-                extends:     cls.extends.clone(),
+                name: cls.name.clone(),
+                extends: cls.extends.clone(),
                 is_abstract: cls.is_abstract,
-                fields:      cls.fields.clone(),
-                methods:     cls.methods.clone(),
-                classifies:  cls.classifies.as_ref().map(|c| c.iri.clone()),
-                span:        cls.span,
-                file:        file.path.clone(),
+                fields: cls.fields.clone(),
+                methods: cls.methods.clone(),
+                classifies: cls.classifies.as_ref().map(|c| c.iri.clone()),
+                span: cls.span,
+                file: file.path.clone(),
             });
         }
     }
@@ -60,13 +60,10 @@ pub fn build_class_env(files: &[File]) -> (ClassEnv, Vec<Diagnostic>) {
                     diags.push(
                         Diagnostic::error(
                             DiagnosticCode::UnknownClass,
-                            format!(
-                                "class `{}` extends unknown class `{}`",
-                                cls.name, parent
-                            ),
+                            format!("class `{}` extends unknown class `{}`", cls.name, parent),
                         )
-                            .with_file(&file.path)
-                            .with_span(cls.span),
+                        .with_file(&file.path)
+                        .with_span(cls.span),
                     );
                 }
             }
@@ -83,8 +80,8 @@ pub fn build_class_env(files: &[File]) -> (ClassEnv, Vec<Diagnostic>) {
                     DiagnosticCode::CyclicInheritance,
                     format!("cyclic inheritance involving class `{name}`"),
                 )
-                    .with_file(&info.file)
-                    .with_span(info.span),
+                .with_file(&info.file)
+                .with_span(info.span),
             );
         }
     }
@@ -103,8 +100,8 @@ pub fn build_class_env(files: &[File]) -> (ClassEnv, Vec<Diagnostic>) {
                                 cls.name, method.name
                             ),
                         )
-                            .with_file(&file.path)
-                            .with_span(method.span),
+                        .with_file(&file.path)
+                        .with_span(method.span),
                     );
                 }
 
@@ -125,8 +122,8 @@ pub fn build_class_env(files: &[File]) -> (ClassEnv, Vec<Diagnostic>) {
                                     cls.name, method.name
                                 ),
                             )
-                                .with_file(&file.path)
-                                .with_span(method.span),
+                            .with_file(&file.path)
+                            .with_span(method.span),
                         );
                     }
                 }
@@ -155,8 +152,8 @@ pub fn build_class_env(files: &[File]) -> (ClassEnv, Vec<Diagnostic>) {
                                 field.name
                             ),
                         )
-                            .with_file(&file.path)
-                            .with_span(field.span),
+                        .with_file(&file.path)
+                        .with_span(field.span),
                     );
                 }
             }
@@ -171,8 +168,8 @@ pub fn build_class_env(files: &[File]) -> (ClassEnv, Vec<Diagnostic>) {
                                 field.name
                             ),
                         )
-                            .with_file(&file.path)
-                            .with_span(field.span),
+                        .with_file(&file.path)
+                        .with_span(field.span),
                     );
                 }
             }
@@ -236,8 +233,8 @@ fn check_abstract_unimplemented(
                     cls.name
                 ),
             )
-                .with_file(file)
-                .with_span(cls.span),
+            .with_file(file)
+            .with_span(cls.span),
         );
     }
 }

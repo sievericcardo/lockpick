@@ -6,8 +6,8 @@
 //!
 //! Diagnostics are collected as [`Diagnostic`] values and returned alongside
 //! partial ASTs so that multiple errors per file are always reported.
-pub mod parser;
 pub mod lexer;
+pub mod parser;
 
 pub use lexer::lex;
 pub use parser::parse;

@@ -14,13 +14,13 @@ pub enum Severity {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Diagnostic {
     pub severity: Severity,
-    pub code:     DiagnosticCode,
-    pub message:  String,
+    pub code: DiagnosticCode,
+    pub message: String,
     /// Source file path (relative to the manifest directory).
-    pub file:     Option<String>,
-    pub span:     Option<Span>,
+    pub file: Option<String>,
+    pub span: Option<Span>,
     /// Optional secondary labels / notes.
-    pub labels:   Vec<Label>,
+    pub labels: Vec<Label>,
 }
 
 impl Diagnostic {
@@ -29,9 +29,9 @@ impl Diagnostic {
             severity: Severity::Error,
             code,
             message: message.into(),
-            file:    None,
-            span:    None,
-            labels:  Vec::new(),
+            file: None,
+            span: None,
+            labels: Vec::new(),
         }
     }
 
@@ -40,9 +40,9 @@ impl Diagnostic {
             severity: Severity::Warning,
             code,
             message: message.into(),
-            file:    None,
-            span:    None,
-            labels:  Vec::new(),
+            file: None,
+            span: None,
+            labels: Vec::new(),
         }
     }
 
@@ -74,16 +74,16 @@ impl Diagnostic {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Label {
     pub message: String,
-    pub file:    Option<String>,
-    pub span:    Option<Span>,
+    pub file: Option<String>,
+    pub span: Option<Span>,
 }
 
 impl Label {
     pub fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
-            file:    None,
-            span:    None,
+            file: None,
+            span: None,
         }
     }
 
@@ -100,55 +100,55 @@ impl Label {
 #[repr(u16)]
 pub enum DiagnosticCode {
     // Parse errors
-    UnexpectedToken           = 1001,
-    UnclosedDelimiter         = 1002,
-    UnexpectedEof             = 1003,
+    UnexpectedToken = 1001,
+    UnclosedDelimiter = 1002,
+    UnexpectedEof = 1003,
 
     // Type errors
-    DuplicateClass            = 2001,
-    CyclicInheritance         = 2002,
-    UnknownClass              = 2003,
-    TypeMismatch              = 2004,
-    AbstractInstantiation     = 2005,
-    MissingAbstractBody       = 2006,
-    OverrideWithoutParent     = 2007,
-    MissingReturnValue        = 2008,
-    UnknownField              = 2009,
-    UnknownVariable           = 2010,
-    WrongArgCount             = 2011,
-    DuplicateField            = 2012,
-    ListFieldNotExplicit      = 2013,
+    DuplicateClass = 2001,
+    CyclicInheritance = 2002,
+    UnknownClass = 2003,
+    TypeMismatch = 2004,
+    AbstractInstantiation = 2005,
+    MissingAbstractBody = 2006,
+    OverrideWithoutParent = 2007,
+    MissingReturnValue = 2008,
+    UnknownField = 2009,
+    UnknownVariable = 2010,
+    WrongArgCount = 2011,
+    DuplicateField = 2012,
+    ListFieldNotExplicit = 2013,
 
     // Ontology errors
-    OntologyLoadFailed        = 3001,
-    OntologyInconsistent      = 3002,
-    UnknownOntologyClass      = 3003,
-    ClassifiesNotReachable    = 3004,
-    SparqlSyntaxError         = 3005,
-    SparqlArgCountMismatch    = 3006,
-    SparqlFieldMismatch       = 3007,
-    LinksPredicateInvalid     = 3008,
-    ShaclViolation            = 3009,
-    UnknownPrefix             = 3010,
-    RetrievesNotSelect        = 3011,
-    LinkTurtleInvalid         = 3012,
+    OntologyLoadFailed = 3001,
+    OntologyInconsistent = 3002,
+    UnknownOntologyClass = 3003,
+    ClassifiesNotReachable = 3004,
+    SparqlSyntaxError = 3005,
+    SparqlArgCountMismatch = 3006,
+    SparqlFieldMismatch = 3007,
+    LinksPredicateInvalid = 3008,
+    ShaclViolation = 3009,
+    UnknownPrefix = 3010,
+    RetrievesNotSelect = 3011,
+    LinkTurtleInvalid = 3012,
 
     // Manifest / IO errors
-    ManifestNotFound          = 4001,
-    ManifestParseFailed       = 4002,
-    GlobExpansionFailed       = 4003,
-    FileReadFailed            = 4004,
+    ManifestNotFound = 4001,
+    ManifestParseFailed = 4002,
+    GlobExpansionFailed = 4003,
+    FileReadFailed = 4004,
 
     // Model errors (formal verifier)
-    ContextFieldInvalid       = 5001,
-    ClassifyAmbiguous         = 5002,
-    ClassifiesInvalid         = 5003,
-    LinksTypeMismatch         = 5004,
-    MemberExpressionInvalid   = 5005,
-    FmoPortUnknown            = 5006,
-    StateNotReachable         = 5007,
-    AdaptationDeadlock        = 5008,
-    InvariantViolation        = 5009,
+    ContextFieldInvalid = 5001,
+    ClassifyAmbiguous = 5002,
+    ClassifiesInvalid = 5003,
+    LinksTypeMismatch = 5004,
+    MemberExpressionInvalid = 5005,
+    FmoPortUnknown = 5006,
+    StateNotReachable = 5007,
+    AdaptationDeadlock = 5008,
+    InvariantViolation = 5009,
 }
 
 impl std::fmt::Display for DiagnosticCode {

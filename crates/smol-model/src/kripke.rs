@@ -6,8 +6,8 @@
 //! evaluated.  In the SMOL model, an atomic proposition is simply a state-class
 //! name that holds exactly in the state of that name, so the domain is the
 //! state name (`String`, empty for unclassified initial states).
-use citreelo::kripke::{AtomicProposition, KripkeState, KripkeStructure};
 use crate::model::TransitionSystem;
+use citreelo::kripke::{AtomicProposition, KripkeState, KripkeStructure};
 
 /// An atomic proposition: the name of a state class.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

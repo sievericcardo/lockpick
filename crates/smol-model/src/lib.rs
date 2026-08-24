@@ -13,4 +13,4 @@ pub mod ctl;
 pub mod kripke;
 pub mod model;
 
-pub use checks::{check_model, Property};
+pub use checks::{Property, check_model};

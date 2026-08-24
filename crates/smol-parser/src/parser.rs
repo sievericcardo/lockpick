@@ -6,8 +6,8 @@
 use pest::Parser;
 use pest::iterators::Pair;
 use smol_syntax::ast::*;
-use smol_syntax::span::Span;
 use smol_syntax::diagnostic::{Diagnostic, DiagnosticCode};
+use smol_syntax::span::Span;
 
 #[derive(pest_derive::Parser)]
 #[grammar = "smol.pest"]
@@ -35,8 +35,8 @@ pub fn parse(path: &str, src: &str) -> (File, Vec<Diagnostic>) {
                     DiagnosticCode::UnexpectedToken,
                     format!("Pest parser error: {}", err),
                 )
-                    .with_file(path)
-                    .with_span(Span::new(0, 1))
+                .with_file(path)
+                .with_span(Span::new(0, 1)),
             );
             (
                 File {
@@ -44,17 +44,20 @@ pub fn parse(path: &str, src: &str) -> (File, Vec<Diagnostic>) {
                     classes: Vec::new(),
                     main: None,
                 },
-                diagnostics
+                diagnostics,
             )
         }
     }
 }
 
-fn parse_program(pair: Pair<Rule>, _diagnostics: &mut Vec<Diagnostic>) -> (Vec<ClassDecl>, Option<Vec<Stmt>>) {
+fn parse_program(
+    pair: Pair<Rule>,
+    _diagnostics: &mut Vec<Diagnostic>,
+) -> (Vec<ClassDecl>, Option<Vec<Stmt>>) {
     let mut classes = Vec::new();
     let mut main_stmts = None;
 
-    for  inner in pair.into_inner() {
+    for inner in pair.into_inner() {
         match inner.as_rule() {
             Rule::class_def => {
                 classes.push(parse_class_def(inner));
@@ -174,7 +177,10 @@ fn parse_name_list(pair: Pair<Rule>) -> Vec<String> {
 
 /// Parse a type expression into a Type AST node
 fn parse_type_expr(pair: Pair<Rule>) -> Type {
-    let inner = pair.into_inner().next().expect("Type expression must have inner");
+    let inner = pair
+        .into_inner()
+        .next()
+        .expect("Type expression must have inner");
     match inner.as_rule() {
         Rule::simple_type => {
             let name_str = inner
@@ -206,7 +212,7 @@ fn parse_type_expr(pair: Pair<Rule>) -> Type {
             // type checker can recognise their list semantics.
             if type_params.len() == 1 {
                 match name.as_str() {
-                    "List"    => return Type::List(Box::new(type_params[0].clone())),
+                    "List" => return Type::List(Box::new(type_params[0].clone())),
                     "ExplList" => return Type::ExplList(Box::new(type_params[0].clone())),
                     _ => {}
                 }
@@ -258,7 +264,12 @@ fn parse_fmu_param(pair: Pair<Rule>) -> FmoPort {
         }
     }
 
-    FmoPort { direction, ty, name, span }
+    FmoPort {
+        direction,
+        ty,
+        name,
+        span,
+    }
 }
 
 fn parse_field_decl_list(pair: Pair<Rule>) -> Vec<FieldDecl> {
@@ -386,10 +397,10 @@ fn parse_models_block(pair: Pair<Rule>) -> Vec<LinksAnnotation> {
                     match p.as_rule() {
                         Rule::expression => {
                             guard_expr = Some(Box::new(parse_expression(p)));
-                        },
+                        }
                         Rule::string_lit => {
                             turtle_str = parse_string_lit(p);
-                        },
+                        }
                         _ => {}
                     }
                 }
@@ -621,9 +632,7 @@ fn decl_or_assign(span: Span, ty: Option<Type>, target: Expr, rhs: Expr) -> Stmt
 
 /// Collect the leading optional type and the ordered `expression` sub-pairs of
 /// an assignment-like statement (`[type] target = …`).
-fn collect_assignment_parts(
-    pair: &Pair<Rule>,
-) -> (Option<Type>, Vec<Expr>) {
+fn collect_assignment_parts(pair: &Pair<Rule>) -> (Option<Type>, Vec<Expr>) {
     let mut ty = None;
     let mut exprs = Vec::new();
     for inner in pair.clone().into_inner() {
@@ -804,7 +813,10 @@ fn parse_super_stmt(pair: Pair<Rule>) -> Stmt {
 fn parse_expression(pair: Pair<Rule>) -> Expr {
     match pair.as_rule() {
         Rule::expression => {
-            let inner = pair.into_inner().next().expect("expression must have inner");
+            let inner = pair
+                .into_inner()
+                .next()
+                .expect("expression must have inner");
             parse_expression(inner)
         }
         Rule::expr_or => parse_expr_or(pair),

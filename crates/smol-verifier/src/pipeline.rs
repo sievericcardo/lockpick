@@ -16,7 +16,7 @@ use crate::manifest;
 #[must_use]
 #[allow(clippy::implicit_hasher)]
 pub fn run_manifest(
-    manifest_path:  &Path,
+    manifest_path: &Path,
     extra_prefixes: &HashMap<String, String>,
 ) -> Vec<Diagnostic> {
     match manifest::load(manifest_path) {
@@ -45,11 +45,11 @@ pub fn run_manifest(
 #[must_use]
 #[allow(clippy::implicit_hasher)]
 pub fn run_files(
-    smol_paths:     &[PathBuf],
+    smol_paths: &[PathBuf],
     ontology_paths: &[PathBuf],
-    shacl_paths:    &[PathBuf],
+    shacl_paths: &[PathBuf],
     extra_prefixes: &HashMap<String, String>,
-    properties:     &[String],
+    properties: &[String],
 ) -> Vec<Diagnostic> {
     let mut all_diags = Vec::new();
 
@@ -57,13 +57,13 @@ pub fn run_files(
         .par_iter()
         .map(|path| {
             let src = match std::fs::read_to_string(path) {
-                Ok(s)  => s,
+                Ok(s) => s,
                 Err(e) => {
                     return (
                         File {
-                            path:    path.to_string_lossy().into_owned(),
+                            path: path.to_string_lossy().into_owned(),
                             classes: Vec::new(),
-                            main:    None,
+                            main: None,
                         },
                         vec![smol_syntax::diagnostic::Diagnostic::error(
                             smol_syntax::diagnostic::DiagnosticCode::FileReadFailed,
@@ -79,15 +79,16 @@ pub fn run_files(
         })
         .collect();
 
-    let (files, parse_diags): (Vec<File>, Vec<Vec<Diagnostic>>) =
-        parse_results.into_iter().unzip();
+    let (files, parse_diags): (Vec<File>, Vec<Vec<Diagnostic>>) = parse_results.into_iter().unzip();
 
     for pd in parse_diags {
         all_diags.extend(pd);
     }
 
     // Abort further checks if we have parse errors — AST may be incomplete.
-    let had_parse_error = all_diags.iter().any(smol_syntax::diagnostic::Diagnostic::is_error);
+    let had_parse_error = all_diags
+        .iter()
+        .any(smol_syntax::diagnostic::Diagnostic::is_error);
 
     // Build model-check properties from the manifest formulas.
     let model_properties: Vec<smol_model::Property> = properties

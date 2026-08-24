@@ -6,7 +6,7 @@ use smol_syntax::ast::{Expr, FieldModifier, File, Stmt, Type};
 use smol_syntax::diagnostic::{Diagnostic, DiagnosticCode};
 
 use crate::model::{
-    self, ClassMap, Extracted, Resolver, ResolvedType, StateClass, TransitionSystem,
+    self, ClassMap, Extracted, ResolvedType, Resolver, StateClass, TransitionSystem,
 };
 
 /// A user-supplied CTL property to verify.
@@ -70,8 +70,8 @@ fn check_context_fields(map: &ClassMap, files: &[File], diags: &mut Vec<Diagnost
                             context_fields.len()
                         ),
                     )
-                        .with_file(&file.path)
-                        .with_span(cls.span),
+                    .with_file(&file.path)
+                    .with_span(cls.span),
                 );
             }
 
@@ -86,21 +86,18 @@ fn check_context_fields(map: &ClassMap, files: &[File], diags: &mut Vec<Diagnost
                                     f.name
                                 ),
                             )
-                                .with_file(&file.path)
-                                .with_span(f.span),
+                            .with_file(&file.path)
+                            .with_span(f.span),
                         );
                     }
                 } else {
                     diags.push(
                         Diagnostic::error(
                             DiagnosticCode::ContextFieldInvalid,
-                            format!(
-                                "`context` field `{}` must be a named class type",
-                                f.name
-                            ),
+                            format!("`context` field `{}` must be a named class type", f.name),
                         )
-                            .with_file(&file.path)
-                            .with_span(f.span),
+                        .with_file(&file.path)
+                        .with_span(f.span),
                     );
                 }
             }
@@ -123,8 +120,8 @@ fn check_classifies(extracted: &Extracted, diags: &mut Vec<Diagnostic>) {
                         s.name
                     ),
                 )
-                    .with_file(&s.file)
-                    .with_span(s.span),
+                .with_file(&s.file)
+                .with_span(s.span),
             );
         }
     }
@@ -141,8 +138,8 @@ fn check_classifies(extracted: &Extracted, diags: &mut Vec<Diagnostic>) {
                         s.name, s.iri
                     ),
                 )
-                    .with_file(&s.file)
-                    .with_span(s.span),
+                .with_file(&s.file)
+                .with_span(s.span),
             );
         }
     }
@@ -167,8 +164,8 @@ fn check_links(map: &ClassMap, files: &[File], diags: &mut Vec<Diagnostic>) {
                                     cls.name
                                 ),
                             )
-                                .with_file(&file.path)
-                                .with_span(link.span),
+                            .with_file(&file.path)
+                            .with_span(link.span),
                         );
                     }
                 }
@@ -265,7 +262,9 @@ impl BodyChecker<'_> {
     fn walk_stmt(&mut self, resolver: &mut Resolver, stmt: &Stmt) {
         match stmt {
             Stmt::VarDecl { ty, name, init, .. } => {
-                resolver.local_vars.insert(name.clone(), model::resolve_type(ty));
+                resolver
+                    .local_vars
+                    .insert(name.clone(), model::resolve_type(ty));
                 if let Expr::Classify { expr: inner, span } = init {
                     self.mark_adapted(resolver, inner);
                     let target = model::resolve_type(ty);
@@ -289,11 +288,18 @@ impl BodyChecker<'_> {
             Stmt::Expr { expr, .. }
             | Stmt::Print { value: expr, .. }
             | Stmt::Destroy { value: expr, .. }
-            | Stmt::Return { value: Some(expr), .. } => {
+            | Stmt::Return {
+                value: Some(expr), ..
+            } => {
                 self.walk_expr(resolver, expr);
             }
             Stmt::Return { value: None, .. } => {}
-            Stmt::If { cond, then_body, else_body, .. } => {
+            Stmt::If {
+                cond,
+                then_body,
+                else_body,
+                ..
+            } => {
                 self.walk_expr(resolver, cond);
                 self.walk_stmts(resolver, then_body);
                 self.walk_stmts(resolver, else_body);
@@ -318,7 +324,11 @@ impl BodyChecker<'_> {
                 self.check_classify_ambiguity(resolver, inner, *span, None);
                 self.walk_expr(resolver, inner);
             }
-            Expr::Port { receiver, port, span } => {
+            Expr::Port {
+                receiver,
+                port,
+                span,
+            } => {
                 if let ResolvedType::Fmo(ports) = resolver.resolve_expression(receiver) {
                     if !ports.contains(port) {
                         self.diags.push(
@@ -333,8 +343,8 @@ impl BodyChecker<'_> {
                                     }
                                 ),
                             )
-                                .with_file(self.file)
-                                .with_span(*span),
+                            .with_file(self.file)
+                            .with_span(*span),
                         );
                     }
                 }
@@ -347,8 +357,8 @@ impl BodyChecker<'_> {
                             DiagnosticCode::MemberExpressionInvalid,
                             "`member` expression must not be empty".to_owned(),
                         )
-                            .with_file(self.file)
-                            .with_span(*span),
+                        .with_file(self.file)
+                        .with_span(*span),
                     );
                 }
             }
@@ -359,13 +369,18 @@ impl BodyChecker<'_> {
                             DiagnosticCode::MemberExpressionInvalid,
                             "`validate` expression must not be empty".to_owned(),
                         )
-                            .with_file(self.file)
-                            .with_span(*span),
+                        .with_file(self.file)
+                        .with_span(*span),
                     );
                 }
             }
             Expr::Field { receiver, .. } => self.walk_expr(resolver, receiver),
-            Expr::MethodCall { receiver, method, args, span } => {
+            Expr::MethodCall {
+                receiver,
+                method,
+                args,
+                span,
+            } => {
                 if method == "port" {
                     if let ResolvedType::Fmo(ports) = resolver.resolve_expression(receiver) {
                         if let Some(Expr::StrLit(port_name, _)) = args.first() {
@@ -517,7 +532,9 @@ fn collect_list_vars(expr: &Expr, resolver: &Resolver) -> Vec<String> {
 fn collect_vars_inner(expr: &Expr, resolver: &Resolver, out: &mut Vec<String>) {
     match expr {
         Expr::Var(name, _) => {
-            if matches!(resolver.resolve_expression(expr), ResolvedType::List(_)) && !out.contains(name) {
+            if matches!(resolver.resolve_expression(expr), ResolvedType::List(_))
+                && !out.contains(name)
+            {
                 out.push(name.clone());
             }
         }
@@ -534,7 +551,9 @@ fn collect_vars_inner(expr: &Expr, resolver: &Resolver, out: &mut Vec<String>) {
             }
         }
         Expr::Classify { expr: inner, .. } => collect_vars_inner(inner, resolver, out),
-        Expr::BuiltinCall { args, .. } | Expr::Construct { args, .. } | Expr::Access { args, .. } => {
+        Expr::BuiltinCall { args, .. }
+        | Expr::Construct { args, .. }
+        | Expr::Access { args, .. } => {
             for a in args {
                 collect_vars_inner(a, resolver, out);
             }
@@ -558,7 +577,10 @@ fn stmt_advances(stmt: &Stmt, var: &str) -> bool {
         Stmt::Assign { lhs, rhs, .. } => {
             if let Expr::Var(lhs_name, _) = lhs {
                 if lhs_name == var {
-                    if let Expr::Field { receiver, field, .. } = rhs {
+                    if let Expr::Field {
+                        receiver, field, ..
+                    } = rhs
+                    {
                         if field == "next" {
                             if let Expr::Var(rec, _) = receiver.as_ref() {
                                 return rec == var;
@@ -569,7 +591,11 @@ fn stmt_advances(stmt: &Stmt, var: &str) -> bool {
             }
             false
         }
-        Stmt::If { then_body, else_body, .. } => {
+        Stmt::If {
+            then_body,
+            else_body,
+            ..
+        } => {
             then_body.iter().any(|s| stmt_advances(s, var))
                 || else_body.iter().any(|s| stmt_advances(s, var))
         }
@@ -616,21 +642,17 @@ fn check_reachability(ts: &TransitionSystem, states: &[StateClass], diags: &mut 
 fn check_property(ts: &TransitionSystem, prop: &Property, diags: &mut Vec<Diagnostic>) {
     match crate::ctl::parse_prop(&prop.formula) {
         Err(e) => {
-            diags.push(
-                Diagnostic::error(
-                    DiagnosticCode::InvariantViolation,
-                    format!("invalid property `{}`: {e}", prop.formula),
-                ),
-            );
+            diags.push(Diagnostic::error(
+                DiagnosticCode::InvariantViolation,
+                format!("invalid property `{}`: {e}", prop.formula),
+            ));
         }
         Ok(parsed) => {
             if let Err(msg) = crate::ctl::verify(ts, &parsed) {
-                diags.push(
-                    Diagnostic::error(
-                        DiagnosticCode::InvariantViolation,
-                        format!("property `{}` failed: {msg}", prop.name),
-                    ),
-                );
+                diags.push(Diagnostic::error(
+                    DiagnosticCode::InvariantViolation,
+                    format!("property `{}` failed: {msg}", prop.name),
+                ));
             }
         }
     }

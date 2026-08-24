@@ -244,8 +244,7 @@ pub fn context_holders(map: &ClassMap, entity: &str) -> Vec<String> {
     let mut result = Vec::new();
     for (name, entry) in map.iter() {
         let has = entry.decl.fields.iter().any(|f| {
-            f.modifier == FieldModifier::Context
-                && matches!(&f.ty, Type::Named(n) if n == entity)
+            f.modifier == FieldModifier::Context && matches!(&f.ty, Type::Named(n) if n == entity)
         });
         if has {
             result.push(name.clone());
@@ -279,9 +278,7 @@ pub fn resolve_type(ty: &Type) -> ResolvedType {
             ResolvedType::List(Box::new(resolve_type(inner)))
         }
         Type::Generic(n, _) => ResolvedType::Class(n.clone()),
-        Type::Fmo(fields) => {
-            ResolvedType::Fmo(fields.iter().map(|f| f.name.clone()).collect())
-        },
+        Type::Fmo(fields) => ResolvedType::Fmo(fields.iter().map(|f| f.name.clone()).collect()),
         Type::Int | Type::Double | Type::String | Type::Boolean | Type::Unit => {
             ResolvedType::Primitive(format!("{:?}", ty))
         }
@@ -321,26 +318,28 @@ impl<'a> Resolver<'a> {
                     ResolvedType::Unknown
                 }
             }
-            Expr::Field { receiver, field, .. } => {
+            Expr::Field {
+                receiver, field, ..
+            } => {
                 let receiver_type = self.resolve_expression(receiver);
                 match receiver_type {
                     ResolvedType::List(inner) => match field.as_str() {
                         "content" => *inner,
                         "next" => ResolvedType::List(inner),
                         _ => ResolvedType::Unknown,
-                    }
+                    },
                     ResolvedType::Class(class_name) => self
                         .map
                         .field(&class_name, field)
-                        .map_or(ResolvedType::Unknown, |f| {
-                            resolve_type(&f.ty)
-                        }),
+                        .map_or(ResolvedType::Unknown, |f| resolve_type(&f.ty)),
                     _ => ResolvedType::Unknown,
                 }
             }
             Expr::New { class, .. } => ResolvedType::Class(class.clone()),
             Expr::Classify { expr: inner, .. } => self.resolve_expression(inner),
-            Expr::BuiltinCall { .. } | Expr::Construct { .. } | Expr::Access { .. } => ResolvedType::Unknown,
+            Expr::BuiltinCall { .. } | Expr::Construct { .. } | Expr::Access { .. } => {
+                ResolvedType::Unknown
+            }
             Expr::IntLit(_, _)
             | Expr::FloatLit(_, _)
             | Expr::StrLit(_, _)
@@ -353,13 +352,17 @@ impl<'a> Resolver<'a> {
             | Expr::Simulate { .. }
             | Expr::Port { .. }
             | Expr::Super { .. } => ResolvedType::Unknown,
-            _ => ResolvedType::Unknown
+            _ => ResolvedType::Unknown,
         }
     }
 
     /// Return the classification root for a resolved expression, if known.
     #[must_use]
-    pub fn root_of(&self, resolved_type: &ResolvedType, state_roots: &HashMap<String, String>) -> Option<String> {
+    pub fn root_of(
+        &self,
+        resolved_type: &ResolvedType,
+        state_roots: &HashMap<String, String>,
+    ) -> Option<String> {
         let ResolvedType::Class(name) = resolved_type else {
             return None;
         };
@@ -431,7 +434,7 @@ pub fn build_transition_system(roots: &[Root]) -> TransitionSystem {
             successors.push(Vec::new());
             state_indices.push(index);
         }
-        infos.push(RootInfo{
+        infos.push(RootInfo {
             init,
             states: state_indices,
         });
@@ -454,7 +457,7 @@ pub fn build_transition_system(roots: &[Root]) -> TransitionSystem {
         } else {
             successors[info.init] = Vec::new();
             for &state in &info.states {
-                successors[state] = vec!(state);
+                successors[state] = vec![state];
             }
         }
     }

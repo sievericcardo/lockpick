@@ -1,10 +1,12 @@
 //! Source-span types used throughout the SMOL pipeline.
 
 /// A byte-offset range within a single source file.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, serde::Serialize, serde::Deserialize,
+)]
 pub struct Span {
     pub start: usize,
-    pub end:   usize,
+    pub end: usize,
 }
 
 impl Span {
@@ -19,7 +21,7 @@ impl Span {
     pub fn merge(self, other: Self) -> Self {
         Self {
             start: self.start.min(other.start),
-            end:   self.end.max(other.end),
+            end: self.end.max(other.end),
         }
     }
 }
@@ -38,14 +40,18 @@ impl From<Span> for std::ops::Range<usize> {
 
 impl chumsky::span::Span for Span {
     type Context = ();
-    type Offset  = usize;
+    type Offset = usize;
 
     fn new(_ctx: (), range: std::ops::Range<usize>) -> Self {
         Self::new(range.start, range.end)
     }
-    fn context(&self) {  }
-    fn start(&self)   -> usize { self.start }
-    fn end(&self)     -> usize { self.end }
+    fn context(&self) {}
+    fn start(&self) -> usize {
+        self.start
+    }
+    fn end(&self) -> usize {
+        self.end
+    }
 }
 
 impl std::fmt::Display for Span {

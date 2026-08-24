@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 
-use oxidowl::{OntologyFormat, Reasoner, ReasonerConfig, ShaclValidator};
 use oxidowl::query::SparqlStore;
+use oxidowl::{OntologyFormat, Reasoner, ReasonerConfig, ShaclValidator};
 
 use smol_syntax::ast::File;
 use smol_syntax::diagnostic::{Diagnostic, DiagnosticCode};
 use smol_syntax::span::Span;
 use std::fmt::Write;
-
 
 // oxidowl prints progress messages to stdout/stderr during ontology loading
 // and reasoning.  We silence them when running as a library by redirecting
@@ -19,7 +18,7 @@ use std::fmt::Write;
 fn with_suppressed_output<T, F: FnOnce() -> T>(f: F) -> T {
     #[cfg(unix)]
     {
-        use libc::{close, dup, dup2, open, O_WRONLY, STDERR_FILENO, STDOUT_FILENO};
+        use libc::{O_WRONLY, STDERR_FILENO, STDOUT_FILENO, close, dup, dup2, open};
         use std::ffi::CString;
         unsafe {
             let devnull = CString::new("/dev/null").unwrap();
@@ -32,13 +31,21 @@ fn with_suppressed_output<T, F: FnOnce() -> T>(f: F) -> T {
                 close(null_fd);
             }
             let result = f();
-            if saved_out >= 0 { dup2(saved_out, STDOUT_FILENO); close(saved_out); }
-            if saved_err >= 0 { dup2(saved_err, STDERR_FILENO); close(saved_err); }
+            if saved_out >= 0 {
+                dup2(saved_out, STDOUT_FILENO);
+                close(saved_out);
+            }
+            if saved_err >= 0 {
+                dup2(saved_err, STDERR_FILENO);
+                close(saved_err);
+            }
             result
         }
     }
     #[cfg(not(unix))]
-    { f() }
+    {
+        f()
+    }
 }
 
 /// Run all ontology-level checks for a set of SMOL source files and ontology
@@ -52,41 +59,39 @@ fn with_suppressed_output<T, F: FnOnce() -> T>(f: F) -> T {
 pub fn check_ontology(
     smol_files: &[File],
     ontology_paths: &[std::path::PathBuf],
-    shacl_paths:   &[std::path::PathBuf],
+    shacl_paths: &[std::path::PathBuf],
     extra_prefixes: &HashMap<String, String>,
 ) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
 
     // Load ontology into a Reasoner
-    let config  = ReasonerConfig::default();
+    let config = ReasonerConfig::default();
     let mut reasoner = match with_suppressed_output(|| Reasoner::new(config)) {
-        Ok(r)  => r,
+        Ok(r) => r,
         Err(e) => {
-            diags.push(
-                Diagnostic::error(
-                    DiagnosticCode::OntologyLoadFailed,
-                    format!("failed to create reasoner: {e}"),
-                ),
-            );
+            diags.push(Diagnostic::error(
+                DiagnosticCode::OntologyLoadFailed,
+                format!("failed to create reasoner: {e}"),
+            ));
             return diags;
         }
     };
 
     for path in ontology_paths {
         let path_str = path.to_string_lossy();
-        if let Err(e) = with_suppressed_output(|| reasoner.load_ontology_from_file(path_str.as_ref(), OntologyFormat::Auto)) {
-            diags.push(
-                Diagnostic::error(
-                    DiagnosticCode::OntologyLoadFailed,
-                    format!("failed to load ontology `{path_str}`: {e}"),
-                ),
-            );
+        if let Err(e) = with_suppressed_output(|| {
+            reasoner.load_ontology_from_file(path_str.as_ref(), OntologyFormat::Auto)
+        }) {
+            diags.push(Diagnostic::error(
+                DiagnosticCode::OntologyLoadFailed,
+                format!("failed to load ontology `{path_str}`: {e}"),
+            ));
         }
     }
 
     // Consistency check
     match with_suppressed_output(|| reasoner.is_consistent()) {
-        Ok(true)  => {}
+        Ok(true) => {}
         Ok(false) => {
             diags.push(Diagnostic::error(
                 DiagnosticCode::OntologyInconsistent,
@@ -103,7 +108,7 @@ pub fn check_ontology(
 
     // Build SPARQL store for IRI/SPARQL checks
     let _sparql_store = match with_suppressed_output(SparqlStore::new) {
-        Ok(s)  => s,
+        Ok(s) => s,
         Err(e) => {
             diags.push(Diagnostic::error(
                 DiagnosticCode::OntologyLoadFailed,
@@ -115,7 +120,7 @@ pub fn check_ontology(
 
     // Load ontologies into the SPARQL store
     let mut ont_store = match with_suppressed_output(SparqlStore::new) {
-        Ok(s)  => s,
+        Ok(s) => s,
         Err(e) => {
             diags.push(Diagnostic::error(
                 DiagnosticCode::OntologyLoadFailed,
@@ -144,7 +149,14 @@ pub fn check_ontology(
         for cls in &file.classes {
             // classifies "<IRI>" — IRI / Manchester / SPARQL
             if let Some(ann) = &cls.classifies {
-                check_classifies_annotation(&ann.iri, &ont_store, &prefix_map, file, ann.span, &mut diags);
+                check_classifies_annotation(
+                    &ann.iri,
+                    &ont_store,
+                    &prefix_map,
+                    file,
+                    ann.span,
+                    &mut diags,
+                );
             }
 
             // retrieves "SPARQL" — must be a valid SELECT query
@@ -157,12 +169,7 @@ pub fn check_ontology(
 
             // Method-level SPARQL in construct/access bodies
             for method in &cls.methods {
-                check_method_sparql(
-                    &method.body,
-                    file,
-                    &prefix_map,
-                    &mut diags,
-                );
+                check_method_sparql(&method.body, file, &prefix_map, &mut diags);
             }
         }
 
@@ -174,11 +181,14 @@ pub fn check_ontology(
     // SHACL validation
     for shapes_path in shacl_paths {
         let shapes_ttl = match std::fs::read_to_string(shapes_path) {
-            Ok(s)  => s,
+            Ok(s) => s,
             Err(e) => {
                 diags.push(Diagnostic::error(
                     DiagnosticCode::FileReadFailed,
-                    format!("cannot read SHACL shapes file `{}`: {e}", shapes_path.display()),
+                    format!(
+                        "cannot read SHACL shapes file `{}`: {e}",
+                        shapes_path.display()
+                    ),
                 ));
                 continue;
             }
@@ -190,15 +200,13 @@ pub fn check_ontology(
                 if let Ok(report) = v.validate() {
                     if !report.conforms {
                         for violation in &report.results {
-                            let msg = violation.messages.first()
+                            let msg = violation
+                                .messages
+                                .first()
                                 .map_or("(no message)", |m| m.value.as_str());
                             diags.push(Diagnostic::error(
                                 DiagnosticCode::ShaclViolation,
-                                format!(
-                                    "SHACL violation in `{}`: {}",
-                                    shapes_path.display(),
-                                    msg
-                                ),
+                                format!("SHACL violation in `{}`: {}", shapes_path.display(), msg),
                             ));
                         }
                     }
@@ -207,7 +215,10 @@ pub fn check_ontology(
             Err(e) => {
                 diags.push(Diagnostic::error(
                     DiagnosticCode::OntologyLoadFailed,
-                    format!("failed to load SHACL shapes `{}`: {e}", shapes_path.display()),
+                    format!(
+                        "failed to load SHACL shapes `{}`: {e}",
+                        shapes_path.display()
+                    ),
                 ));
             }
         }
@@ -223,13 +234,19 @@ fn build_prefix_map(
 ) -> HashMap<String, String> {
     let mut map = HashMap::new();
     // Built-ins (lowest priority)
-    map.insert("prog".into(),  "https://www.smolang.org/prog/".into());
-    map.insert("rdf".into(),   "http://www.w3.org/1999/02/22-rdf-syntax-ns#".into());
-    map.insert("rdfs".into(),  "http://www.w3.org/2000/01/rdf-schema#".into());
-    map.insert("owl".into(),   "http://www.w3.org/2002/07/owl#".into());
-    map.insert("xsd".into(),   "http://www.w3.org/2001/XMLSchema#".into());
-    map.insert("smol".into(),  "https://www.smolang.org/smol/".into());
-    map.insert("run".into(),   "https://www.smolang.org/run/".into());
+    map.insert("prog".into(), "https://www.smolang.org/prog/".into());
+    map.insert(
+        "rdf".into(),
+        "http://www.w3.org/1999/02/22-rdf-syntax-ns#".into(),
+    );
+    map.insert(
+        "rdfs".into(),
+        "http://www.w3.org/2000/01/rdf-schema#".into(),
+    );
+    map.insert("owl".into(), "http://www.w3.org/2002/07/owl#".into());
+    map.insert("xsd".into(), "http://www.w3.org/2001/XMLSchema#".into());
+    map.insert("smol".into(), "https://www.smolang.org/smol/".into());
+    map.insert("run".into(), "https://www.smolang.org/run/".into());
     map.insert("domain".into(), "http://example.org/domain/".into());
     // TTL-extracted (medium priority)
     for (k, v) in ttl {
@@ -294,9 +311,7 @@ fn check_classifies_annotation(
     let bracketed_iris = extract_angle_iris(iri);
     if !bracketed_iris.is_empty() {
         for bare_iri in bracketed_iris {
-            let Some(full_iri) =
-                resolve_iri(&bare_iri, prefix_map, file, span, diags)
-            else {
+            let Some(full_iri) = resolve_iri(&bare_iri, prefix_map, file, span, diags) else {
                 continue;
             };
             validate_iri_as_owl_class(&full_iri, store, file, span, diags);
@@ -323,13 +338,21 @@ fn strip_sparql_prologue(s: &str) -> &str {
     for line in s.lines() {
         let trimmed = line.trim();
         let upper = trimmed.to_uppercase();
-        if upper.starts_with("PREFIX ") || upper.starts_with("BASE ") || trimmed.starts_with('#') || trimmed.is_empty() {
+        if upper.starts_with("PREFIX ")
+            || upper.starts_with("BASE ")
+            || trimmed.starts_with('#')
+            || trimmed.is_empty()
+        {
             byte_pos += line.len() + 1; // +1 for the newline
         } else {
             break;
         }
     }
-    if byte_pos >= s.len() { s } else { &s[byte_pos..] }
+    if byte_pos >= s.len() {
+        s
+    } else {
+        &s[byte_pos..]
+    }
 }
 
 /// Extract all `<IRI>` segments from a Manchester-style expression, returning
@@ -378,7 +401,7 @@ fn resolve_iri<'a>(
     // Prefixed name: `domain:Sensor`
     if let Some(colon_pos) = iri.find(':') {
         let prefix = &iri[..colon_pos];
-        let local  = &iri[colon_pos + 1..];
+        let local = &iri[colon_pos + 1..];
         if let Some(base) = prefix_map.get(prefix) {
             return Some(format!("{base}{local}"));
         }
@@ -390,8 +413,8 @@ fn resolve_iri<'a>(
                      — add `--prefix {prefix}=<IRI>` or `[prefixes]` in smol.toml"
                 ),
             )
-                .with_file(&file.path)
-                .with_span(span),
+            .with_file(&file.path)
+            .with_span(span),
         );
         return None;
     }
@@ -423,17 +446,15 @@ fn validate_iri_as_owl_class(
     span: Span,
     diags: &mut Vec<Diagnostic>,
 ) {
-    let query = format!(
-        "ASK {{ <{iri}> a <http://www.w3.org/2002/07/owl#Class> }}"
-    );
+    let query = format!("ASK {{ <{iri}> a <http://www.w3.org/2002/07/owl#Class> }}");
     if let Ok(false) = store.execute_ask(&query) {
         diags.push(
             Diagnostic::error(
                 DiagnosticCode::UnknownOntologyClass,
                 format!("IRI `{iri}` is not declared as owl:Class in the ontology"),
             )
-                .with_file(&file.path)
-                .with_span(span),
+            .with_file(&file.path)
+            .with_span(span),
         );
     }
 }
@@ -460,8 +481,8 @@ fn check_sparql_syntax(
                 DiagnosticCode::SparqlSyntaxError,
                 format!("{context} SPARQL syntax error: {e}"),
             )
-                .with_file(&file.path)
-                .with_span(span),
+            .with_file(&file.path)
+            .with_span(span),
         );
     }
 }
@@ -483,8 +504,8 @@ fn check_retrieves_sparql(
                 DiagnosticCode::RetrievesNotSelect,
                 "retrieves must be a SELECT SPARQL query".to_owned(),
             )
-                .with_file(&file.path)
-                .with_span(span),
+            .with_file(&file.path)
+            .with_span(span),
         );
         return;
     }
@@ -500,8 +521,8 @@ fn check_retrieves_sparql(
                 DiagnosticCode::SparqlSyntaxError,
                 format!("retrieves SPARQL syntax error: {e}"),
             )
-                .with_file(&file.path)
-                .with_span(span),
+            .with_file(&file.path)
+            .with_span(span),
         );
     }
 }
@@ -541,8 +562,8 @@ fn check_links(
                     DiagnosticCode::LinkTurtleInvalid,
                     format!("links Turtle syntax error: {e}"),
                 )
-                    .with_file(&file.path)
-                    .with_span(link.span),
+                .with_file(&file.path)
+                .with_span(link.span),
             );
         }
     }
@@ -562,9 +583,9 @@ fn build_sparql_preamble(prefix_map: &HashMap<String, String>) -> String {
     );
     for (name, iri) in prefix_map {
         let skip = matches!(
-                name.as_str(),
-                "prog" | "rdf" | "rdfs" | "owl" | "xsd" | "smol" | "run" | "domain"
-            );
+            name.as_str(),
+            "prog" | "rdf" | "rdfs" | "owl" | "xsd" | "smol" | "run" | "domain"
+        );
         if !skip {
             let _ = writeln!(preamble, "PREFIX {name}: <{iri}>");
         }
@@ -577,10 +598,14 @@ fn build_sparql_preamble(prefix_map: &HashMap<String, String>) -> String {
 fn replace_smol_placeholders(sparql: &str) -> String {
     let mut result = sparql.to_owned();
     // Replace named placeholders (%word) and positional (%N).
-    let re_pos   = regex_lite::Regex::new(r"%(\d+)").unwrap();
+    let re_pos = regex_lite::Regex::new(r"%(\d+)").unwrap();
     let re_named = regex_lite::Regex::new(r"%(\w+)").unwrap();
-    result = re_pos  .replace_all(&result, r#""__smol_arg__""#).into_owned();
-    result = re_named.replace_all(&result, r#""__smol_arg__""#).into_owned();
+    result = re_pos
+        .replace_all(&result, r#""__smol_arg__""#)
+        .into_owned();
+    result = re_named
+        .replace_all(&result, r#""__smol_arg__""#)
+        .into_owned();
     result
 }
 
@@ -605,21 +630,28 @@ fn check_stmts_sparql(
     for stmt in stmts {
         #[allow(clippy::match_same_arms)]
         match stmt {
-            Stmt::VarDecl { init, .. }     => check_expr_sparql(init, file, prefix_map, diags),
-            Stmt::Assign  { rhs, lhs, .. } => {
+            Stmt::VarDecl { init, .. } => check_expr_sparql(init, file, prefix_map, diags),
+            Stmt::Assign { rhs, lhs, .. } => {
                 check_expr_sparql(lhs, file, prefix_map, diags);
                 check_expr_sparql(rhs, file, prefix_map, diags);
             }
-            Stmt::Expr    { expr, .. }     => check_expr_sparql(expr, file, prefix_map, diags),
-            Stmt::Return  { value, .. }    => {
-                if let Some(e) = value { check_expr_sparql(e, file, prefix_map, diags); }
+            Stmt::Expr { expr, .. } => check_expr_sparql(expr, file, prefix_map, diags),
+            Stmt::Return { value, .. } => {
+                if let Some(e) = value {
+                    check_expr_sparql(e, file, prefix_map, diags);
+                }
             }
-            Stmt::If      { cond, then_body, else_body, .. } => {
+            Stmt::If {
+                cond,
+                then_body,
+                else_body,
+                ..
+            } => {
                 check_expr_sparql(cond, file, prefix_map, diags);
                 check_stmts_sparql(then_body, file, prefix_map, diags);
                 check_stmts_sparql(else_body, file, prefix_map, diags);
             }
-            Stmt::While   { cond, body, .. } => {
+            Stmt::While { cond, body, .. } => {
                 check_expr_sparql(cond, file, prefix_map, diags);
                 check_stmts_sparql(body, file, prefix_map, diags);
             }
@@ -644,29 +676,51 @@ fn check_expr_sparql(
     match expr {
         Expr::Construct { sparql, args, span } => {
             check_sparql_syntax(sparql, "construct", file, *span, prefix_map, diags);
-            for arg in args { check_expr_sparql(arg, file, prefix_map, diags); }
+            for arg in args {
+                check_expr_sparql(arg, file, prefix_map, diags);
+            }
         }
-        Expr::Access { connector, args, .. } => {
+        Expr::Access {
+            connector, args, ..
+        } => {
             // access() accepts non-SPARQL query languages (e.g. InfluxDB Flux),
             // so the query string is intentionally not validated as SPARQL.
-            if let Some(c) = connector { check_expr_sparql(c, file, prefix_map, diags); }
-            for arg in args { check_expr_sparql(arg, file, prefix_map, diags); }
+            if let Some(c) = connector {
+                check_expr_sparql(c, file, prefix_map, diags);
+            }
+            for arg in args {
+                check_expr_sparql(arg, file, prefix_map, diags);
+            }
         }
         Expr::MethodCall { receiver, args, .. } => {
             check_expr_sparql(receiver, file, prefix_map, diags);
-            for a in args { check_expr_sparql(a, file, prefix_map, diags); }
+            for a in args {
+                check_expr_sparql(a, file, prefix_map, diags);
+            }
         }
         Expr::BinOp { left, right, .. } => {
-            check_expr_sparql(left,  file, prefix_map, diags);
+            check_expr_sparql(left, file, prefix_map, diags);
             check_expr_sparql(right, file, prefix_map, diags);
         }
-        Expr::UnaryOp { expr: inner, .. }   => check_expr_sparql(inner, file, prefix_map, diags),
-        Expr::New      { args, .. }          => { for a in args { check_expr_sparql(a, file, prefix_map, diags); } }
-        Expr::Field    { receiver, .. }      => check_expr_sparql(receiver, file, prefix_map, diags),
-        Expr::Classify { expr: inner, .. }   => check_expr_sparql(inner, file, prefix_map, diags),
-        Expr::Simulate { args, .. }          => { for a in args { check_expr_sparql(a, file, prefix_map, diags); } }
-        Expr::Port     { receiver, .. }      => check_expr_sparql(receiver, file, prefix_map, diags),
-        Expr::Super    { args, .. }          => { for a in args { check_expr_sparql(a, file, prefix_map, diags); } }
+        Expr::UnaryOp { expr: inner, .. } => check_expr_sparql(inner, file, prefix_map, diags),
+        Expr::New { args, .. } => {
+            for a in args {
+                check_expr_sparql(a, file, prefix_map, diags);
+            }
+        }
+        Expr::Field { receiver, .. } => check_expr_sparql(receiver, file, prefix_map, diags),
+        Expr::Classify { expr: inner, .. } => check_expr_sparql(inner, file, prefix_map, diags),
+        Expr::Simulate { args, .. } => {
+            for a in args {
+                check_expr_sparql(a, file, prefix_map, diags);
+            }
+        }
+        Expr::Port { receiver, .. } => check_expr_sparql(receiver, file, prefix_map, diags),
+        Expr::Super { args, .. } => {
+            for a in args {
+                check_expr_sparql(a, file, prefix_map, diags);
+            }
+        }
         // Member / Validate / literal / variable expressions: no SPARQL to check.
         _ => {}
     }
@@ -686,7 +740,11 @@ mod regex_lite {
 
         /// Replace `%N` (digits) or `%word` occurrences with `replacement`.
         #[allow(clippy::unused_self)]
-        pub fn replace_all<'a>(&self, text: &'a str, replacement: &str) -> std::borrow::Cow<'a, str> {
+        pub fn replace_all<'a>(
+            &self,
+            text: &'a str,
+            replacement: &str,
+        ) -> std::borrow::Cow<'a, str> {
             // Simple character-scan replacement for %N and %word patterns.
             let mut result = String::with_capacity(text.len());
             let bytes = text.as_bytes();

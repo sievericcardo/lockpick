@@ -34,7 +34,7 @@ pub fn verify_manifest(manifest: &std::path::Path) -> Vec<Diagnostic> {
 #[must_use]
 #[allow(clippy::implicit_hasher)]
 pub fn verify_manifest_with_prefixes(
-    manifest:       &std::path::Path,
+    manifest: &std::path::Path,
     extra_prefixes: &std::collections::HashMap<String, String>,
 ) -> Vec<Diagnostic> {
     pipeline::run_manifest(manifest, extra_prefixes)
@@ -46,10 +46,16 @@ pub fn verify_manifest_with_prefixes(
 /// `ontology_files` — paths to `.ttl` / `.owx` ontology files.
 #[must_use]
 pub fn verify_files(
-    smol_files:      &[std::path::PathBuf],
-    ontology_files:  &[std::path::PathBuf],
+    smol_files: &[std::path::PathBuf],
+    ontology_files: &[std::path::PathBuf],
 ) -> Vec<Diagnostic> {
-    pipeline::run_files(smol_files, ontology_files, &[], &std::collections::HashMap::default(), &[])
+    pipeline::run_files(
+        smol_files,
+        ontology_files,
+        &[],
+        &std::collections::HashMap::default(),
+        &[],
+    )
 }
 
 /// Like [`verify_files`] but with additional SPARQL prefixes.
@@ -58,9 +64,9 @@ pub fn verify_files(
 #[must_use]
 #[allow(clippy::implicit_hasher)]
 pub fn verify_files_with_prefixes(
-    smol_files:      &[std::path::PathBuf],
-    ontology_files:  &[std::path::PathBuf],
-    extra_prefixes:  &std::collections::HashMap<String, String>,
+    smol_files: &[std::path::PathBuf],
+    ontology_files: &[std::path::PathBuf],
+    extra_prefixes: &std::collections::HashMap<String, String>,
 ) -> Vec<Diagnostic> {
     pipeline::run_files(smol_files, ontology_files, &[], extra_prefixes, &[])
 }
@@ -70,9 +76,15 @@ pub fn verify_files_with_prefixes(
 /// Each property is a CTL formula string (e.g. `"AG (Healthy || Unhealthy)"`).
 #[must_use]
 pub fn verify_files_with_properties(
-    smol_files:      &[std::path::PathBuf],
-    ontology_files:  &[std::path::PathBuf],
-    properties:      &[String],
+    smol_files: &[std::path::PathBuf],
+    ontology_files: &[std::path::PathBuf],
+    properties: &[String],
 ) -> Vec<Diagnostic> {
-    pipeline::run_files(smol_files, ontology_files, &[], &std::collections::HashMap::default(), properties)
+    pipeline::run_files(
+        smol_files,
+        ontology_files,
+        &[],
+        &std::collections::HashMap::default(),
+        properties,
+    )
 }

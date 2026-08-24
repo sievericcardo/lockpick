@@ -20,7 +20,7 @@
 use citreelo::ctl::{BinaryCTLOperator, CTLFormula, CTLFormulaLeaf, UnaryCTLOperator};
 use citreelo::solve::CtlModelChecker;
 
-use crate::kripke::{to_kripke, Ap};
+use crate::kripke::{Ap, to_kripke};
 use crate::model::TransitionSystem;
 
 /// A CTL property, which can be evaluated on a [`TransitionSystem`].
@@ -123,9 +123,7 @@ fn tokenize(input: &str) -> Result<Vec<Token>, String> {
             }
             c if c.is_ascii_alphanumeric() || c == '_' => {
                 let start = i;
-                while i < bytes.len()
-                    && (bytes[i].is_ascii_alphanumeric() || bytes[i] == '_')
-                {
+                while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == '_') {
                     i += 1;
                 }
                 let word: String = bytes[start..i].iter().collect();
@@ -209,8 +207,7 @@ impl Parser {
             Some(Token::Ident(ref kw)) => {
                 let kw = kw.clone();
                 // `A`/`E` are path quantifiers only when followed by `[`.
-                let next_is_bracket =
-                    matches!(self.toks.get(self.pos + 1), Some(Token::LBracket));
+                let next_is_bracket = matches!(self.toks.get(self.pos + 1), Some(Token::LBracket));
                 match kw.as_str() {
                     "AX" => {
                         self.bump();
@@ -310,27 +307,37 @@ fn lower(prop: &Property) -> CTLFormula<Ap> {
         Property::False => Formula::Leaf(CTLFormulaLeaf::False),
         Property::Atom(a) => Formula::Leaf(CTLFormulaLeaf::AtomicProp(Ap(a.clone()))),
         Property::Not(p) => Formula::Unary(UnaryCTLOperator::Not, Box::new(lower(p))),
-        Property::And(a, b) => {
-            Formula::Binary(BinaryCTLOperator::And, Box::new(lower(a)), Box::new(lower(b)))
-        }
-        Property::Or(a, b) => {
-            Formula::Binary(BinaryCTLOperator::Or, Box::new(lower(a)), Box::new(lower(b)))
-        }
-        Property::Implies(a, b) => {
-            Formula::Binary(BinaryCTLOperator::Imply, Box::new(lower(a)), Box::new(lower(b)))
-        }
+        Property::And(a, b) => Formula::Binary(
+            BinaryCTLOperator::And,
+            Box::new(lower(a)),
+            Box::new(lower(b)),
+        ),
+        Property::Or(a, b) => Formula::Binary(
+            BinaryCTLOperator::Or,
+            Box::new(lower(a)),
+            Box::new(lower(b)),
+        ),
+        Property::Implies(a, b) => Formula::Binary(
+            BinaryCTLOperator::Imply,
+            Box::new(lower(a)),
+            Box::new(lower(b)),
+        ),
         Property::Ax(p) => Formula::Unary(UnaryCTLOperator::AX, Box::new(lower(p))),
         Property::Ex(p) => Formula::Unary(UnaryCTLOperator::EX, Box::new(lower(p))),
         Property::Ag(p) => Formula::Unary(UnaryCTLOperator::AG, Box::new(lower(p))),
         Property::Ef(p) => Formula::Unary(UnaryCTLOperator::EF, Box::new(lower(p))),
         Property::Af(p) => Formula::Unary(UnaryCTLOperator::AF, Box::new(lower(p))),
         Property::Eg(p) => Formula::Unary(UnaryCTLOperator::EG, Box::new(lower(p))),
-        Property::Au(a, b) => {
-            Formula::Binary(BinaryCTLOperator::AU, Box::new(lower(a)), Box::new(lower(b)))
-        }
-        Property::Eu(a, b) => {
-            Formula::Binary(BinaryCTLOperator::EU, Box::new(lower(a)), Box::new(lower(b)))
-        }
+        Property::Au(a, b) => Formula::Binary(
+            BinaryCTLOperator::AU,
+            Box::new(lower(a)),
+            Box::new(lower(b)),
+        ),
+        Property::Eu(a, b) => Formula::Binary(
+            BinaryCTLOperator::EU,
+            Box::new(lower(a)),
+            Box::new(lower(b)),
+        ),
     }
 }
 
@@ -356,12 +363,7 @@ pub fn verify(ts: &TransitionSystem, prop: &Property) -> Result<(), String> {
     };
 
     let sat = sat_of(prop);
-    let bad_inits: Vec<usize> = ts
-        .initials
-        .iter()
-        .copied()
-        .filter(|&s| !sat[s])
-        .collect();
+    let bad_inits: Vec<usize> = ts.initials.iter().copied().filter(|&s| !sat[s]).collect();
     if bad_inits.is_empty() {
         return Ok(());
     }
@@ -420,20 +422,14 @@ pub fn verify(ts: &TransitionSystem, prop: &Property) -> Result<(), String> {
                         .map(|s| name_of(s))
                 });
             match witness {
-                Some(w) => format!(
-                    "from state `{w}`, AF {} may never hold (liveness)",
-                    inner
-                ),
+                Some(w) => format!("from state `{w}`, AF {} may never hold (liveness)", inner),
                 None => format!("liveness AF {} is violated", inner),
             }
         }
         Property::Ax(inner) => {
             let inner_sat = sat_of(inner);
             let witness = (0..ts.n)
-                .find(|&s| {
-                    reach.contains(&s)
-                        && ts.successors[s].iter().any(|&n| !inner_sat[n])
-                })
+                .find(|&s| reach.contains(&s) && ts.successors[s].iter().any(|&n| !inner_sat[n]))
                 .map(|s| name_of(s));
             match witness {
                 Some(w) => format!("at state `{w}`, AX {} is violated", inner),
