@@ -20,8 +20,6 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 use smol_syntax::diagnostic::{Diagnostic, DiagnosticCode};
 
-// ─── Manifest schema ─────────────────────────────────────────────────────── //
-
 #[derive(Debug, Deserialize)]
 pub struct Manifest {
     pub project:    ProjectSection,
@@ -86,8 +84,6 @@ pub struct PrefixesSection {
 pub struct PropertiesSection {
     pub check: Vec<String>,
 }
-
-// ─── Resolved manifest ───────────────────────────────────────────────────── //
 
 /// The fully-resolved file lists for a project.
 pub struct ResolvedManifest {
@@ -171,8 +167,6 @@ pub fn load(manifest_path: &Path) -> Result<ResolvedManifest, Vec<Diagnostic>> {
         properties,
     })
 }
-
-// ─── Glob expansion ───────────────────────────────────────────────────────── //
 
 fn expand_globs(
     patterns: &[String],
