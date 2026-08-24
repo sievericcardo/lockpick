@@ -390,7 +390,93 @@ pub struct TransitionSystem {
     /// The initial states (one per classification root, "unclassified")
     pub initials: Vec<usize>,
     /// Successor lists,
-    pub successor: Vec<Vec<usize>>,
+    pub successors: Vec<Vec<usize>>,
     /// Name of each state (`""` for unclassified roots)
     pub names: Vec<String>,
+}
+
+/// Build the global transition system from the roots.
+///
+/// Each root gets an "unclassified" initial state.  If the root is adapted,
+/// the initial state can move to any state of the root, and each state can
+/// reclassify into any other state (an over-approximation of the data-driven
+/// reclassification).  Every state self-loops (an entity stays in its state).
+#[must_use]
+pub fn build_transition_system(roots: &[Root]) -> TransitionSystem {
+    let mut n = 0usize;
+    let mut initials = Vec::new();
+    let mut names = Vec::new();
+    let mut successors = Vec::new();
+
+    // A map from root entity to the index of its unclassified state
+    struct RootInfo {
+        init: usize,
+        states: Vec<usize>,
+    }
+    let mut infos: Vec<RootInfo> = Vec::new();
+
+    for root in roots {
+        let init = n;
+        n += 1;
+        initials.push(init);
+        names.push(String::new());
+        successors.push(Vec::new());
+
+        let mut state_indices = Vec::new();
+        for state in &root.states {
+            let index = n;
+            n += 1;
+            names.push(state.clone());
+            successors.push(Vec::new());
+            state_indices.push(index);
+        }
+        infos.push(RootInfo{
+            init,
+            states: state_indices,
+        });
+    }
+
+    // Wire edges (need all node counts known)
+    // let mut successors = vec!(Vec::<usize>::new(); n);
+    for (root, info) in roots.iter().zip(infos.iter()) {
+        if root.adapted {
+            // Unclassified -> any states
+            successors[info.init] = info.states.clone();
+            // Any state -> any state (reclassification) + self-loop
+            for &state in &info.states {
+                let mut output = info.states.clone();
+                if !output.contains(&state) {
+                    output.push(state);
+                }
+                successors[state] = output;
+            }
+        } else {
+            successors[info.init] = Vec::new();
+            for &state in &info.states {
+                successors[state] = vec!(state);
+            }
+        }
+    }
+
+    TransitionSystem {
+        n,
+        initials,
+        successors,
+        names,
+    }
+}
+
+/// Compute the set of states reachable from the initial states via BFS.
+#[must_use]
+pub fn reachable(ts: &TransitionSystem) -> HashSet<usize> {
+    let mut seen = HashSet::new();
+    let mut stack: Vec<usize> = ts.initials.clone();
+    while let Some(s) = stack.pop() {
+        if seen.insert(s) {
+            for &next in &ts.successors[s] {
+                stack.push(next);
+            }
+        }
+    }
+    seen
 }
