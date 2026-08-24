@@ -53,6 +53,9 @@ rayon = "1.12.0"
 # Utilities
 thiserror = "2.0.20"
 
+# Model checking (CTL, BDD-based symbolic engine)
+citreelo = "0.2.0"
+
 # ── Root package (the lockpick binary) ──────────────────────────────────── #
 [package]
 name    = "lockpick"

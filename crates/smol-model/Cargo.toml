@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 smol-syntax = { workspace = true }
+citreelo   = { workspace = true }
 
 [dev-dependencies]
 smol-parser = { workspace = true }
