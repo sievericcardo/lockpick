@@ -65,3 +65,76 @@ impl std::fmt::Display for Property {
         }
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Token {
+    Ident(String),
+    And,
+    Or,
+    Implies,
+    Not,
+    LParen,
+    RParen,
+    LBracket,
+    RBracket,
+}
+
+fn tokenize(input: &str) -> Result<Vec<Token>, String> {
+    let mut toks = Vec::new();
+    let bytes: Vec<char> = input.chars().collect();
+    let mut i = 0;
+    while i < bytes.len() {
+        let c = bytes[i];
+        match c {
+            c if c.is_whitespace() => {
+                i += 1;
+            }
+            '(' => {
+                toks.push(Token::LParen);
+                i += 1;
+            }
+            ')' => {
+                toks.push(Token::RParen);
+                i += 1;
+            }
+            '[' => {
+                toks.push(Token::LBracket);
+                i += 1;
+            }
+            ']' => {
+                toks.push(Token::RBracket);
+                i += 1;
+            }
+            '!' => {
+                toks.push(Token::Not);
+                i += 1;
+            }
+            '&' if bytes.get(i + 1) == Some(&'&') => {
+                toks.push(Token::And);
+                i += 2;
+            }
+            '|' if bytes.get(i + 1) == Some(&'|') => {
+                toks.push(Token::Or);
+                i += 2;
+            }
+            '-' if bytes.get(i + 1) == Some(&'>') => {
+                toks.push(Token::Implies);
+                i += 2;
+            }
+            c if c.is_ascii_alphanumeric() || c == '_' => {
+                let start = i;
+                while i < bytes.len()
+                    && (bytes[i].is_ascii_alphanumeric() || bytes[i] == '_')
+                {
+                    i += 1;
+                }
+                let word: String = bytes[start..i].iter().collect();
+                toks.push(Token::Ident(word));
+            }
+            _ => {
+                return Err(format!("unexpected character `{c}` in property"));
+            }
+        }
+    }
+    Ok(toks)
+}
