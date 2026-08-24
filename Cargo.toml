@@ -68,5 +68,6 @@ name = "lockpick"
 path = "src/main.rs"
 
 [dependencies]
+smol-verifier = { workspace = true }
 clap          = { workspace = true }
 ariadne       = { workspace = true }
