@@ -70,6 +70,13 @@ fn parse_program(pair: Pair<Rule>, _diagnostics: &mut Vec<Diagnostic>) -> (Vec<C
 }
 
 fn parse_main_block(pair: Pair<Rule>) -> Vec<Stmt> {
+    // `main_block = { main_kw ~ statement_list ~ end_kw }` — the body is the
+    // statement list; anything else in the pair is the surrounding keywords.
+    for inner in pair.into_inner() {
+        if inner.as_rule() == Rule::statement_list {
+            return parse_statement_list(inner);
+        }
+    }
     Vec::new()
 }
 
