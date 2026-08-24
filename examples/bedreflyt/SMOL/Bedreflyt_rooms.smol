@@ -1,0 +1,132 @@
+class RoomModel extends BaseModel()
+
+    override Unit adaptAddition()
+        List<TreatingRoom> newRooms = construct("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
+
+        SELECT ?roomNumber ?capacity ?penalty ?treatingWard ?hospital ?monitoringCategory
+        WHERE {
+            ?room rdf:type <https://w3id.org/rec/building/TreatmentRoom> ;
+                :hasRoomNr ?roomNumber ;
+                :hasCapacityNrBeds ?capacity ;
+                :isAssignWard ?ward ;
+                :hasMonitoringStatus ?monitoringStatus .
+            OPTIONAL { ?room :penalty ?penalty . }
+            ?ward a :Ward ;
+                :wardName ?wardName ;
+                brick:hasHospital ?hospitalWard .
+            ?hospitalWard a brick:Hospital ;
+                :hospitalName ?hospitalName .
+            ?monitoringStatus a :MonitoringCategory ;
+                :monitoringName ?monitoringCode.
+
+            ?hospital a prog:Hospital ;
+                prog:Hospital_hospitalName ?hospitalName .
+            ?treatingWard a prog:Ward ;
+                prog:Ward_wardName ?wardName .
+            ?monitoringCategory a prog:MonitoringCategory ;
+                prog:MonitoringCategory_description ?monitoringCode .
+
+           FILTER NOT EXISTS {
+                ?room a prog:TreatingRoom ;
+                    prog:TreatingRoom_roomNumber ?roomNumber ;
+                    prog:TreatingRoom_capacity ?capacity ;
+                    prog:TreatingRoom_treatingWard ?ward ;
+                    prog:TreatingRoom_hospital ?hospital ;
+                    prog:TreatingRoom_monitoringCategory ?monitoringStatus .
+                ?ward a prog:Ward ;
+                    prog:Ward_wardName ?wardName  .
+                ?hospital a prog:Hospital ;
+                    prog:Hospital_hospitalName ?hospitalName .
+                ?monitoringStatus a prog:MonitoringCategory ;
+                    prog:MonitoringCategory_description ?monitoringCode .
+            }
+        }");
+
+        Int length = newRooms.length();
+        print("Length " ++ intToString(length));
+
+        if newRooms != null then
+            print("RECONFIG> Adding new Room(s)...");
+
+            while newRooms != null do
+                TreatingRoom newRoom = newRooms.content;
+                List<TreatingRoom> lx = newRooms;
+                newRooms = newRooms.next;
+
+                if newRoom.penalty == null then
+                    newRoom.penalty = 0; // Default penalty if not specified
+                end
+                
+                print("RECONFIG> Adding Room " ++ intToString(newRoom.roomNumber));
+                print("          Room Ward: " ++ newRoom.treatingWard.wardName);
+                print("          Room Hospital: " ++ newRoom.hospital.hospitalName);
+                destroy(lx);
+            end
+
+            print("RECONFIG> New Room(s) added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<TreatingRoom> wrongRooms = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
+
+        SELECT DISTINCT ?obj {
+            ?obj a prog:TreatingRoom ;
+                prog:TreatingRoom_roomNumber ?roomNumber ;
+                prog:TreatingRoom_capacity ?capacity ;
+                prog:TreatingRoom_treatingWard ?wardObj ;
+                prog:TreatingRoom_hospital ?hospitalObj ;
+                prog:TreatingRoom_monitoringCategory ?monitoringStatusObj .
+            ?wardObj a prog:Ward ;
+                prog:Ward_wardName ?wardName .
+            ?hospitalObj a prog:Hospital ;
+                prog:Hospital_hospitalName ?hospitalName .
+            ?monitoringStatusObj a prog:MonitoringCategory ;
+                prog:MonitoringCategory_category ?monitoringCode .
+
+            FILTER NOT EXISTS {
+                ?room rdf:type <https://w3id.org/rec/building/TreatmentRoom> ;
+                    :hasRoomNr ?roomNumber ;
+                    :hasCapacityNrBeds ?capacity ;
+                    :isAssignWard ?ward ;
+                    :hasMonitoringStatus ?monitoringStatus .
+                ?ward a :Ward ;
+                    :wardName ?wardName ;
+                    brick:hasHospital ?hospitalWard .
+                ?hospitalWard a brick:Hospital ;
+                    :hospitalName ?hospitalName .
+                ?monitoringStatus a :MonitoringCategory ;
+                    :hasMonitoringCode ?monitoringCode.
+            }
+        }");
+
+        if wrongRooms != null then
+            print("RECONFIG> Removing wrong Room(s)...");
+
+            while wrongRooms != null do
+                TreatingRoom wrongRoom = wrongRooms.content;
+                List<TreatingRoom> lx = wrongRooms;
+                wrongRooms = wrongRooms.next;
+                
+                print("RECONFIG> Removing Room " ++ intToString(wrongRoom.roomNumber));
+                destroy(wrongRoom);
+                destroy(lx);
+            end
+
+            print("RECONFIG> Wrong Room(s) removed");
+        end
+    end
+
+    override Unit adaptDefect()
+        print("RECONFIG> Checking for defects in the Room(s)");
+        print("RECONFIG> Defects checked for the Room(s)");
+    end
+
+    override Unit adaptRepair()
+        skip;
+    end
+end

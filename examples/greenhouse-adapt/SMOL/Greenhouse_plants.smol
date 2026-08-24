@@ -1,0 +1,178 @@
+class PlantModel extends BaseModel()
+
+    override Unit adaptAddition() adapts HealthState, Plant
+        List<Plant> newPlants = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?plantId ?pot ?familyName ?status {
+                ?entity rdf:type ?t ;
+                    ast:plantId ?plantId ;
+                    ast:familyName ?familyName ;
+                    ast:isInPot ?potOnto .
+                OPTIONAL {
+                    ?entity ast:status ?status .
+                }
+                ?t rdfs:subClassOf* ast:Plant .
+
+                ?potOnto a ast:Pot ;
+                    ast:potId ?potId .
+                ?pot a prog:Pot ;
+                    prog:Pot_potId ?potId .
+
+                FILTER NOT EXISTS {
+                    ?y a prog:Plant ;
+                        prog:Plant_plantId ?plantId .
+                }
+            }");
+
+        if newPlants != null then
+            print("RECONFIG> New Plant(s) detected: repairing the model");
+
+            while newPlants != null do
+                Plant newPlant = newPlants.content;
+                newPlant.setPotMoisture();
+                newPlant.setNdvi();
+
+                if newPlant.ndvi != null then
+                    print("RECONFIG> Adding plant " ++ newPlant.plantId ++ ", " ++ newPlant.familyName ++ " " ++ " with NDVI: " ++ doubleToString(newPlant.ndvi) ++ " and moisture: " ++ doubleToString(newPlant.moisture) ++ " in pot " ++ newPlant.pot.potId);
+                    newPlant.healthState = classify(newPlant);
+                end
+                // newPlant.waterStrategy = classify(newPlant);
+
+                newPlant.familyNameOut = newPlant.familyName;
+                newPlant.moistureOut = newPlant.moisture;
+                newPlant.ndviOut = newPlant.ndvi;
+                newPlant.statusOut = newPlant.status;
+
+                List<Plant> lx = newPlants;
+                newPlants = newPlants.next;
+                print("RECONFIG> New plant detected: ");
+                print("          Plant Id: " ++ newPlant.plantId);
+                print("          Moisture: " ++ doubleToString(newPlant.moisture));
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Plant(s) added");
+        end
+    end
+
+
+    override Unit adaptRemoval()
+        List<Plant> wrongPlants = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:Plant ;
+                     prog:Plant_plantId ?plantId.
+                FILTER NOT EXISTS {
+                    ?entity rdf:type ?t ;
+                       ast:plantId ?plantId .
+                    ?t rdfs:subClassOf* ast:Plant .
+                }
+            }");
+
+        if wrongPlants != null then
+            print("RECONFIG> Misconfigured Plant(s) detected: repairing the model");
+            while wrongPlants != null do
+                Plant wrongPlant = wrongPlants.content;
+                List<Plant> lx = wrongPlants;
+                wrongPlants = wrongPlants.next;
+                destroy(lx);
+
+                print("RECONFIG> Misconfigured plant to remove: ");
+                print("          Plant Id: " ++ wrongPlant.plantId);
+
+                destroy(wrongPlant);
+            end
+
+
+            print("RECONFIG> Plant(s) removed");
+        end
+    end
+
+    override Unit adaptDefect()
+        print("RECONFIG> Check defects in plant(s)");
+        this.adaptDefectStatus();
+        print("RECONFIG> Defect repaired");
+    end
+
+    Unit adaptDefectStatus()
+        List<PlantDefectStatus> defectPlants = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?statusNew {
+                ?obj a prog:Plant ;
+                    prog:Plant_plantId ?plantId ;
+                    prog:Plant_status ?status.
+                ?y rdf:type ?t ;
+                    ast:plantId ?plantId ;
+                    ast:status ?statusNew .
+                ?t rdfs:subClassOf* ast:Plant .
+                FILTER(?status != ?statusNew)
+            }");
+        
+        if defectPlants != null then
+            print("RECONFIG> Changed Plant(s) detected: repairing the model");
+
+            while defectPlants != null do
+                PlantDefectStatus status = defectPlants.content;
+                List<PlantDefectStatus> lx = defectPlants;
+                defectPlants = defectPlants.next;
+                destroy(lx);
+
+                print("RECONFIG> Changed plant to adjust: " ++ status.obj.plantId);
+                print("          Old status: " ++ status.obj.status);
+                print("          New status: " ++ status.statusNew);
+
+                status.obj.status = status.statusNew;
+                status.obj.statusOut = status.statusNew;
+                destroy(status);
+            end
+
+            print("RECONFIG> Plant(s) changed");
+        end
+    end
+
+    override Unit adaptBehaviour() adapts HealthState, Plant
+        List<Plant> plants = access("
+            SELECT DISTINCT ?obj {
+                { ?obj a prog:Plant . }
+                UNION
+                { ?obj a prog:ThirstyPlant . }
+                UNION
+                { ?obj a prog:MoistPlant . }
+                UNION
+                { ?obj a prog:OverwateredPlant . }
+            }");
+
+        if plants == null then print("ADAPT> No plants"); else
+            print("ADAPT> Plants found check behaviour");
+
+            while plants != null do
+                Plant plant = plants.content;
+
+                print("ADAPT> Adapting plant " ++ plant.plantId);
+                plant.setPotMoisture();
+                plant.moistureOut = plant.moisture;
+
+                plant.setNdvi();
+                plant.ndviOut = plant.ndvi;
+
+                if plant.moisture != null then
+                    print("ADAPT> Adapting plant " ++ plant.plantId ++ " with moisture: " ++ doubleToString(plant.moisture));
+                    adapt(plant);
+                    plant.printInfo();
+                end
+
+                if plant.ndvi != null then
+                    print("ADAPT> Adapting plant " ++ plant.plantId ++ " with NDVI: " ++ doubleToString(plant.ndvi));
+                    adapt(plant.healthState);
+                    plant.healthState.printInfo();
+                end
+                // adapt(plant.waterStrategy);
+
+                List<Plant> oldList = plants;
+                plants = plants.next;
+                destroy(oldList);
+            end
+        end
+    end
+end

@@ -1,0 +1,768 @@
+class PumpModel extends BaseModel()
+
+    /* Add pumps that are not in the program model */
+    override Unit adaptAddition()
+
+        List<Pump> newPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?pumpChannel ?actuatorId ?modelName ?pumpLifeTime ?temperature {
+                ?pump a ast:Pump ;
+                      ast:pumpChannel ?pumpChannel ;
+                      ast:actuatorId ?actuatorId .
+                OPTIONAL {
+                      ?pump ast:modelName ?modelName .
+                }
+                OPTIONAL {
+                    ?pump ast:pumpLifeTime ?pumpLifeTime .
+                }
+                OPTIONAL {
+                    ?pump ast:temperature ?temperature .
+                }
+                FILTER NOT EXISTS {
+                    ?y a prog:Pump ;
+                       prog:Pump_actuatorId ?actuatorId .
+                }
+                FILTER NOT EXISTS {
+                    ?y a prog:OperatingPump ;
+                       prog:OperatingPump_actuatorId ?actuatorId .
+                }
+                FILTER NOT EXISTS {
+                    ?y a prog:MaintenancePump ;
+                       prog:MaintenancePump_actuatorId ?actuatorId .
+                }
+                FILTER NOT EXISTS {
+                    ?y a prog:OverheatingPump ;
+                       prog:OverheatingPump_actuatorId ?actuatorId .
+                }
+                FILTER NOT EXISTS {
+                    ?y a prog:UnderheatingPump ;
+                       prog:UnderheatingPump_actuatorId ?actuatorId .
+                }
+            }");
+
+        if newPumps != null then
+            print("RECONFIG> New Pump(s) detected: repairing the model");
+
+            while newPumps != null do
+                Pump newPump = newPumps.content;
+                List<Pump> lx = newPumps;
+                newPumps = newPumps.next;
+
+                print("RECONFIG> New pump detected: ");
+                print("          Pump Id: " ++ newPump.actuatorId);
+                print("          Pump Gpio Pin: " ++ intToString(newPump.pumpChannel));
+                print("          Pump Water Temperature: " ++ doubleToString(newPump.temperature));
+                print("          Pump Life Time: " ++ intToString(newPump.pumpLifeTime));
+                print("          Pump Model Name: " ++ newPump.modelName);
+
+                newPump.temperatureOut = newPump.temperature;
+                newPump.pumpLifeTimeOut = newPump.pumpLifeTime;
+                newPump.modelNameOut = newPump.modelName;
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) added");
+        end
+    end
+
+    /* Add pumps that are not in the asset model */
+    override Unit adaptRemoval()
+        this.adaptRemovalPumps();
+        this.adaptRemovalOperatingPumps();
+        this.adaptRemovalMaintenancePumps();
+    end
+
+    Unit adaptRemovalPumps()
+        List<Pump> wrongPumps = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:Pump;
+                     prog:Pump_actuatorId ?actuatorId .
+                FILTER NOT EXISTS {
+                    ?x a ast:Pump;
+                       ast:actuatorId ?actuatorId .
+                }
+            }");
+
+        if wrongPumps != null then
+            print("RECONFIG> Misconfigured Pump(s) detected: repairing the model");
+
+            while wrongPumps != null do
+                Pump wrongPump = wrongPumps.content;
+                List<Pump> lx = wrongPumps;
+                wrongPumps = wrongPumps.next;
+
+                print("RECONFIG> Misconfigured pump to remove: " ++ wrongPump.actuatorId);
+                destroy(wrongPump);
+                destroy(lx);
+            end
+
+            destroy(wrongPumps);
+
+            print("RECONFIG> Pump(s) removed");
+        end
+    end
+
+    Unit adaptRemovalOperatingPumps()
+        List<OperatingPump> wrongPumps = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:OperatingPump;
+                     prog:OperatingPump_actuatorId ?actuatorId .
+                FILTER NOT EXISTS {
+                    ?x a ast:Pump;
+                       ast:actuatorId ?actuatorId .
+                }
+            }");
+
+        if wrongPumps != null then
+            print("RECONFIG> Misconfigured Pump(s) detected: repairing the model");
+
+            while wrongPumps != null do
+                OperatingPump wrongPump = wrongPumps.content;
+                List<OperatingPump> lx = wrongPumps;
+                wrongPumps = wrongPumps.next;
+
+                print("RECONFIG> Misconfigured pump to remove: " ++ wrongPump.actuatorId);
+                destroy(wrongPump);
+                destroy(lx);
+            end
+
+            destroy(wrongPumps);
+
+            print("RECONFIG> Pump(s) removed");
+        end
+    end
+
+    Unit adaptRemovalMaintenancePumps()
+        List<MaintenancePump> wrongPumps = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:MaintenancePump;
+                     prog:MaintenancePump_actuatorId ?actuatorId .
+                FILTER NOT EXISTS {
+                    ?x a ast:Pump;
+                       ast:actuatorId ?actuatorId .
+                }
+            }");
+
+        if wrongPumps != null then
+            print("RECONFIG> Misconfigured Pump(s) detected: repairing the model");
+
+            while wrongPumps != null do
+                MaintenancePump wrongPump = wrongPumps.content;
+                List<MaintenancePump> lx = wrongPumps;
+                wrongPumps = wrongPumps.next;
+
+                print("RECONFIG> Misconfigured pump to remove: " ++ wrongPump.actuatorId);
+                destroy(wrongPump);
+                destroy(lx);
+            end
+
+            destroy(wrongPumps);
+
+            print("RECONFIG> Pump(s) removed");
+        end
+    end
+
+    /* Check for defects in the pumps. */
+    override Unit adaptDefect()
+        List<PumpDefect> changedPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?pumpChannelNew {
+                ?obj a prog:Pump ;
+                    prog:Pump_actuatorId ?actuatorId ;
+                    prog:Pump_pumpChannel ?pumpChannel .
+                ?y a ast:Pump ;
+                    ast:actuatorId ?actuatorId ;
+                    ast:pumpChannel ?pumpChannelNew .
+                FILTER(?pumpChannel != ?pumpChannelNew)
+            }");
+
+        if changedPumps != null then
+            print("RECONFIG> Changed Pump(s) detected: repairing the model");
+
+            while changedPumps != null do
+                PumpDefect rpump = changedPumps.content;
+                List<PumpDefect> lx = changedPumps;
+                changedPumps = changedPumps.next;
+
+                print("RECONFIG> Changed pump to adjust: " ++ rpump.obj.actuatorId);
+                print("          Old GPIO pin: " ++ intToString(rpump.obj.pumpChannel));
+                print("          New GPIO pin: " ++ intToString(rpump.pumpChannelNew));
+
+                rpump.obj.pumpChannel = rpump.pumpChannelNew;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) changed");
+        end
+
+        this.adaptDefectPumps();
+        this.adaptDefectOperatingPumps();
+        this.adaptDefectMaintenancePump();
+        this.adaptDefectOverheatingPump();
+        this.adaptDefectUnderheatingPump();
+        this.adaptDefectPumpLifeTime();
+        this.adaptDefectOperatingPumpsLifeTime();
+        this.adaptDefectMaintenancePumpLifeTime();
+        this.adaptDefectOverheatingPumpLifeTime();
+        this.adaptDefectUnderheatingPumpLifeTime();
+        this.adaptDefectPumpModelName();
+        this.adaptDefectOperatingPumpsModelName();
+        this.adaptDefectMaintenancePumpModelName();
+        this.adaptDefectOverheatingPumpModelName();
+        this.adaptDefectUnderheatingPumpModelName();
+    end
+
+    Unit adaptDefectPumps()
+        List<PumpDefectWater> changedPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?temperatureNew {
+                ?obj a prog:Pump ;
+                    prog:Pump_actuatorId ?actuatorId ;
+                    prog:Pump_pumpChannel ?pumpChannel ;
+                    prog:Pump_temperatureOut ?temperature .
+                ?y a ast:Pump ;
+                    ast:actuatorId ?actuatorId ;
+                    ast:pumpChannel ?pumpChannel ;
+                    ast:temperature ?temperatureNew .
+                FILTER(?temperature != ?temperatureNew)
+            }");
+
+        if changedPumps != null then
+            print("RECONFIG> Changed Pump(s) detected: repairing the model");
+
+            while changedPumps != null do
+                PumpDefectWater rpump = changedPumps.content;
+                List<PumpDefectWater> lx = changedPumps;
+                changedPumps = changedPumps.next;
+
+                print("RECONFIG> Changed pump to adjust: " ++ rpump.obj.actuatorId);
+                print("          Old water Temperature: " ++ doubleToString(rpump.obj.temperatureOut));
+                print("          New water Temperature: " ++ doubleToString(rpump.temperatureNew));
+
+                rpump.obj.temperature = rpump.temperatureNew;
+                rpump.obj.temperatureOut = rpump.temperatureNew;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) changed");
+        end
+    end
+
+    Unit adaptDefectOperatingPumps()
+        List<OperatingPumpDefectWater> changedPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?temperatureNew {
+                ?obj a prog:OperatingPump ;
+                    prog:OperatingPump_actuatorId ?actuatorId ;
+                    prog:OperatingPump_pumpChannel ?pumpChannel ;
+                    prog:OperatingPump_temperatureOut ?temperature .
+                ?y a ast:Pump ;
+                    ast:actuatorId ?actuatorId ;
+                    ast:pumpChannel ?pumpChannel ;
+                    ast:temperature ?temperatureNew .
+                FILTER(?temperature != ?temperatureNew)
+            }");
+
+        if changedPumps != null then
+            print("RECONFIG> Changed Pump(s) detected: repairing the model");
+
+            while changedPumps != null do
+                OperatingPumpDefectWater rpump = changedPumps.content;
+                List<OperatingPumpDefectWater> lx = changedPumps;
+                changedPumps = changedPumps.next;
+
+                print("RECONFIG> Changed pump to adjust: " ++ rpump.obj.actuatorId);
+                print("          Old water Temperature: " ++ doubleToString(rpump.obj.temperatureOut));
+                print("          New water Temperature: " ++ doubleToString(rpump.temperatureNew));
+
+                rpump.obj.temperatureOut = rpump.temperatureNew;
+                rpump.obj.temperature = rpump.temperatureNew;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) changed");
+        end
+    end
+
+    Unit adaptDefectMaintenancePump()
+        List<MaintenancePumpDefectWater> changedPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?temperatureNew {
+                ?obj a prog:MaintenancePump ;
+                    prog:MaintenancePump_actuatorId ?actuatorId ;
+                    prog:MaintenancePump_temperatureOut ?temperature .
+                ?y a ast:Pump ;
+                    ast:actuatorId ?actuatorId ;
+                    ast:temperature ?temperatureNew .
+                FILTER(?temperature != ?temperatureNew)
+            }");
+
+        if changedPumps != null then
+            print("RECONFIG> Changed Pump(s) detected: repairing the model");
+
+            while changedPumps != null do
+                MaintenancePumpDefectWater rpump = changedPumps.content;
+                List<MaintenancePumpDefectWater> lx = changedPumps;
+                changedPumps = changedPumps.next;
+
+                print("RECONFIG> Changed pump to adjust: " ++ rpump.obj.actuatorId);
+                print("          Old water Temperature: " ++ doubleToString(rpump.obj.temperatureOut));
+                print("          New water Temperature: " ++ doubleToString(rpump.temperatureNew));
+
+                rpump.obj.temperatureOut = rpump.temperatureNew;
+                rpump.obj.temperature = rpump.temperatureNew;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) changed");
+        end
+    end
+
+    Unit adaptDefectOverheatingPump()
+        List<OverheatingPumpDefectWater> changedPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?temperatureNew {
+                ?obj a prog:OverheatingPump ;
+                    prog:OverheatingPump_actuatorId ?actuatorId ;
+                    prog:OverheatingPump_temperatureOut ?temperature .
+                ?y a ast:Pump ;
+                    ast:actuatorId ?actuatorId ;
+                    ast:temperature ?temperatureNew .
+                FILTER(?temperature != ?temperatureNew)
+            }");
+
+        if changedPumps != null then
+            print("RECONFIG> Changed Pump(s) detected: repairing the model");
+
+            while changedPumps != null do
+                OverheatingPumpDefectWater rpump = changedPumps.content;
+                List<OverheatingPumpDefectWater> lx = changedPumps;
+                changedPumps = changedPumps.next;
+
+                print("RECONFIG> Changed pump to adjust: " ++ rpump.obj.actuatorId);
+                print("          Old water Temperature: " ++ doubleToString(rpump.obj.temperatureOut));
+                print("          New water Temperature: " ++ doubleToString(rpump.temperatureNew));
+
+                rpump.obj.temperatureOut = rpump.temperatureNew;
+                rpump.obj.temperature = rpump.temperatureNew;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) changed");
+        end
+    end
+
+    Unit adaptDefectUnderheatingPump()
+        List<UnderheatingPumpDefectWater> changedPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?temperatureNew {
+                ?obj a prog:UnderheatingPump ;
+                    prog:UnderheatingPump_actuatorId ?actuatorId ;
+                    prog:UnderheatingPump_temperatureOut ?temperature .
+                ?y a ast:Pump ;
+                    ast:actuatorId ?actuatorId ;
+                    ast:temperature ?temperatureNew .
+                FILTER(?temperature != ?temperatureNew)
+            }");
+
+        if changedPumps != null then
+            print("RECONFIG> Changed Pump(s) detected: repairing the model");
+
+            while changedPumps != null do
+                UnderheatingPumpDefectWater rpump = changedPumps.content;
+                List<UnderheatingPumpDefectWater> lx = changedPumps;
+                changedPumps = changedPumps.next;
+
+                print("RECONFIG> Changed pump to adjust: " ++ rpump.obj.actuatorId);
+                print("          Old water Temperature: " ++ doubleToString(rpump.obj.temperatureOut));
+                print("          New water Temperature: " ++ doubleToString(rpump.temperatureNew));
+
+                rpump.obj.temperatureOut = rpump.temperatureNew;
+                rpump.obj.temperature = rpump.temperatureNew;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) changed");
+        end
+    end
+
+    Unit adaptDefectPumpLifeTime()
+        List<PumpDefectLifeTime> changedPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?pumpLifeTimeNew {
+                ?obj a prog:Pump ;
+                    prog:Pump_actuatorId ?actuatorId ;
+                    prog:Pump_pumpLifeTimeOut ?pumpLifeTime .
+                ?y a ast:Pump ;
+                    ast:actuatorId ?actuatorId ;
+                    ast:pumpLifeTime ?pumpLifeTimeNew .
+                FILTER(?pumpLifeTime != ?pumpLifeTimeNew)
+            }");
+
+        if changedPumps != null then
+            print("RECONFIG> Changed Pump(s) detected: repairing the model");
+
+            while changedPumps != null do
+                PumpDefectLifeTime rpump = changedPumps.content;
+                List<PumpDefectLifeTime> lx = changedPumps;
+                changedPumps = changedPumps.next;
+
+                print("RECONFIG> Changed pump to adjust: " ++ rpump.obj.actuatorId);
+                print("          Old life time: " ++ intToString(rpump.obj.pumpLifeTimeOut));
+                print("          New life time: " ++ intToString(rpump.pumpLifeTimeNew));
+
+                rpump.obj.pumpLifeTime = rpump.pumpLifeTimeNew;
+                rpump.obj.pumpLifeTimeOut = rpump.pumpLifeTimeNew;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) changed");
+        end
+    end
+
+    Unit adaptDefectOperatingPumpsLifeTime()
+        List<OperatingPumpDefectLifeTime> changedPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?pumpLifeTimeNew {
+                ?obj a prog:OperatingPump ;
+                    prog:OperatingPump_actuatorId ?actuatorId ;
+                    prog:OperatingPump_pumpLifeTimeOut ?pumpLifeTime .
+                ?y a ast:Pump ;
+                    ast:actuatorId ?actuatorId ;
+                    ast:pumpLifeTime ?pumpLifeTimeNew .
+                FILTER(?pumpLifeTime != ?pumpLifeTimeNew)
+            }");
+
+        if changedPumps != null then
+            print("RECONFIG> Changed Pump(s) detected: repairing the model");
+
+            while changedPumps != null do
+                OperatingPumpDefectLifeTime rpump = changedPumps.content;
+                List<OperatingPumpDefectLifeTime> lx = changedPumps;
+                changedPumps = changedPumps.next;
+
+                print("RECONFIG> Changed pump to adjust: " ++ rpump.obj.actuatorId);
+                print("          Old life time: " ++ intToString(rpump.obj.pumpLifeTimeOut));
+                print("          New life time: " ++ intToString(rpump.pumpLifeTimeNew));
+
+                rpump.obj.pumpLifeTime = rpump.pumpLifeTimeNew;
+                rpump.obj.pumpLifeTimeOut = rpump.pumpLifeTimeNew;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) changed");
+        end
+    end
+
+    Unit adaptDefectMaintenancePumpLifeTime()
+        List<MaintenancePumpDefectLifeTime> changedPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?pumpLifeTimeNew {
+                ?obj a prog:MaintenancePump ;
+                    prog:MaintenancePump_actuatorId ?actuatorId ;
+                    prog:MaintenancePump_pumpLifeTimeOut ?pumpLifeTime .
+                ?y a ast:Pump ;
+                    ast:actuatorId ?actuatorId ;
+                    ast:pumpLifeTime ?pumpLifeTimeNew .
+                FILTER(?pumpLifeTime != ?pumpLifeTimeNew)
+            }");
+
+        if changedPumps != null then
+            print("RECONFIG> Changed Pump(s) detected: repairing the model");
+
+            while changedPumps != null do
+                MaintenancePumpDefectLifeTime rpump = changedPumps.content;
+                List<MaintenancePumpDefectLifeTime> lx = changedPumps;
+                changedPumps = changedPumps.next;
+
+                print("RECONFIG> Changed pump to adjust: " ++ rpump.obj.actuatorId);
+                print("          Old life time: " ++ intToString(rpump.obj.pumpLifeTimeOut));
+                print("          New life time: " ++ intToString(rpump.pumpLifeTimeNew));
+
+                rpump.obj.pumpLifeTime = rpump.pumpLifeTimeNew;
+                rpump.obj.pumpLifeTimeOut = rpump.pumpLifeTimeNew;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) changed");
+        end
+    end
+
+    Unit adaptDefectOverheatingPumpLifeTime()
+        List<OverheatingPumpDefectLifeTime> changedPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?pumpLifeTimeNew {
+                ?obj a prog:OverheatingPump ;
+                    prog:OverheatingPump_actuatorId ?actuatorId ;
+                    prog:OverheatingPump_pumpLifeTimeOut ?pumpLifeTime .
+                ?y a ast:Pump ;
+                    ast:actuatorId ?actuatorId ;
+                    ast:pumpLifeTime ?pumpLifeTimeNew .
+                FILTER(?pumpLifeTime != ?pumpLifeTimeNew)
+            }");
+
+        if changedPumps != null then
+            print("RECONFIG> Changed Pump(s) detected: repairing the model");
+
+            while changedPumps != null do
+                OverheatingPumpDefectLifeTime rpump = changedPumps.content;
+                List<OverheatingPumpDefectLifeTime> lx = changedPumps;
+                changedPumps = changedPumps.next;
+
+                print("RECONFIG> Changed pump to adjust: " ++ rpump.obj.actuatorId);
+                print("          Old life time: " ++ intToString(rpump.obj.pumpLifeTimeOut));
+                print("          New life time: " ++ intToString(rpump.pumpLifeTimeNew));
+
+                rpump.obj.pumpLifeTime = rpump.pumpLifeTimeNew;
+                rpump.obj.pumpLifeTimeOut = rpump.pumpLifeTimeNew;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) changed");
+        end
+    end
+
+    Unit adaptDefectUnderheatingPumpLifeTime()
+        List<UnderheatingPumpDefectLifeTime> changedPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?pumpLifeTimeNew {
+                ?obj a prog:UnderheatingPump ;
+                    prog:UnderheatingPump_actuatorId ?actuatorId ;
+                    prog:UnderheatingPump_pumpLifeTimeOut ?pumpLifeTime .
+                ?y a ast:Pump ;
+                    ast:actuatorId ?actuatorId ;
+                    ast:pumpLifeTime ?pumpLifeTimeNew .
+                FILTER(?pumpLifeTime != ?pumpLifeTimeNew)
+            }");
+
+        if changedPumps != null then
+            print("RECONFIG> Changed Pump(s) detected: repairing the model");
+
+            while changedPumps != null do
+                UnderheatingPumpDefectLifeTime rpump = changedPumps.content;
+                List<UnderheatingPumpDefectLifeTime> lx = changedPumps;
+                changedPumps = changedPumps.next;
+
+                print("RECONFIG> Changed pump to adjust: " ++ rpump.obj.actuatorId);
+                print("          Old life time: " ++ intToString(rpump.obj.pumpLifeTimeOut));
+                print("          New life time: " ++ intToString(rpump.pumpLifeTimeNew));
+
+                rpump.obj.pumpLifeTime = rpump.pumpLifeTimeNew;
+                rpump.obj.pumpLifeTimeOut = rpump.pumpLifeTimeNew;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) changed");
+        end
+    end
+
+    Unit adaptDefectPumpModelName()
+        List<PumpDefectModelName> changedPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?modelNameNew {
+                ?obj a prog:Pump ;
+                    prog:Pump_actuatorId ?actuatorId ;
+                    prog:Pump_modelNameOut ?modelName .
+                ?y a ast:Pump ;
+                    ast:actuatorId ?actuatorId ;
+                    ast:modelName ?modelNameNew .
+                FILTER(?modelName != ?modelNameNew)
+            }");
+
+        if changedPumps != null then
+            print("RECONFIG> Changed Pump(s) detected: repairing the model");
+
+            while changedPumps != null do
+                PumpDefectModelName rpump = changedPumps.content;
+                List<PumpDefectModelName> lx = changedPumps;
+                changedPumps = changedPumps.next;
+
+                print("RECONFIG> Changed pump to adjust: " ++ rpump.obj.actuatorId);
+                print("          Old model name: " ++ rpump.obj.modelNameOut);
+                print("          New model name: " ++ rpump.modelNameNew);
+
+                rpump.obj.modelName = rpump.modelNameNew;
+                rpump.obj.modelNameOut = rpump.modelNameNew;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) changed");
+        end
+    end
+
+    Unit adaptDefectOperatingPumpsModelName()
+        List<OperatingPumpDefectModelName> changedPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?modelNameNew {
+                ?obj a prog:OperatingPump ;
+                    prog:OperatingPump_actuatorId ?actuatorId ;
+                    prog:OperatingPump_modelNameOut ?modelName .
+                ?y a ast:Pump ;
+                    ast:actuatorId ?actuatorId ;
+                    ast:modelName ?modelNameNew .
+                FILTER(?modelName != ?modelNameNew)
+            }");
+
+        if changedPumps != null then
+            print("RECONFIG> Changed Pump(s) detected: repairing the model");
+
+            while changedPumps != null do
+                OperatingPumpDefectModelName rpump = changedPumps.content;
+                List<OperatingPumpDefectModelName> lx = changedPumps;
+                changedPumps = changedPumps.next;
+
+                print("RECONFIG> Changed pump to adjust: " ++ rpump.obj.actuatorId);
+                print("          Old model name: " ++ rpump.obj.modelNameOut);
+                print("          New model name: " ++ rpump.modelNameNew);
+
+                rpump.obj.modelName = rpump.modelNameNew;
+                rpump.obj.modelNameOut = rpump.modelNameNew;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) changed");
+        end
+    end
+
+    Unit adaptDefectMaintenancePumpModelName()
+        List<MaintenancePumpDefectModelName> changedPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?modelNameNew {
+                ?obj a prog:MaintenancePump ;
+                    prog:MaintenancePump_actuatorId ?actuatorId ;
+                    prog:MaintenancePump_modelNameOut ?modelName .
+                ?y a ast:Pump ;
+                    ast:actuatorId ?actuatorId ;
+                    ast:modelName ?modelNameNew .
+                FILTER(?modelName != ?modelNameNew)
+            }");
+
+        if changedPumps != null then
+            print("RECONFIG> Changed Pump(s) detected: repairing the model");
+
+            while changedPumps != null do
+                MaintenancePumpDefectModelName rpump = changedPumps.content;
+                List<MaintenancePumpDefectModelName> lx = changedPumps;
+                changedPumps = changedPumps.next;
+
+                print("RECONFIG> Changed pump to adjust: " ++ rpump.obj.actuatorId);
+                print("          Old model name: " ++ rpump.obj.modelNameOut);
+                print("          New model name: " ++ rpump.modelNameNew);
+
+                rpump.obj.modelName = rpump.modelNameNew;
+                rpump.obj.modelNameOut = rpump.modelNameNew;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) changed");
+        end
+    end
+
+    Unit adaptDefectOverheatingPumpModelName()
+        List<OverheatingPumpDefectModelName> changedPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?modelNameNew {
+                ?obj a prog:OverheatingPump ;
+                    prog:OverheatingPump_actuatorId ?actuatorId ;
+                    prog:OverheatingPump_modelNameOut ?modelName .
+                ?y a ast:Pump ;
+                    ast:actuatorId ?actuatorId ;
+                    ast:modelName ?modelNameNew .
+                FILTER(?modelName != ?modelNameNew)
+            }");
+
+        if changedPumps != null then
+            print("RECONFIG> Changed Pump(s) detected: repairing the model");
+
+            while changedPumps != null do
+                OverheatingPumpDefectModelName rpump = changedPumps.content;
+                List<OverheatingPumpDefectModelName> lx = changedPumps;
+                changedPumps = changedPumps.next;
+
+                print("RECONFIG> Changed pump to adjust: " ++ rpump.obj.actuatorId);
+                print("          Old model name: " ++ rpump.obj.modelNameOut);
+                print("          New model name: " ++ rpump.modelNameNew);
+
+                rpump.obj.modelName = rpump.modelNameNew;
+                rpump.obj.modelNameOut = rpump.modelNameNew;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) changed");
+        end
+    end
+
+    Unit adaptDefectUnderheatingPumpModelName()
+        List<UnderheatingPumpDefectModelName> changedPumps = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj ?modelNameNew {
+                ?obj a prog:UnderheatingPump ;
+                    prog:UnderheatingPump_actuatorId ?actuatorId ;
+                    prog:UnderheatingPump_modelNameOut ?modelName .
+                ?y a ast:Pump ;
+                    ast:actuatorId ?actuatorId ;
+                    ast:modelName ?modelNameNew .
+                FILTER(?modelName != ?modelNameNew)
+            }");
+
+        if changedPumps != null then
+            print("RECONFIG> Changed Pump(s) detected: repairing the model");
+
+            while changedPumps != null do
+                UnderheatingPumpDefectModelName rpump = changedPumps.content;
+                List<UnderheatingPumpDefectModelName> lx = changedPumps;
+                changedPumps = changedPumps.next;
+
+                print("RECONFIG> Changed pump to adjust: " ++ rpump.obj.actuatorId);
+                print("          Old model name: " ++ rpump.obj.modelNameOut);
+                print("          New model name: " ++ rpump.modelNameNew);
+
+                rpump.obj.modelName = rpump.modelNameNew;
+                rpump.obj.modelNameOut = rpump.modelNameNew;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pump(s) changed");
+        end
+    end
+
+    override Unit adaptBehaviour()
+        this.adaptBehaviourPump();
+    end
+
+    Unit adaptBehaviourPump() adapts Pump
+        List<Pump> pumps = access("
+            SELECT DISTINCT ?obj {
+                { ?obj a prog:Pump . }
+                UNION
+                { ?obj a prog:UnderheatingPump . }
+                UNION
+                { ?obj a prog:OverheatingPump . }
+                UNION
+                { ?obj a prog:OperatingPump . }
+                UNION
+                { ?obj a prog:MaintenancePump . }
+            }");
+
+        if pumps == null then print("ADAPT> No pumps"); else
+            print("ADAPT> Pumps found check behaviour");
+
+            while pumps != null do
+                Pump pump = pumps.content;
+
+                print("ADAPT> Adapting pump " ++ pump.actuatorId ++ ", " ++ intToString(pump.pumpChannel) ++ ", " ++ doubleToString(pump.temperature) ++ ", " ++ intToString(pump.pumpLifeTime) ++ ", " ++ pump.modelName);
+
+                adapt(pump);
+                pump.printInfo();
+
+                List<Pump> oldList = pumps;
+                pumps = pumps.next;
+                destroy(oldList);
+            end
+        end
+    end
+end

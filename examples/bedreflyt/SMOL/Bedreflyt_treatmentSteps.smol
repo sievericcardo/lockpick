@@ -1,0 +1,120 @@
+class TreatmentStepModel extends BaseModel ()
+    override Unit adaptAddition()
+        List<TreatmentStep> newTaskDeps = construct("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX time: <http://www.w3.org/2006/time#>
+        PREFIX pko: <https://w3id.org/pko#>
+
+        SELECT DISTINCT ?treatmentName ?task ?stepNumber ?monitoringCategory ?staffLoad ?averageDuration ?nextTask ?previousTask
+        WHERE {
+            ?taskDep a :TreatmentStep ;
+                :hasNurseBurden ?staffLoad ;
+                time:hours ?averageDuration ;
+                pko:stepNumber ?stepNumber ;
+                :hasMonitoringStatus ?monitoringStatus ;
+                :stepOfTreatment ?treatment ;
+                :hasTask ?taskObj .
+            ?treatment a pko:Procedure ;
+                :procedureName ?treatmentName .
+
+            OPTIONAL {
+                ?taskDep pko:nextStep ?nextStep .
+                ?nextStep a :TreatmentStep ;
+                    :hasTask ?nextTaskObj .
+                ?nextTaskObj rdf:type <http://purl.org/net/p-plan#Step> ;
+                    :taskName ?nextTask .
+            }
+
+            OPTIONAL {
+                ?taskDep pko:previousStep ?prevStep .
+                ?prevStep a :TreatmentStep ;
+                    :hasTask ?prevTaskObj .
+                ?prevTaskObj rdf:type <http://purl.org/net/p-plan#Step> ;
+                    :taskName ?previousTask .
+            }
+
+
+            ?monitoringStatus a :MonitoringCategory ;
+                :monitoringName ?monitoringCode .
+            ?monitoringCategory a prog:MonitoringCategory ;
+                prog:MonitoringCategory_description ?monitoringCode .
+
+            ?taskObj rdf:type <http://purl.org/net/p-plan#Step> ;
+                :taskName ?taskName .
+            ?task a prog:Task ;
+                prog:Task_taskName ?taskName .
+        }
+        ORDER BY ?treatmentName ?stepNumber");
+        
+        if newTaskDeps != null then
+            print("RECONFIG> Adding new task dependencies...");
+            
+            while newTaskDeps != null do
+                TreatmentStep newTaskDep = newTaskDeps.content;
+                List<TreatmentStep> lx = newTaskDeps;
+                newTaskDeps = newTaskDeps.next;
+                
+                print("RECONFIG> Adding task dependency " ++ newTaskDep.task.taskName ++ " for treatment " ++ newTaskDep.treatmentName);
+                print("          Staff load: " ++ doubleToString(newTaskDep.staffLoad));
+                print("          Average duration: " ++ doubleToString(newTaskDep.averageDuration));
+                print("          Previous task: " ++ newTaskDep.previousTask);
+                print("          Next task: " ++ newTaskDep.nextTask);
+                print("          Step nr: " ++ intToString(newTaskDep.stepNumber));
+
+                destroy(lx);
+            end
+            
+            print("RECONFIG> New task dependencies added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<TreatmentStep> wrongTaskDeps = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX time: <http://www.w3.org/2006/time#>
+        PREFIX pko: <https://w3id.org/pko#>
+
+        SELECT DISTINCT ?obj {
+            ?obj a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName ?treatmentName ;
+                prog:TreatmentStep_task ?task .
+            ?task a prog:Task ;
+                prog:Task_taskName ?taskName .
+            FILTER NOT EXISTS {
+                ?taskDep a :TreatmentStep ;
+                    :hasNurseBurden ?staffLoad ;
+                    time:hours ?averageDuration ;
+                    :stepOfTreatment ?treatment ;
+                    :hasTask ?taskObj .
+                ?treatment a pko:Procedure ;
+                    :procedureName ?treatmentName .
+                ?taskObj rdf:type <http://purl.org/net/p-plan#Step> ;
+                    :taskName ?taskName .
+            }
+        }");
+
+        if wrongTaskDeps != null then
+            print("RECONFIG> Removing wrong task dependencies...");
+            
+            while wrongTaskDeps != null do
+                TreatmentStep wrongTaskDep = wrongTaskDeps.content;
+                List<TreatmentStep> lx = wrongTaskDeps;
+                wrongTaskDeps = wrongTaskDeps.next;
+                
+                print("RECONFIG> Removing task dependency " ++ wrongTaskDep.task.taskName ++ " for treatment " ++ wrongTaskDep.treatmentName);
+                destroy(wrongTaskDep);
+                destroy(lx);
+            end
+            
+            print("RECONFIG> Wrong task dependencies removed");
+        end
+    end
+
+    override Unit adaptDefect()
+        skip;
+    end
+
+    override Unit adaptRepair()
+        skip;
+    end
+end

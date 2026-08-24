@@ -1,0 +1,72 @@
+class WaterBucketModel extends BaseModel()
+
+    /* Add water buckets that are not in the program model */
+    override Unit adaptAddition()
+
+        List<WaterBucket> newBuckets = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?bucketId ?waterLevel {
+                ?bucket a ast:WaterBucket ;
+                    ast:bucketId ?bucketId .
+                OPTIONAL {
+                    ?bucket ast:waterLevel ?waterLevel .
+                }
+                FILTER NOT EXISTS {
+                    ?x a prog:WaterBucket ;
+                        prog:WaterBucket_bucketId ?bucketId .
+                }
+            }");
+
+        if newBuckets != null then
+            print("RECONFIG> New Water Buckets(s) detected: repairing the model");
+
+            while newBuckets != null do
+                WaterBucket newBucket = newBuckets.content;
+                List<WaterBucket> lx = newBuckets;
+                newBuckets = newBuckets.next;
+
+                print("RECONFIG> New Water Bucket detected: ");
+                print("          Water bucket Id: " ++ newBucket.bucketId);
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Water Buckets(s) added");
+        end
+    end
+
+    /* Add water buckets that are not in the asset model */
+    override Unit adaptRemoval()
+        List<WaterBucket> wrongBuckets = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:WaterBucket ;
+                     prog:WaterBucket_bucketId ?bucketId.
+                FILTER NOT EXISTS {
+                    ?entity rdf:type ?t ;
+                        ast:bucketId ?bucketId .
+                    ?t rdfs:subClassOf* ast:WaterBucket .
+                }
+            }");
+
+        if wrongBuckets != null then
+            print("RECONFIG> Misconfigured Water Bucket(s) detected: repairing the model");
+
+            while wrongBuckets != null do
+                WaterBucket bucket = wrongBuckets.content;
+                print("RECONFIG> Removing Water Bucket with Id: " ++ bucket.bucketId);
+                destroy(bucket);
+                List<WaterBucket> lx = wrongBuckets;
+                wrongBuckets = wrongBuckets.next;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Water Buckets(s) removed");
+        end
+    end
+
+    /* Check for defects in the water buckets. */
+    override Unit adaptDefect() skip; end
+
+    override Unit adaptBehaviour() skip; end
+end

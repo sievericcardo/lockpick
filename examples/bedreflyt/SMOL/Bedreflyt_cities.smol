@@ -1,0 +1,72 @@
+class CityModel extends BaseModel ()
+    override Unit adaptAddition()
+        List<City> newCities = construct("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?cityName
+        WHERE {
+            ?city a :City ;
+                :cityName ?cityName .
+            FILTER NOT EXISTS {
+                ?x a prog:City ;
+                    prog:City_cityName ?cityName .
+            }
+        }
+        ");
+
+        if newCities != null then
+            print("RECONFIG> Adding new cities...");
+
+            Int i = 0;
+            while newCities != null do
+                City newCity = newCities.content;
+                List<City> lx = newCities;
+                newCities = newCities.next;
+                
+                print("RECONFIG> Adding city " ++ newCity.cityName);
+                destroy(lx);
+            end
+
+            print("RECONFIG> New cities added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<City> wrongCities = access("
+            PREFIX : <http://www.smolang.org/bedreflyt/>
+
+            SELECT DISTINCT ?obj {
+                ?obj a prog:City ;
+                    prog:City_cityName ?cityName .
+                FILTER NOT EXISTS {
+                    ?city a :City ;
+                        :cityName ?cityName .
+                }
+            }
+        ");
+
+        if wrongCities != null then
+            print("RECONFIG> Removing wrong cities...");
+
+            while wrongCities != null do
+                City wrongCity = wrongCities.content;
+                List<City> lx = wrongCities;
+                wrongCities = wrongCities.next;
+                
+                print("RECONFIG> Removing city " ++ wrongCity.cityName);
+                destroy(wrongCity);
+                destroy(lx);
+            end
+            
+            print("RECONFIG> Wrong cities removed");
+        end
+    end
+
+    override Unit adaptDefect()
+        skip;
+    end
+
+    override Unit adaptRepair()
+        skip;
+    end
+end

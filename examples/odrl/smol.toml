@@ -1,0 +1,11 @@
+[project]
+name = "odrl"
+
+[sources]
+files = ["smol/*.smol"]
+
+[ontologies]
+files = ["*.ttl"]
+
+[entry]
+main = "SMOL/ODRL.smol"

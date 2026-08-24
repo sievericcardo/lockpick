@@ -1,0 +1,129 @@
+class OfficeModel extends BaseModel()
+    override Unit adaptAddition()
+        List<Office> newOffices = construct("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
+
+        SELECT DISTINCT ?roomNumber ?capacity ?penalty ?officeWard ?hospital ?available ?monitoringCategory
+        WHERE {
+            ?office a :Office ;
+                :hasRoomNr ?roomNumber ;
+                :hasCapacityNrBeds ?capacity ;
+                :penalty ?penalty ;
+                :isAssignWard ?ward ;
+                :hasMonitoringStatus ?monitoringStatus ;
+                :available ?available .
+            ?ward a :Ward ;
+                :wardName ?wardName ;
+                brick:hasHospital ?hospitalWard .
+            ?hospitalWard a brick:Hospital ;
+                :hospitalName ?hospitalName .
+            ?monitoringStatus a :MonitoringCategory ;
+                :monitoringName ?monitoringDescription .
+            ?hospital a prog:Hospital ;
+                prog:Hospital_hospitalName ?hospitalName .
+            ?officeWard a prog:Ward ;
+                prog:Ward_wardName ?wardName .
+            ?monitoringCategory a prog:MonitoringCategory ;
+                prog:MonitoringCategory_description ?monitoringDescription .
+            FILTER NOT EXISTS {
+                ?office a prog:Office ;
+                    prog:Office_roomNumber ?roomNumber ;
+                    prog:Office_capacity ?capacity ;
+                    prog:Office_officeWard ?wardObj ;
+                    prog:Office_hospital ?hospitalObj ;
+                    prog:Office_available ?available ;
+                    prog:Office_monitoringCategory ?monitoringStatusObj .
+                ?wardObj a prog:Ward ;
+                    prog:Ward_wardName ?wardName .
+                ?hospitalObj a prog:Hospital ;
+                    prog:Hospital_hospitalName ?hospitalName .
+                ?monitoringStatusObj a prog:MonitoringCategory ;
+                    prog:MonitoringCategory_description ?monitoringDescription .
+            }
+        }");
+
+        if newOffices != null then
+            print("RECONFIG> Adding new offices...");
+
+            while newOffices != null do
+                Office newOffice = newOffices.content;
+                List<Office> lx = newOffices;
+                newOffices = newOffices.next;
+
+                print("RECONFIG> Adding office");
+                print("          Monitoring status: " ++ newOffice.monitoringCategory.description);
+                print("          Assigned ward: " ++ newOffice.officeWard.wardName);
+                print("          Available: " ++ booleanToString(newOffice.available));
+                print("          Capacity number of beds: " ++ intToString(newOffice.capacity));
+                print("          Room number: " ++ intToString(newOffice.roomNumber));
+                destroy(lx);
+            end
+
+            print("RECONFIG> New offices added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<Office> wrongOffices = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?obj a prog:Office ;
+                prog:Office_roomNumber ?roomNumber ;
+                prog:Office_officeWard ?wardObj ;
+                prog:Office_hospital ?hospitalObj ;
+                prog:Office_monitoringCategory ?monitoringObj .
+            ?wardObj a prog:Ward ;
+                prog:Ward_wardName ?wardName .
+            ?hospitalObj a prog:Hospital ;
+                prog:Hospital_hospitalName ?hospitalName .
+            ?monitoringObj a prog:MonitoringCategory ;
+                prog:MonitoringCategory_description ?monitoringDescription .
+
+            FILTER NOT EXISTS {
+                ?obj a :Office ;
+                    :hasRoomNr ?roomNumber ;
+                    :isAssignWard ?ward ;
+                    :hasMonitoringStatus ?monitoringStatus ;
+                    :available ?available .
+                ?ward a :Ward ;
+                    :wardName ?wardName ;
+                    brick:hasHospital ?hospitalWard .
+                ?hospitalWard a brick:Hospital ;
+                    :hospitalName ?hospitalName .
+                ?monitoringStatus a :MonitoringCategory ;
+                    :monitoringName ?monitoringDescription.
+            }
+        }");
+
+        if wrongOffices != null then
+            print("RECONFIG> Removing wrong offices...");
+
+            while wrongOffices != null do
+                Office wrongOffice = wrongOffices.content;
+                List<Office> lx = wrongOffices;
+                wrongOffices = wrongOffices.next;
+
+                print("RECONFIG> Removing office " ++ intToString(wrongOffice.roomNumber));
+
+                destroy(wrongOffice);
+                destroy(lx);
+            end
+
+            print("RECONFIG> Wrong offices removed");
+        end
+    end
+
+    override Unit adaptDefect()
+        // No specific update logic for offices
+        print("RECONFIG> No updates needed for offices");
+    end
+
+    override Unit adaptRepair()
+        // No specific repair logic for offices
+        print("RECONFIG> No repairs needed for offices");
+    end
+end

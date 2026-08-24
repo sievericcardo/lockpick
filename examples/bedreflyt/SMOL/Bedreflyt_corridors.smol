@@ -1,0 +1,125 @@
+class CorridorModel extends BaseModel()
+    override Unit adaptAddition()
+        List<Corridor> newCorridors = construct("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
+
+        SELECT DISTINCT ?roomNumber ?capacity ?penalty ?corridorWard ?hospital ?available ?monitoringCategory
+        WHERE {
+            ?corridor a :Corridor ;
+                :hasRoomNr ?roomNumber ;
+                :hasCapacityNrBeds ?capacity ;
+                :penalty ?penalty ;
+                :isAssignWard ?ward ;
+                :hasMonitoringStatus ?monitoringStatus .
+            ?ward a :Ward ;
+                :wardName ?wardName ;
+                brick:hasHospital ?hospitalWard .
+            ?hospitalWard a brick:Hospital ;
+                :hospitalName ?hospitalName .
+            ?monitoringStatus a :MonitoringCategory ;
+                :monitoringName ?monitoringDescription .
+            ?hospital a prog:Hospital ;
+                prog:Hospital_hospitalName ?hospitalName .
+            ?corridorWard a prog:Ward ;
+                prog:Ward_wardName ?wardName .
+            ?monitoringCategory a prog:MonitoringCategory ;
+                prog:MonitoringCategory_description ?monitoringDescription .
+            FILTER NOT EXISTS {
+                ?obj a prog:Corridor ;
+                    prog:Corridor_roomNumber ?roomNumber ;
+                    prog:Corridor_capacity ?capacity ;
+                    prog:Corridor_corridorWard ?wardObj ;
+                    prog:Corridor_hospital ?hospitalObj ;
+                    prog:Corridor_monitoringCategory ?monitoringStatusObj .
+                ?wardObj a prog:Ward ;
+                    prog:Ward_wardName ?wardName .
+                ?hospitalObj a prog:Hospital ;
+                    prog:Hospital_hospitalName ?hospitalName .
+                ?monitoringStatusObj a prog:MonitoringCategory ;
+                    prog:MonitoringCategory_description ?monitoringDescription .
+            }
+        }");
+
+        if newCorridors != null then
+            print("RECONFIG> Adding new corridors...");
+
+            while newCorridors != null do
+                Corridor newCorridor = newCorridors.content;
+                List<Corridor> lx = newCorridors;
+                newCorridors = newCorridors.next;
+
+                print("RECONFIG> Adding corridor");
+                print("          Monitoring status: " ++ newCorridor.monitoringCategory.description);
+                print("          Assigned ward: " ++ newCorridor.corridorWard.wardName);
+                print("          Capacity number of beds: " ++ intToString(newCorridor.capacity));
+                print("          Room number: " ++ intToString(newCorridor.roomNumber));
+                destroy(lx);
+            end
+
+            print("RECONFIG> New corridors added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<Corridor> wrongCorridors = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?obj a prog:Corridor ;
+                prog:Corridor_roomNumber ?roomNumber ;
+                prog:Corridor_corridorWard ?wardObj ;
+                prog:Corridor_hospital ?hospitalObj ;
+                prog:Corridor_monitoringCategory ?monitoringObj .
+            ?wardObj a prog:Ward ;
+                prog:Ward_wardName ?wardName .
+            ?hospitalObj a prog:Hospital ;
+                prog:Hospital_hospitalName ?hospitalName .
+            ?monitoringObj a prog:MonitoringCategory ;
+                prog:MonitoringCategory_description ?monitoringDescription .
+
+            FILTER NOT EXISTS {
+                ?corridor a :Corridor ;
+                    :hasRoomNr ?roomNumber ;
+                    :isAssignWard ?ward ;
+                    :hasMonitoringStatus ?monitoringStatus .
+                ?ward a :Ward ;
+                    :wardName ?wardName ;
+                    brick:hasHospital ?hospitalWard .
+                ?hospitalWard a brick:Hospital ;
+                    :hospitalName ?hospitalName .
+                ?monitoringStatus a :MonitoringCategory ;
+                    :monitoringName ?monitoringDescription.
+            }
+        }");
+
+        if wrongCorridors != null then
+            print("RECONFIG> Removing wrong corridors...");
+
+            while wrongCorridors != null do
+                Corridor wrongCorridor = wrongCorridors.content;
+                List<Corridor> lx = wrongCorridors;
+                wrongCorridors = wrongCorridors.next;
+
+                print("RECONFIG> Removing corridor " ++ intToString(wrongCorridor.roomNumber));
+
+                destroy(wrongCorridor);
+                destroy(lx);
+            end
+
+            print("RECONFIG> Wrong corridors removed");
+        end
+    end
+
+    override Unit adaptDefect()
+        // No specific update logic for corridors
+        print("RECONFIG> No updates needed for corridors");
+    end
+
+    override Unit adaptRepair()
+        // No specific repair logic for corridors
+        print("RECONFIG> No repairs needed for corridors");
+    end
+end

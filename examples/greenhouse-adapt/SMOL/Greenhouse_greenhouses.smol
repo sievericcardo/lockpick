@@ -1,0 +1,69 @@
+class GreenHouseModel extends BaseModel()
+    override Unit adaptAddition()
+        List<Greenhouse> newGreenhouses = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?greenhouseId {
+                ?x a ast:Greenhouse ;
+                    ast:greenhouseId ?greenhouseId .
+                FILTER NOT EXISTS {
+                    ?y a prog:Greenhouse ;
+                        prog:Greenhouse_greenhouseId ?greenhouseId ; .
+                }
+            }");
+
+        if newGreenhouses != null then
+            print("RECONFIG> New Greenhouse(s) detected: repairing the model");
+
+            while newGreenhouses != null do
+                Greenhouse newGreenhouse = newGreenhouses.content;
+                List<Greenhouse> lx = newGreenhouses;
+                newGreenhouses = newGreenhouses.next;
+                destroy(lx);
+
+                print("RECONFIG> New greenhouse detected: ");
+                print("          Greenhouse Id: " ++ newGreenhouse.greenhouseId);
+
+                newGreenhouse.sections = newGreenhouse.getSections();
+                newGreenhouse.waterBuckets = newGreenhouse.getWaterBuckets();
+                newGreenhouse.lightSensor = newGreenhouse.getLightSensor();
+                newGreenhouse.temperatureHumiditySensor = newGreenhouse.getTemperatureHumiditySensor();
+            end
+
+            print("RECONFIG> Greenhouse(s) added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<Greenhouse> wrongGreenhouses = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:Greenhouse ;
+                    prog:Greenhouse_greenhouseId ?greenhouseId .
+                FILTER NOT EXISTS {
+                    ?y a ast:Greenhouse ;
+                        ast:greenhouseId ?greenhouseId .
+                }
+            }");
+
+        if wrongGreenhouses != null then
+            print("RECONFIG> Misconfigured Greenhouse(s) detected: repairing the model");
+
+            while wrongGreenhouses != null do
+                Greenhouse wrongGreenhouse = wrongGreenhouses.content;
+                List<Greenhouse> lx = wrongGreenhouses;
+                wrongGreenhouses = wrongGreenhouses.next;
+
+                print("RECONFIG> Misconfigured greenhouse to remove: ");
+                print("          Greenhouse Id: " ++ wrongGreenhouse.greenhouseId);
+
+                destroy(wrongGreenhouse);
+            end
+
+            print("RECONFIG> Greenhouse(s) removed");
+        end
+    end
+
+    override Unit adaptDefect() skip; end
+
+    override Unit adaptBehaviour() skip; end
+end

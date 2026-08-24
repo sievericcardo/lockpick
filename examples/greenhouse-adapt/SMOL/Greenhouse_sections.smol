@@ -1,0 +1,64 @@
+class SectionModel extends BaseModel()
+    override Unit adaptAddition()
+        List<Section> newSections = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?sectionId {
+                ?section a ast:Section ;
+                    ast:sectionId ?sectionId .
+                FILTER NOT EXISTS {
+                    ?x a prog:Section ;
+                        prog:Section_sectionId ?sectionId .
+                }
+            }");
+
+        if newSections != null then
+            print("RECONFIG> New Sections(s) detected: repairing the model");
+
+            while newSections != null do
+                Section newSection = newSections.content;
+                List<Section> lx = newSections;
+                newSections = newSections.next;
+
+                print("RECONFIG> New Section detected: ");
+                print("          Section Id: " ++ newSection.sectionId);
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Sections(s) added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<Section> wrongSections = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:Section ;
+                     prog:Section_sectionId ?sectionId.
+                FILTER NOT EXISTS {
+                    ?entity rdf:type ?t ;
+                        ast:sectionId ?sectionId .
+                    ?t rdfs:subClassOf* ast:Section .
+                }
+            }");
+
+        if wrongSections != null then
+            print("RECONFIG> Misconfigured Section(s) detected: repairing the model");
+
+            while wrongSections != null do
+                Section section = wrongSections.content;
+                print("RECONFIG> Removing Section with Id: " ++ section.sectionId);
+                destroy(section);
+                List<Section> lx = wrongSections;
+                wrongSections = wrongSections.next;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Sections(s) removed");
+        end
+    end
+
+    override Unit adaptDefect() skip; end
+
+    override Unit adaptBehaviour() skip; end
+end

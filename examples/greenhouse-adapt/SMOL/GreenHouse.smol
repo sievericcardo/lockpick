@@ -1,0 +1,138 @@
+abstract class BaseModel (String name)
+    Unit adaptModel()
+        print("RECONFIG> Reconfiguring the "++ this.name);
+        this.adaptDefect();
+        this.adaptAddition();
+        this.adaptRemoval();
+    end
+
+    Unit adaptState()
+        print("ADAPT> Adapting state for the "++ this.name);
+        this.adaptBehaviour();
+    end
+
+    abstract Unit adaptAddition()
+    abstract Unit adaptRemoval()
+    abstract Unit adaptDefect()
+    abstract Unit adaptBehaviour()
+end
+
+/*
+ *  This class implements the twinning logic and is responsible to implement decision making
+ *  and the adaptation cycle. The connections between assets remain implicit as they are not used explicitly,
+ *  but twinning is still established w.r.t. having the right assets.
+ *
+ *  Field this.decisions contains the control decision made by the last cycle.
+ */
+// class AssetModel extends Twin (List<Decision> decisions, AssetController ctrl, List<BaseModel> mods)
+class AssetModel extends Twin (List<BaseModel> mods)
+
+    // Unit decision()
+    //     this.ctrl.decision();
+    // end
+
+    Unit register(BaseModel m)
+        this.mods = new List<BaseModel>(m, this.mods);
+    end
+
+    Unit reconfigure()
+        print("RECONFIG> Reconfiguring the asset model...");
+
+        List<BaseModel> ms = this.mods;
+        while ms != null do
+            ms.content.adaptModel();
+            ms = ms.next;
+        end
+
+        print("RECONFIG> Reconfiguring DONE...");
+    end
+
+    Unit reconfigureSingleModel(String mod)
+        print("RECONFIG> Reconfiguring the asset model...");
+
+        List<BaseModel> ms = this.mods;
+        while ms != null do
+            if ms.content.name == mod then
+                print("RECONFIG> Reconfiguring " ++ ms.content.name);
+                ms.content.adaptModel();
+            end
+            ms = ms.next;
+        end
+
+        print("RECONFIG> Reconfiguring DONE...");
+    end
+
+    Unit reclassify()
+        print("ADAPT> Adapting the asset model...");
+
+        List<BaseModel> ms = this.mods;
+        while ms != null do
+            ms.content.adaptState();
+            ms = ms.next;
+        end
+
+        print("ADAPT> Adapting DONE...");
+    end
+
+    Unit reclassifySingleModel(String mod)
+        print("ADAPT> Adapting the asset model...");
+
+        List<BaseModel> ms = this.mods;
+        while ms != null do
+            if ms.content.name == mod then
+                print("ADAPT> Adapting " ++ ms.content.name);
+                ms.content.adaptState();
+            end
+            ms = ms.next;
+        end
+
+        print("ADAPT> Adapting DONE...");
+    end
+end
+
+main
+//MBC Start
+// to enable MBC, uncomment the following lines and comment out the line marked with NON-MBC
+/*
+    ModelControl dc = new ModelControl(0.0, null);
+    dc.reconfigureModel(60.0); //this actually instantiated the FMU
+*/
+//MBC End
+    //DirectControl dc = new DirectControl(0.0, 0.0);                    //NON_MBC
+    // AssetModel assetModel = new AssetModel(null, null, null);
+    // AssetController ctrl = new AssetController(assetModel, dc);
+    // assetModel.ctrl = ctrl;
+    AssetModel assetModel = new AssetModel(null);
+
+    GreenHouseModel greenhouse = new GreenHouseModel("greenhouse");
+    SectionModel sections = new SectionModel("sections");
+    PotModel pots = new PotModel("pots");
+    PlantModel plants = new PlantModel("plants");
+    PumpModel pumps = new PumpModel("pumps");
+    WaterBucketModel waterBuckets = new WaterBucketModel("water buckets");
+    MoistureSensorModel moistureSensors = new MoistureSensorModel("moisture sensors");
+    LightSensorModel lightSensors = new LightSensorModel("light sensors");
+    TemperatureHumiditySensorModel temperatureHumiditySensors = new TemperatureHumiditySensorModel("temperature humidity sensors");
+
+    assetModel.register(greenhouse);
+    assetModel.register(sections);
+    assetModel.register(plants);
+    assetModel.register(pots);
+    assetModel.register(pumps);
+    assetModel.register(waterBuckets);
+    assetModel.register(moistureSensors);
+    assetModel.register(lightSensors);
+    assetModel.register(temperatureHumiditySensors);
+
+    //NDVI START
+    // HealthModel m5 = new HealthModel("health states");
+    // assetModel.register(m5);
+    //NDVI STOP
+
+
+    assetModel.reconfigure();
+    assetModel.reclassify();
+    // assetModel.decision();
+
+    breakpoint;
+end

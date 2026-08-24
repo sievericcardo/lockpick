@@ -1,0 +1,67 @@
+class BathroomModel extends BaseModel ()
+    override Unit adaptAddition()
+        List<Bathroom> newBathrooms = construct("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?bathroomName ?bathroomCode
+        WHERE {
+            ?bathroom rdf:type <https://w3id.org/rec/building/Bathroom> ;
+                :bathroomName ?bathroomName ;
+                :bathroomCode ?bathroomCode .
+        }");
+
+        if newBathrooms != null then
+            print("RECONFIG> Adding new bathrooms...");
+
+            while newBathrooms != null do
+                Bathroom newBathroom = newBathrooms.content;
+                List<Bathroom> lx = newBathrooms;
+                
+                print("RECONFIG> Adding bathroom " ++ newBathroom.bathroomName);
+                destroy(lx);
+            end
+
+            print("RECONFIG> New bathrooms added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<Bathroom> wrongBathrooms = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj {
+            ?obj a prog:Bathroom ;
+                prog:Bathroom_bathroomName ?bathroomName ;
+                prog:Bathroom_bathroomCode ?bathroomCode .
+            FILTER NOT EXISTS {
+                ?bathroom rdf:type <https://w3id.org/rec/building/Bathroom> ;
+                    :bathroomName ?bathroomName ;
+                    :bathroomCode ?bathroomCode .
+            }
+        }");
+
+        if wrongBathrooms != null then
+            print("RECONFIG> Removing wrong bathrooms...");
+
+            while wrongBathrooms != null do
+                Bathroom wrongBathroom = wrongBathrooms.content;
+                List<Bathroom> lx = wrongBathrooms;
+                
+                print("RECONFIG> Removing bathroom " ++ wrongBathroom.bathroomName);
+                destroy(wrongBathroom);
+                destroy(lx);
+            end
+
+            print("RECONFIG> Wrong bathrooms removed");
+        end
+    end
+
+    override Unit adaptDefect()
+        print("RECONFIG> Checking for defects in the Bathroom(s)");
+        print("RECONFIG> Defects checked for the Bathroom(s)");
+    end
+
+    override Unit adaptRepair()
+        skip;
+    end
+end

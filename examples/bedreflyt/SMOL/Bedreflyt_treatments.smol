@@ -1,0 +1,90 @@
+class TreatmentModel extends BaseModel()
+
+    override Unit adaptAddition()
+
+        List<Treatment> newTreatments = construct("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX pko: <https://w3id.org/pko#>
+
+        SELECT ?treatmentName ?diagnosis ?frequency ?weight
+        WHERE {
+            ?treatment a pko:Procedure ;
+                :procedureName ?treatmentName ;
+                :hasFrequency ?frequency ;
+                :hasWeight ?weight ;
+                :isTreatmentProcOf ?diagnosisContent .
+            ?diagnosisContent a :Diagnosis ;
+                :diagnosisCode ?diagnosisCode .
+            ?diagnosis a prog:Diagnosis ;
+                prog:Diagnosis_diagnosisCode ?diagnosisCode .
+            FILTER NOT EXISTS {
+                ?obj a prog:Treatment ;
+                    prog:Treatment_treatmentName ?treatmentName .
+            }
+        }");
+
+        if newTreatments != null then
+            print("RECONFIG> Adding new treatments...");
+
+            while newTreatments != null do
+                Treatment newTreatment = newTreatments.content;
+                List<Treatment> lx = newTreatments;
+                newTreatments = newTreatments.next;
+
+                newTreatment.firstTask = newTreatment.getFirstStep();
+                newTreatment.lastTask = newTreatment.getLastStep();
+
+                print("RECONFIG> Adding treatment " ++ newTreatment.treatmentName);
+                print("          Frequency: " ++ doubleToString(newTreatment.frequency));
+                print("          Weight: " ++ doubleToString(newTreatment.weight));
+                print("          Diagnosis: " ++ newTreatment.diagnosis.diagnosisCode);
+                print("          First task: " ++ newTreatment.firstTask.task.taskName);
+                print("          Last task: " ++ newTreatment.lastTask.task.taskName);
+                destroy(lx);
+            end
+            print("RECONFIG> New treatments added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<Treatment> wrongTreatments = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX pko: <https://w3id.org/pko#>
+
+        SELECT ?treatmentName ?diagnosis ?frequency ?weight
+        WHERE {
+            ?treatment a prog:Treatment ;
+                prog:Treatment_treatmentName ?treatmentName .
+            FILTER NOT EXISTS {
+                ?treatment a pko:Procedure ;
+                    :procedureName ?treatmentName .
+            }
+        }");
+
+        if wrongTreatments != null then
+            print("RECONFIG> Removing wrong treatments...");
+
+            while wrongTreatments != null do
+                Treatment wrongTreatment = wrongTreatments.content;
+                List<Treatment> lx = wrongTreatments;
+                wrongTreatments = wrongTreatments.next;
+
+                print("RECONFIG> Removing treatment " ++ wrongTreatment.treatmentName);
+                destroy(wrongTreatment);
+                destroy(lx);
+            end
+
+            print("RECONFIG> Wrong treatments removed");
+        end
+    end
+
+    override Unit adaptDefect()
+        // this.adaptDefectFrequency();
+        // this.adaptDefectWeight();
+        skip;
+    end
+
+    override Unit adaptRepair()
+        skip;
+    end
+end

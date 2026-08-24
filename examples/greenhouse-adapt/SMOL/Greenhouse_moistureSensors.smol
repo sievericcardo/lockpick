@@ -1,0 +1,64 @@
+class MoistureSensorModel extends BaseModel()
+    override Unit adaptAddition()
+        List<MoistureSensor> newMoistureSensors = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?sensorId {
+                ?sensor a ast:MoistureSensor ;
+                    ast:sensorId ?sensorId .
+                FILTER NOT EXISTS {
+                    ?x a prog:MoistureSensor ;
+                        prog:MoistureSensor_sensorId ?sensorId .
+                }
+            }");
+
+        if newMoistureSensors != null then
+            print("RECONFIG> New Moisture Sensors(s) detected: repairing the model");
+
+            while newMoistureSensors != null do
+                MoistureSensor newMoistureSensor = newMoistureSensors.content;
+                List<MoistureSensor> lx = newMoistureSensors;
+                newMoistureSensors = newMoistureSensors.next;
+
+                print("RECONFIG> New MoistureSensor detected: ");
+                print("          MoistureSensor Id: " ++ newMoistureSensor.sensorId);
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Moisture Sensors(s) added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<MoistureSensor> wrongMoistureSensors = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:MoistureSensor ;
+                     prog:MoistureSensor_sensorId ?sensorId.
+                FILTER NOT EXISTS {
+                    ?entity rdf:type ?t ;
+                        ast:sensorId ?sensorId .
+                    ?t rdfs:subClassOf* ast:Sensor .
+                }
+            }");
+
+        if wrongMoistureSensors != null then
+            print("RECONFIG> Misconfigured Moisture Sensor(s) detected: repairing the model");
+
+            while wrongMoistureSensors != null do
+                MoistureSensor sensor = wrongMoistureSensors.content;
+                print("RECONFIG> Removing Moisture Sensor with Id: " ++ sensor.sensorId);
+                destroy(sensor);
+                List<MoistureSensor> lx = wrongMoistureSensors;
+                wrongMoistureSensors = wrongMoistureSensors.next;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Moisture Sensors(s) removed");
+        end
+    end
+
+    override Unit adaptDefect() skip; end
+
+    override Unit adaptBehaviour() skip; end
+end
