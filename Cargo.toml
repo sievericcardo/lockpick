@@ -58,7 +58,7 @@ thiserror = "2.0.20"
 # Model checking (CTL, BDD-based symbolic engine)
 citreelo = "0.2.0"
 
-# ── Root package (the lockpick binary) ──────────────────────────────────── #
+# Root package (the lockpick binary)
 [package]
 name    = "lockpick"
 version.workspace = true
