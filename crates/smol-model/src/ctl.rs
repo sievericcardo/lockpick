@@ -1,0 +1,67 @@
+//! A small CTL (Computation Tree Logic) property language and explicit-state
+//! model checker.
+//!
+//! Supported syntax:
+//!
+//! ```text
+//! expr   := impl
+//! impl   := or ( "->" or )*
+//! or     := and ( "||" and )*
+//! and    := unary ( "&&" unary )*
+//! unary  := "!" unary
+//!         | "AX" unary | "EX" unary | "AG" unary | "EF" unary | "AF" unary | "EG" unary
+//!         | "A[" expr "U" expr "]" | "E[" expr "U" expr "]"
+//!         | primary
+//! primary := "true" | "false" | ident | "(" expr ")"
+//! ```
+//!
+//! An `ident` is a state-class name (an atomic proposition that holds exactly
+//! in the state of that name).
+use citreelo::ctl::{BinaryCTLOperator, CTLFormula, CTLFormulaLeaf, UnaryCTLOperator};
+use citreelo::solve::CtlModelChecker;
+
+use crate::kripke::{to_kripke, Ap};
+use crate::model::TransitionSystem;
+
+/// A CTL property, which can be evaluated on a [`TransitionSystem`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Property {
+    True,
+    False,
+    /// An atomic proposition (a state-class name).
+    Atom(String),
+    Not(Box<Property>),
+    And(Box<Property>, Box<Property>),
+    Or(Box<Property>, Box<Property>),
+    Implies(Box<Property>, Box<Property>),
+    Ax(Box<Property>),
+    Ex(Box<Property>),
+    Ag(Box<Property>),
+    Ef(Box<Property>),
+    Af(Box<Property>),
+    Eg(Box<Property>),
+    Au(Box<Property>, Box<Property>),
+    Eu(Box<Property>, Box<Property>),
+}
+
+impl std::fmt::Display for Property {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Property::True => write!(f, "true"),
+            Property::False => write!(f, "false"),
+            Property::Atom(a) => write!(f, "{a}"),
+            Property::Not(p) => write!(f, "!{p}"),
+            Property::And(a, b) => write!(f, "({a} && {b})"),
+            Property::Or(a, b) => write!(f, "({a} || {b})"),
+            Property::Implies(a, b) => write!(f, "({a} -> {b})"),
+            Property::Ax(p) => write!(f, "AX {p}"),
+            Property::Ex(p) => write!(f, "EX {p}"),
+            Property::Ag(p) => write!(f, "AG {p}"),
+            Property::Ef(p) => write!(f, "EF {p}"),
+            Property::Af(p) => write!(f, "AF {p}"),
+            Property::Eg(p) => write!(f, "EG {p}"),
+            Property::Au(a, b) => write!(f, "A[{a} U {b}]"),
+            Property::Eu(a, b) => write!(f, "E[{a} U {b}]"),
+        }
+    }
+}
