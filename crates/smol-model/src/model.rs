@@ -151,7 +151,7 @@ pub struct Root {
     pub adapted: bool,
 }
 
-/// THe extracted classification model
+/// The extracted classification model
 #[derive(Clone, Debug)]
 pub struct Extracted {
     /// Every `classifies` state class (including orphans with no root).
@@ -240,7 +240,7 @@ pub fn extract(map: &ClassMap) -> Extracted {
 /// Return the names of all classes that *directly* declare a `context` field of
 /// type `entity`.  These are the state-holder classes for that entity.
 #[must_use]
-pub fn context_hodels(map: &ClassMap, entity: &str) -> Vec<String> {
+pub fn context_holders(map: &ClassMap, entity: &str) -> Vec<String> {
     let mut result = Vec::new();
     for (name, entry) in map.iter() {
         let has = entry.decl.fields.iter().any(|f| {
