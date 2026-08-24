@@ -253,3 +253,33 @@ pub fn context_holders(map: &ClassMap, entity: &str) -> Vec<String> {
     }
     result
 }
+
+/// A simplified resolved type used only for model-level reasoning.
+pub enum ResolvedType {
+    /// A named (user-defined) class type.
+    Class(String),
+    /// A `List<T>` / `ExplList<T>` type.
+    List(Box<ResolvedType>),
+    /// An `FMO[...]` type with its declared port names.
+    Fmo(Vec<String>),
+    /// A primitive type: `Int`, `Double`, `String`, `Boolean`, or `Unit`.
+    Primitive(String),
+}
+
+/// Convert an AST `Type` into a simplified resolved type.
+#[must_use]
+pub fn resolve_type(ty: &Type) -> ResolvedType {
+    match ty {
+        Type::Named(n) => ResolvedType::Class(n.clone()),
+        Type::List(inner) | Type::ExplList(inner) => {
+            ResolvedType::List(Box::new(resolve_type(inner)))
+        }
+        Type::Generic(n, _) => ResolvedType::Class(n.clone()),
+        Type::Fmo(fields) => {
+            ResolvedType::Fmo(fields.iter().map(|f| f.name.clone()).collect())
+        },
+        Type::Int | Type::Double | Type::String | Type::Boolean | Type::Unit => {
+            ResolvedType::Primitive(format!("{:?}", ty))
+        }
+    }
+}
