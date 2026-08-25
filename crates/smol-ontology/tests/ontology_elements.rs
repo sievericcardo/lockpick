@@ -118,6 +118,36 @@ fn no_ontology_skips_presence_but_keeps_syntax() {
     );
 }
 
+const SRC_UNDECLARED_PREFIX: &str = r#"
+class PolicyModel ()
+    Unit adaptAddPermissions()
+        List<Object> permissions = construct("
+            PREFIX odrl: <http://www.w3.org/ns/odrl/2/>
+            SELECT ?id {
+                ?perm a odrl:Permission ;
+                    pol:identifier ?id .
+            }");
+    end
+end
+"#;
+
+#[test]
+fn no_ontology_undeclared_prefixes_are_not_syntax_errors() {
+    // With no ontology loaded, prefixes that are used but not declared (neither
+    // in the query nor in the merged prefix map) may be injected at runtime, so
+    // they must not fail SPARQL syntax validation — they are warnings instead.
+    let diags =
+        smol_ontology::check_ontology(&parse(SRC_UNDECLARED_PREFIX), &[], &[], &HashMap::new());
+    assert!(
+        !has_code(&diags, DiagnosticCode::SparqlSyntaxError),
+        "undeclared prefixes must not be a syntax error, got: {diags:#?}"
+    );
+    assert!(
+        has_code(&diags, DiagnosticCode::UnknownPrefix),
+        "undeclared prefixes should still warn (E3010), got: {diags:#?}"
+    );
+}
+
 const SRC_FULL_IRI: &str = r#"
 class Sensor ()
     Unit read()

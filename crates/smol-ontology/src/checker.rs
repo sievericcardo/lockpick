@@ -520,8 +520,11 @@ fn check_sparql_syntax(
     diags: &mut Vec<Diagnostic>,
 ) {
     let normalised = replace_smol_placeholders(sparql);
-    let preamble = build_sparql_preamble(prefix_map);
-    let with_prefixes = format!("{preamble}{normalised}");
+    let with_prefixes = format!(
+        "{}{}",
+        build_sparql_prefix_block(&normalised, prefix_map),
+        normalised
+    );
     let Ok(test_store) = with_suppressed_output(SparqlStore::new) else {
         return;
     };
@@ -574,8 +577,11 @@ fn check_retrieves_sparql(
         return;
     }
 
-    let preamble = build_sparql_preamble(prefix_map);
-    let with_prefixes = format!("{preamble}{normalised}");
+    let with_prefixes = format!(
+        "{}{}",
+        build_sparql_prefix_block(&normalised, prefix_map),
+        normalised
+    );
     let Ok(test_store) = with_suppressed_output(SparqlStore::new) else {
         return;
     };
@@ -625,8 +631,8 @@ fn check_links(
         } else {
             format!("{normalised} .")
         };
-        let preamble = build_sparql_preamble(prefix_map);
-        let wrapped = format!("{preamble}\n[] {terminated}");
+        let prefix_block = build_sparql_prefix_block(&terminated, prefix_map);
+        let wrapped = format!("{prefix_block}\n[] {terminated}");
 
         let Ok(mut test_store) = with_suppressed_output(SparqlStore::new) else {
             continue;
@@ -666,6 +672,41 @@ fn build_sparql_preamble(prefix_map: &HashMap<String, String>) -> String {
         }
     }
     preamble
+}
+
+/// Build the prefix declarations used to validate a SPARQL/Turtle fragment.
+///
+/// In addition to the standard preamble this synthesises a declaration for
+/// every prefix the fragment *uses* but does not otherwise declare (neither in
+/// `prefix_map` nor in the fragment itself). This keeps syntax validation
+/// working when no ontology was submitted: prefixes that may legitimately be
+/// injected at runtime no longer turn into hard parse errors. Unknown prefixes
+/// are still reported separately as warnings by [`check_sparql_elements`].
+fn build_sparql_prefix_block(sparql: &str, prefix_map: &HashMap<String, String>) -> String {
+    let preamble = build_sparql_preamble(prefix_map);
+    let (prefixed, _, declared) = extract_sparql_refs(sparql);
+    let mut synthetic = String::new();
+    let mut added: HashSet<String> = HashSet::new();
+    for (prefix, _) in prefixed {
+        if prefix.is_empty() {
+            // Default namespace `:name`.
+            if !declared.contains(&String::new()) && added.insert(String::new()) {
+                let _ = writeln!(synthetic, "PREFIX : <urn:lockpick:synthetic:>");
+            }
+            continue;
+        }
+        if prefix_map.contains_key(prefix.as_str())
+            || declared.contains(&prefix)
+            || !added.insert(prefix.clone())
+        {
+            continue;
+        }
+        let _ = writeln!(
+            synthetic,
+            "PREFIX {prefix}: <urn:lockpick:synthetic:{prefix}>"
+        );
+    }
+    format!("{preamble}{synthetic}")
 }
 
 /// Replace SMOL argument placeholders (`%1`, `%2`, …, `%N`) with SPARQL dummy
@@ -847,7 +888,7 @@ fn check_sparql_elements(
     span: Span,
     diags: &mut Vec<Diagnostic>,
 ) {
-    let (prefixed, full_iris) = extract_sparql_refs(sparql);
+    let (prefixed, full_iris, _declared) = extract_sparql_refs(sparql);
 
     let mut warned_prefixes: HashSet<String> = HashSet::new();
     let mut checked: HashSet<String> = HashSet::new();
@@ -1027,14 +1068,18 @@ fn element_in_store(store: &SparqlStore, iri: &str) -> bool {
 /// - `prefixed`: `(prefix, local)` pairs, e.g. `ast:Pump` or the default
 ///   namespace `:hasId` (reported with the empty prefix).
 /// - `full_iris`: IRIs written in angle brackets, e.g. `<http://…>`.
+/// - `declared`: prefix names declared by the query itself (e.g. via
+///   `PREFIX odrl:`), so callers can tell declared prefixes apart from used
+///   ones.
 ///
 /// PREFIX/BASE declaration IRIs, string literals, comments, blank nodes and
 /// variables are skipped.
-fn extract_sparql_refs(sparql: &str) -> (Vec<(String, String)>, Vec<String>) {
+fn extract_sparql_refs(sparql: &str) -> (Vec<(String, String)>, Vec<String>, Vec<String>) {
     let bytes = sparql.as_bytes();
     let mut i = 0;
     let mut prefixed = Vec::new();
     let mut full_iris = Vec::new();
+    let mut declared = Vec::new();
     // Set while scanning a `PREFIX x:` / `BASE` declaration so the following
     // `<iri>` (which is a namespace declaration, not an element reference) is
     // not recorded.
@@ -1081,6 +1126,7 @@ fn extract_sparql_refs(sparql: &str) -> (Vec<(String, String)>, Vec<String>) {
                         if local.is_empty() {
                             // `name:` — the prefix being declared in `PREFIX name: <iri>`
                             skip_next_iri = true;
+                            declared.push(prefix.to_owned());
                         } else {
                             prefixed.push((prefix.to_owned(), local.to_owned()));
                         }
@@ -1092,7 +1138,7 @@ fn extract_sparql_refs(sparql: &str) -> (Vec<(String, String)>, Vec<String>) {
         }
     }
 
-    (prefixed, full_iris)
+    (prefixed, full_iris, declared)
 }
 
 /// Skip past a `'…'` / `"…"` (or triple-quoted) string literal starting at
