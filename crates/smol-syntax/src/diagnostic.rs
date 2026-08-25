@@ -132,6 +132,8 @@ pub enum DiagnosticCode {
     UnknownPrefix = 3010,
     RetrievesNotSelect = 3011,
     LinkTurtleInvalid = 3012,
+    SparqlElementMissing = 3013,
+    SuspiciousOntologyPredicate = 3014,
 
     // Manifest / IO errors
     ManifestNotFound = 4001,

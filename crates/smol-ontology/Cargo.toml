@@ -10,3 +10,6 @@ oxidowl     = { workspace = true }
 tokio       = { workspace = true }
 thiserror   = { workspace = true }
 libc        = "1.0.0-alpha.4"
+
+[dev-dependencies]
+smol-parser = { workspace = true }

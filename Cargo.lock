@@ -2817,6 +2817,7 @@ version = "1.0.0"
 dependencies = [
  "libc 1.0.0-alpha.4",
  "oxidowl",
+ "smol-parser",
  "smol-syntax",
  "thiserror 2.0.20",
  "tokio",

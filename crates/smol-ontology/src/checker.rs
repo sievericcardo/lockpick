@@ -1,6 +1,7 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use oxidowl::query::SparqlStore;
+use oxidowl::semantics::RdfTerm;
 use oxidowl::{OntologyFormat, Reasoner, ReasonerConfig, ShaclValidator};
 
 use smol_syntax::ast::File;
@@ -144,6 +145,16 @@ pub fn check_ontology(
     // Build merged prefix map: extra_prefixes > ttl_prefixes > built-ins
     let prefix_map = build_prefix_map(extra_prefixes, &ttl_prefixes);
 
+    // Presence checks only make sense when at least one ontology was actually
+    // submitted AND it yielded triples in the store.
+    let ontology_loaded = !ontology_paths.is_empty() && ont_store_has_data(&ont_store);
+
+    // Ontology-internal data sanity: predicates that are near-duplicates of
+    // one another are usually typos (e.g. `odrl:assignero` vs `odrl:assigner`).
+    if ontology_loaded {
+        check_predicate_typos(&ont_store, &mut diags);
+    }
+
     // Per-file annotation checks
     for file in smol_files {
         for cls in &file.classes {
@@ -153,6 +164,7 @@ pub fn check_ontology(
                     &ann.iri,
                     &ont_store,
                     &prefix_map,
+                    ontology_loaded,
                     file,
                     ann.span,
                     &mut diags,
@@ -161,7 +173,15 @@ pub fn check_ontology(
 
             // retrieves "SPARQL" — must be a valid SELECT query
             if let Some(ann) = &cls.retrieves {
-                check_retrieves_sparql(&ann.sparql, file, ann.span, &prefix_map, &mut diags);
+                check_retrieves_sparql(
+                    &ann.sparql,
+                    &ont_store,
+                    &prefix_map,
+                    ontology_loaded,
+                    file,
+                    ann.span,
+                    &mut diags,
+                );
             }
 
             // links "turtle" — validate Turtle triples syntax
@@ -169,12 +189,26 @@ pub fn check_ontology(
 
             // Method-level SPARQL in construct/access bodies
             for method in &cls.methods {
-                check_method_sparql(&method.body, file, &prefix_map, &mut diags);
+                check_method_sparql(
+                    &method.body,
+                    &ont_store,
+                    &prefix_map,
+                    ontology_loaded,
+                    file,
+                    &mut diags,
+                );
             }
         }
 
         if let Some(stmts) = &file.main {
-            check_stmts_sparql(stmts, file, &prefix_map, &mut diags);
+            check_stmts_sparql(
+                stmts,
+                &ont_store,
+                &prefix_map,
+                ontology_loaded,
+                file,
+                &mut diags,
+            );
         }
     }
 
@@ -297,13 +331,23 @@ fn check_classifies_annotation(
     iri: &str,
     store: &SparqlStore,
     prefix_map: &HashMap<String, String>,
+    ontology_loaded: bool,
     file: &File,
     span: Span,
     diags: &mut Vec<Diagnostic>,
 ) {
     // Detect SPARQL queries: after stripping PREFIX/BASE prologue, starts with SELECT or ASK.
     if is_sparql_query(iri) {
-        check_sparql_syntax(iri, "classifies", file, span, prefix_map, diags);
+        check_sparql_syntax(
+            iri,
+            "classifies",
+            store,
+            prefix_map,
+            ontology_loaded,
+            file,
+            span,
+            diags,
+        );
         return;
     }
 
@@ -461,12 +505,18 @@ fn validate_iri_as_owl_class(
 
 /// Validate SPARQL syntax by running the query against an empty store.
 /// Prepends `prefix_map` entries so abbreviated names in queries resolve.
+/// Also verifies that every non-`prog:` element referenced by the query is
+/// present in the loaded ontology (when one was submitted) and that every
+/// prefix used by the query is resolvable.
+#[allow(clippy::too_many_arguments)]
 fn check_sparql_syntax(
     sparql: &str,
     context: &str,
+    store: &SparqlStore,
+    prefix_map: &HashMap<String, String>,
+    ontology_loaded: bool,
     file: &File,
     span: Span,
-    prefix_map: &HashMap<String, String>,
     diags: &mut Vec<Diagnostic>,
 ) {
     let normalised = replace_smol_placeholders(sparql);
@@ -485,14 +535,28 @@ fn check_sparql_syntax(
             .with_span(span),
         );
     }
+
+    check_sparql_elements(
+        &normalised,
+        context,
+        store,
+        prefix_map,
+        ontology_loaded,
+        file,
+        span,
+        diags,
+    );
 }
 
 /// Validate `retrieves` SPARQL: must be a syntactically-valid SELECT query.
+#[allow(clippy::too_many_arguments)]
 fn check_retrieves_sparql(
     sparql: &str,
+    store: &SparqlStore,
+    prefix_map: &HashMap<String, String>,
+    ontology_loaded: bool,
     file: &File,
     span: Span,
-    prefix_map: &HashMap<String, String>,
     diags: &mut Vec<Diagnostic>,
 ) {
     let normalised = replace_smol_placeholders(sparql);
@@ -525,6 +589,17 @@ fn check_retrieves_sparql(
             .with_span(span),
         );
     }
+
+    check_sparql_elements(
+        &normalised,
+        "retrieves",
+        store,
+        prefix_map,
+        ontology_loaded,
+        file,
+        span,
+        diags,
+    );
 }
 
 /// Returns true if `s` (with placeholders already replaced) is a SELECT query,
@@ -612,33 +687,41 @@ fn replace_smol_placeholders(sparql: &str) -> String {
 // Walk AST looking for Construct/Access/Retrieves expressions
 fn check_method_sparql(
     stmts: &[smol_syntax::ast::Stmt],
-    file: &File,
+    store: &SparqlStore,
     prefix_map: &HashMap<String, String>,
+    ontology_loaded: bool,
+    file: &File,
     diags: &mut Vec<Diagnostic>,
 ) {
-    check_stmts_sparql(stmts, file, prefix_map, diags);
+    check_stmts_sparql(stmts, store, prefix_map, ontology_loaded, file, diags);
 }
 
 #[allow(clippy::match_same_arms)]
 fn check_stmts_sparql(
     stmts: &[smol_syntax::ast::Stmt],
-    file: &File,
+    store: &SparqlStore,
     prefix_map: &HashMap<String, String>,
+    ontology_loaded: bool,
+    file: &File,
     diags: &mut Vec<Diagnostic>,
 ) {
     use smol_syntax::ast::Stmt;
     for stmt in stmts {
         #[allow(clippy::match_same_arms)]
         match stmt {
-            Stmt::VarDecl { init, .. } => check_expr_sparql(init, file, prefix_map, diags),
-            Stmt::Assign { rhs, lhs, .. } => {
-                check_expr_sparql(lhs, file, prefix_map, diags);
-                check_expr_sparql(rhs, file, prefix_map, diags);
+            Stmt::VarDecl { init, .. } => {
+                check_expr_sparql(init, store, prefix_map, ontology_loaded, file, diags)
             }
-            Stmt::Expr { expr, .. } => check_expr_sparql(expr, file, prefix_map, diags),
+            Stmt::Assign { rhs, lhs, .. } => {
+                check_expr_sparql(lhs, store, prefix_map, ontology_loaded, file, diags);
+                check_expr_sparql(rhs, store, prefix_map, ontology_loaded, file, diags);
+            }
+            Stmt::Expr { expr, .. } => {
+                check_expr_sparql(expr, store, prefix_map, ontology_loaded, file, diags)
+            }
             Stmt::Return { value, .. } => {
                 if let Some(e) = value {
-                    check_expr_sparql(e, file, prefix_map, diags);
+                    check_expr_sparql(e, store, prefix_map, ontology_loaded, file, diags);
                 }
             }
             Stmt::If {
@@ -647,18 +730,18 @@ fn check_stmts_sparql(
                 else_body,
                 ..
             } => {
-                check_expr_sparql(cond, file, prefix_map, diags);
-                check_stmts_sparql(then_body, file, prefix_map, diags);
-                check_stmts_sparql(else_body, file, prefix_map, diags);
+                check_expr_sparql(cond, store, prefix_map, ontology_loaded, file, diags);
+                check_stmts_sparql(then_body, store, prefix_map, ontology_loaded, file, diags);
+                check_stmts_sparql(else_body, store, prefix_map, ontology_loaded, file, diags);
             }
             Stmt::While { cond, body, .. } => {
-                check_expr_sparql(cond, file, prefix_map, diags);
-                check_stmts_sparql(body, file, prefix_map, diags);
+                check_expr_sparql(cond, store, prefix_map, ontology_loaded, file, diags);
+                check_stmts_sparql(body, store, prefix_map, ontology_loaded, file, diags);
             }
             Stmt::Print { value, .. }
             | Stmt::Destroy { value, .. }
             | Stmt::Adapt { expr: value, .. } => {
-                check_expr_sparql(value, file, prefix_map, diags);
+                check_expr_sparql(value, store, prefix_map, ontology_loaded, file, diags);
             }
             Stmt::Skip { .. } | Stmt::Breakpoint { .. } => {}
         }
@@ -668,16 +751,27 @@ fn check_stmts_sparql(
 #[allow(clippy::match_same_arms)]
 fn check_expr_sparql(
     expr: &smol_syntax::ast::Expr,
-    file: &File,
+    store: &SparqlStore,
     prefix_map: &HashMap<String, String>,
+    ontology_loaded: bool,
+    file: &File,
     diags: &mut Vec<Diagnostic>,
 ) {
     use smol_syntax::ast::Expr;
     match expr {
         Expr::Construct { sparql, args, span } => {
-            check_sparql_syntax(sparql, "construct", file, *span, prefix_map, diags);
+            check_sparql_syntax(
+                sparql,
+                "construct",
+                store,
+                prefix_map,
+                ontology_loaded,
+                file,
+                *span,
+                diags,
+            );
             for arg in args {
-                check_expr_sparql(arg, file, prefix_map, diags);
+                check_expr_sparql(arg, store, prefix_map, ontology_loaded, file, diags);
             }
         }
         Expr::Access {
@@ -686,44 +780,396 @@ fn check_expr_sparql(
             // access() accepts non-SPARQL query languages (e.g. InfluxDB Flux),
             // so the query string is intentionally not validated as SPARQL.
             if let Some(c) = connector {
-                check_expr_sparql(c, file, prefix_map, diags);
+                check_expr_sparql(c, store, prefix_map, ontology_loaded, file, diags);
             }
             for arg in args {
-                check_expr_sparql(arg, file, prefix_map, diags);
+                check_expr_sparql(arg, store, prefix_map, ontology_loaded, file, diags);
             }
         }
         Expr::MethodCall { receiver, args, .. } => {
-            check_expr_sparql(receiver, file, prefix_map, diags);
+            check_expr_sparql(receiver, store, prefix_map, ontology_loaded, file, diags);
             for a in args {
-                check_expr_sparql(a, file, prefix_map, diags);
+                check_expr_sparql(a, store, prefix_map, ontology_loaded, file, diags);
             }
         }
         Expr::BinOp { left, right, .. } => {
-            check_expr_sparql(left, file, prefix_map, diags);
-            check_expr_sparql(right, file, prefix_map, diags);
+            check_expr_sparql(left, store, prefix_map, ontology_loaded, file, diags);
+            check_expr_sparql(right, store, prefix_map, ontology_loaded, file, diags);
         }
-        Expr::UnaryOp { expr: inner, .. } => check_expr_sparql(inner, file, prefix_map, diags),
+        Expr::UnaryOp { expr: inner, .. } => {
+            check_expr_sparql(inner, store, prefix_map, ontology_loaded, file, diags)
+        }
         Expr::New { args, .. } => {
             for a in args {
-                check_expr_sparql(a, file, prefix_map, diags);
+                check_expr_sparql(a, store, prefix_map, ontology_loaded, file, diags);
             }
         }
-        Expr::Field { receiver, .. } => check_expr_sparql(receiver, file, prefix_map, diags),
-        Expr::Classify { expr: inner, .. } => check_expr_sparql(inner, file, prefix_map, diags),
+        Expr::Field { receiver, .. } => {
+            check_expr_sparql(receiver, store, prefix_map, ontology_loaded, file, diags)
+        }
+        Expr::Classify { expr: inner, .. } => {
+            check_expr_sparql(inner, store, prefix_map, ontology_loaded, file, diags)
+        }
         Expr::Simulate { args, .. } => {
             for a in args {
-                check_expr_sparql(a, file, prefix_map, diags);
+                check_expr_sparql(a, store, prefix_map, ontology_loaded, file, diags);
             }
         }
-        Expr::Port { receiver, .. } => check_expr_sparql(receiver, file, prefix_map, diags),
+        Expr::Port { receiver, .. } => {
+            check_expr_sparql(receiver, store, prefix_map, ontology_loaded, file, diags)
+        }
         Expr::Super { args, .. } => {
             for a in args {
-                check_expr_sparql(a, file, prefix_map, diags);
+                check_expr_sparql(a, store, prefix_map, ontology_loaded, file, diags);
             }
         }
         // Member / Validate / literal / variable expressions: no SPARQL to check.
         _ => {}
     }
+}
+
+/// Ensure every RDF resource referenced by a SPARQL query is resolvable and
+/// (when an ontology was submitted) actually present in it.
+///
+/// - `prog:`-prefixed elements are runtime-only and are skipped entirely.
+/// - A prefixed name whose prefix is not in the merged prefix table triggers a
+///   warning: such prefixes may legitimately be injected at runtime.
+/// - Any remaining element must exist in the loaded ontology, otherwise an
+///   error is emitted.
+#[allow(clippy::too_many_arguments)]
+fn check_sparql_elements(
+    sparql: &str,
+    context: &str,
+    store: &SparqlStore,
+    prefix_map: &HashMap<String, String>,
+    ontology_loaded: bool,
+    file: &File,
+    span: Span,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let (prefixed, full_iris) = extract_sparql_refs(sparql);
+
+    let mut warned_prefixes: HashSet<String> = HashSet::new();
+    let mut checked: HashSet<String> = HashSet::new();
+
+    for (prefix, local) in prefixed {
+        // prog: is reserved for runtime-only elements.
+        if prefix == "prog" {
+            continue;
+        }
+        match prefix_map.get(prefix.as_str()) {
+            None => {
+                if warned_prefixes.insert(prefix.to_owned()) {
+                    diags.push(
+                        Diagnostic::warning(
+                            DiagnosticCode::UnknownPrefix,
+                            format!(
+                                "{context}: prefix `{prefix}:` is not declared in the loaded \
+                                 prefixes/ontology — it may be injected at runtime"
+                            ),
+                        )
+                        .with_file(&file.path)
+                        .with_span(span),
+                    );
+                }
+            }
+            Some(base) => {
+                if !ontology_loaded {
+                    continue;
+                }
+                let full = format!("{base}{local}");
+                if checked.insert(full.clone()) && !element_in_store(store, &full) {
+                    diags.push(
+                        Diagnostic::error(
+                            DiagnosticCode::SparqlElementMissing,
+                            format!(
+                                "{context}: `{prefix}:{local}` ({full}) is referenced by the \
+                                 SPARQL query but is not present in the ontology"
+                            ),
+                        )
+                        .with_file(&file.path)
+                        .with_span(span),
+                    );
+                }
+            }
+        }
+    }
+
+    if !ontology_loaded {
+        return;
+    }
+
+    const PROG_NS: &str = "https://www.smolang.org/prog/";
+    for iri in full_iris {
+        if iri.starts_with(PROG_NS) {
+            continue;
+        }
+        if checked.insert(iri.clone()) && !element_in_store(store, &iri) {
+            diags.push(
+                Diagnostic::error(
+                    DiagnosticCode::SparqlElementMissing,
+                    format!(
+                        "<{iri}> is referenced by the {context} SPARQL query but is \
+                         not present in the ontology"
+                    ),
+                )
+                .with_file(&file.path)
+                .with_span(span),
+            );
+        }
+    }
+}
+
+/// Whether the registry store holds at least one triple (i.e. an ontology was
+/// actually loaded). Returns `false` on any store error.
+fn ont_store_has_data(store: &SparqlStore) -> bool {
+    store.execute_ask("ASK { ?s ?p ?o }").unwrap_or(false)
+}
+
+/// Flag ontology-data predicates that are near-duplicates of another predicate
+/// (same namespace, local name identical apart from a single leading or
+/// trailing character), e.g. `odrl:assignero` next to `odrl:assigner`.
+///
+/// These are almost always typos: at runtime a SPARQL filter on the correct
+/// term silently matches nothing. Emits one warning per typo candidate.
+fn check_predicate_typos(store: &SparqlStore, diags: &mut Vec<Diagnostic>) {
+    let Ok(rows) =
+        store.execute_select("SELECT DISTINCT ?p WHERE { ?s ?p ?o . FILTER(isIRI(?p)) }")
+    else {
+        return;
+    };
+
+    // Group predicate IRIs by namespace for a precise, cheap comparison.
+    let mut by_namespace: HashMap<String, Vec<String>> = HashMap::new();
+    for row in rows {
+        if let Some(RdfTerm::Iri(url)) = row.get("p") {
+            let iri = url.as_str();
+            let ns_end = iri
+                .rfind('/')
+                .map_or(0, |i| i + 1)
+                .max(iri.rfind('#').map_or(0, |i| i + 1));
+            by_namespace
+                .entry(iri[..ns_end].to_owned())
+                .or_default()
+                .push(iri.to_owned());
+        }
+    }
+
+    let mut warned: HashSet<String> = HashSet::new();
+    for (_, predicates) in by_namespace {
+        for i in 0..predicates.len() {
+            for j in i + 1..predicates.len() {
+                let (longer, shorter) = match near_duplicate(&predicates[i], &predicates[j]) {
+                    Some(pair) => pair,
+                    None => continue,
+                };
+                if warned.insert(longer.to_owned()) {
+                    diags.push(Diagnostic::warning(
+                        DiagnosticCode::SuspiciousOntologyPredicate,
+                        format!(
+                            "ontology predicate `{longer}` is a near-duplicate of \
+                             `{shorter}` (identical apart from one character) — \
+                             this is usually a typo and would silently break \
+                             SPARQL matching at runtime"
+                        ),
+                    ));
+                }
+            }
+        }
+    }
+}
+
+/// If two predicate IRIs are near-duplicates (same namespace, one local name
+/// being the other plus a single leading/trailing character), return the pair
+/// ordered as `(longer, shorter)`.
+fn near_duplicate<'a>(a: &'a str, b: &'a str) -> Option<(&'a str, &'a str)> {
+    let a_local = split_local(a);
+    let b_local = split_local(b);
+    if !is_one_char_extension(a_local, b_local) && !is_one_char_extension(b_local, a_local) {
+        return None;
+    }
+    if a_local.len() > b_local.len() {
+        Some((a, b))
+    } else {
+        Some((b, a))
+    }
+}
+
+/// The local (final) segment of an IRI: everything after the last `/` or `#`.
+fn split_local(iri: &str) -> &str {
+    let cut = iri
+        .rfind('/')
+        .map_or(0, |i| i + 1)
+        .max(iri.rfind('#').map_or(0, |i| i + 1));
+    &iri[cut..]
+}
+
+/// `longer` is `shorter` plus exactly one leading or trailing character.
+fn is_one_char_extension(longer: &str, shorter: &str) -> bool {
+    longer.len() == shorter.len() + 1
+        && !longer.is_empty()
+        && (longer.starts_with(shorter) || longer.ends_with(shorter))
+}
+
+/// Whether `iri` occurs in any position of any triple in the loaded ontology.
+///
+/// Returns `true` on store errors so that a broken query/store does not
+/// cascade into a pile of spurious "missing element" errors.
+fn element_in_store(store: &SparqlStore, iri: &str) -> bool {
+    let query = format!(
+        "ASK {{ {{ <{iri}> ?p ?o }} UNION {{ ?s <{iri}> ?o }} UNION {{ ?s ?p <{iri}> }} }}"
+    );
+    store.execute_ask(&query).unwrap_or(true)
+}
+
+/// Extract the RDF resources referenced by a SPARQL query:
+///
+/// - `prefixed`: `(prefix, local)` pairs, e.g. `ast:Pump` or the default
+///   namespace `:hasId` (reported with the empty prefix).
+/// - `full_iris`: IRIs written in angle brackets, e.g. `<http://…>`.
+///
+/// PREFIX/BASE declaration IRIs, string literals, comments, blank nodes and
+/// variables are skipped.
+fn extract_sparql_refs(sparql: &str) -> (Vec<(String, String)>, Vec<String>) {
+    let bytes = sparql.as_bytes();
+    let mut i = 0;
+    let mut prefixed = Vec::new();
+    let mut full_iris = Vec::new();
+    // Set while scanning a `PREFIX x:` / `BASE` declaration so the following
+    // `<iri>` (which is a namespace declaration, not an element reference) is
+    // not recorded.
+    let mut skip_next_iri = false;
+
+    while i < bytes.len() {
+        match bytes[i] {
+            b'#' => {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+            }
+            b'"' | b'\'' => {
+                i = skip_string(sparql, i);
+            }
+            b'<' => match iriref_end(sparql, i) {
+                Some((content, next)) => {
+                    if skip_next_iri {
+                        skip_next_iri = false;
+                    } else {
+                        full_iris.push(content.to_owned());
+                    }
+                    i = next;
+                }
+                None => i += 1, // comparison operator `<` / `<=`
+            },
+            b'?' | b'_' => {
+                // Variables (?x) and blank-node labels (_:b0).
+                i += 1;
+                while i < bytes.len() && is_pn_char(bytes[i]) {
+                    i += 1;
+                }
+            }
+            _ => {
+                if is_pn_start(bytes[i]) || bytes[i] == b':' {
+                    let start = i;
+                    while i < bytes.len() && is_pn_char(bytes[i]) {
+                        i += 1;
+                    }
+                    let token = &sparql[start..i];
+                    if token.eq_ignore_ascii_case("PREFIX") || token.eq_ignore_ascii_case("BASE") {
+                        skip_next_iri = true;
+                    } else if let Some((prefix, local)) = split_prefixed_name(token) {
+                        if local.is_empty() {
+                            // `name:` — the prefix being declared in `PREFIX name: <iri>`
+                            skip_next_iri = true;
+                        } else {
+                            prefixed.push((prefix.to_owned(), local.to_owned()));
+                        }
+                    }
+                } else {
+                    i += 1;
+                }
+            }
+        }
+    }
+
+    (prefixed, full_iris)
+}
+
+/// Skip past a `'…'` / `"…"` (or triple-quoted) string literal starting at
+/// `i`. Escapes are honoured. Returns the index just past the closing quote —
+/// or end-of-input if the literal is unclosed.
+fn skip_string(sparql: &str, i: usize) -> usize {
+    let bytes = sparql.as_bytes();
+    let quote = bytes[i];
+    let triple = i + 2 < bytes.len() && bytes[i + 1] == quote && bytes[i + 2] == quote;
+    let mut j = i + if triple { 3 } else { 1 };
+    while j < bytes.len() {
+        if bytes[j] == b'\\' {
+            j += 2;
+            continue;
+        }
+        if triple
+            && j + 2 < bytes.len()
+            && bytes[j] == quote
+            && bytes[j + 1] == quote
+            && bytes[j + 2] == quote
+        {
+            return j + 3;
+        }
+        if !triple && bytes[j] == quote {
+            return j + 1;
+        }
+        if bytes[j] == b'\n' && !triple {
+            return j + 1; // unterminated single-line literal
+        }
+        j += 1;
+    }
+    j
+}
+
+/// If `i` points at the start of a `<…>` IRI reference, return its contents
+/// and the index just past the closing `>`. Returns `None` when the `<` is a
+/// comparison operator (no `>` before whitespace / illegal IRI chars).
+fn iriref_end(sparql: &str, i: usize) -> Option<(&str, usize)> {
+    let bytes = sparql.as_bytes();
+    let mut j = i + 1;
+    while j < bytes.len() {
+        let c = bytes[j];
+        match c {
+            b'>' if j > i + 1 => return Some((&sparql[i + 1..j], j + 1)),
+            b'<' | b'"' | b'\'' | b' ' | b'\t' | b'\n' | b'\r' | b'{' | b'}' | b'|' | b'^'
+            | b'`' | b'(' | b')' | b'[' | b']' | b',' | b';' | b'=' | b'\\' => return None,
+            _ => j += 1,
+        }
+    }
+    None
+}
+
+/// Split a prefixed-name token into `(prefix, local)`. The default namespace
+/// (`:hasId`) yields the empty prefix. Returns `None` for anything that is not
+/// a well-formed single prefixed name (e.g. `a:b:c` or a bare word).
+fn split_prefixed_name(token: &str) -> Option<(&str, &str)> {
+    let colon = token.find(':')?;
+    let prefix = &token[..colon];
+    let local = &token[colon + 1..];
+    if local.contains(':') {
+        return None;
+    }
+    if !(prefix.is_empty()
+        || prefix.chars().next()?.is_ascii_alphabetic()
+        || prefix.starts_with('_'))
+    {
+        return None;
+    }
+    Some((prefix, local))
+}
+
+fn is_pn_start(c: u8) -> bool {
+    c.is_ascii_alphabetic() || c == b'_' || c == b':'
+}
+
+fn is_pn_char(c: u8) -> bool {
+    c.is_ascii_alphanumeric() || c == b'_' || c == b':' || c == b'-' || c == b'.'
 }
 
 // regex_lite helper (small inline regex, avoids pulling in full `regex`)
