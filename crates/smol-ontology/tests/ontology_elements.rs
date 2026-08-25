@@ -181,6 +181,46 @@ fn full_iri_is_checked() {
     );
 }
 
+const ONT_QUERY_LOCAL_DEFAULT: &str = r#"
+@prefix : <http://www.semanticweb.org/untitled/> .
+@prefix bedreflyt: <http://www.smolang.org/bedreflyt/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+bedreflyt:City rdf:type owl:Class .
+bedreflyt:cityName rdf:type owl:DatatypeProperty .
+"#;
+
+const SRC_QUERY_LOCAL_DEFAULT: &str = r#"
+class CityModel ()
+    Unit adaptAddition()
+        List<Object> newCities = construct("
+            PREFIX : <http://www.smolang.org/bedreflyt/>
+            SELECT DISTINCT ?cityName {
+                ?city a :City ;
+                    :cityName ?cityName .
+            }");
+    end
+end
+"#;
+
+#[test]
+fn query_local_default_prefix_is_respected() {
+    // The query re-binds `:` to <http://www.smolang.org/bedreflyt/>, so
+    // `:City` / `:cityName` must resolve there (matching `bedreflyt:` in the
+    // ontology) and NOT to the ontology's own default namespace.
+    let ont = write_tmp("smol_elements_query_local.ttl", ONT_QUERY_LOCAL_DEFAULT);
+    let diags = smol_ontology::check_ontology(
+        &parse(SRC_QUERY_LOCAL_DEFAULT),
+        &[ont],
+        &[],
+        &HashMap::new(),
+    );
+    assert!(
+        !has_code(&diags, DiagnosticCode::SparqlElementMissing),
+        "query-local `:` must resolve to the ontology's bedreflyt: elements, got: {diags:#?}"
+    );
+}
+
 #[test]
 fn prog_full_iri_is_excluded() {
     let ont = write_tmp(

@@ -685,18 +685,19 @@ fn build_sparql_preamble(prefix_map: &HashMap<String, String>) -> String {
 fn build_sparql_prefix_block(sparql: &str, prefix_map: &HashMap<String, String>) -> String {
     let preamble = build_sparql_preamble(prefix_map);
     let (prefixed, _, declared) = extract_sparql_refs(sparql);
+    let declared_names: HashSet<&str> = declared.iter().map(|(name, _)| name.as_str()).collect();
     let mut synthetic = String::new();
     let mut added: HashSet<String> = HashSet::new();
     for (prefix, _) in prefixed {
         if prefix.is_empty() {
             // Default namespace `:name`.
-            if !declared.contains(&String::new()) && added.insert(String::new()) {
+            if !declared_names.contains("") && added.insert(String::new()) {
                 let _ = writeln!(synthetic, "PREFIX : <urn:lockpick:synthetic:>");
             }
             continue;
         }
         if prefix_map.contains_key(prefix.as_str())
-            || declared.contains(&prefix)
+            || declared_names.contains(prefix.as_str())
             || !added.insert(prefix.clone())
         {
             continue;
@@ -888,7 +889,15 @@ fn check_sparql_elements(
     span: Span,
     diags: &mut Vec<Diagnostic>,
 ) {
-    let (prefixed, full_iris, _declared) = extract_sparql_refs(sparql);
+    let (prefixed, full_iris, declared) = extract_sparql_refs(sparql);
+    // Query-local PREFIX declarations are authoritative: resolve against them
+    // first so e.g. a query's `PREFIX : <…/bedreflyt/>` maps `:City` to the
+    // same IRI the ontology declares under `bedreflyt:City`. Only fall back to
+    // the merged prefix table when the query does not bind the prefix itself.
+    let query_prefixes: HashMap<&str, &str> = declared
+        .iter()
+        .map(|(name, iri)| (name.as_str(), iri.as_str()))
+        .collect();
 
     let mut warned_prefixes: HashSet<String> = HashSet::new();
     let mut checked: HashSet<String> = HashSet::new();
@@ -898,41 +907,41 @@ fn check_sparql_elements(
         if prefix == "prog" || prefix == "smol" || prefix == "domain" || prefix == "run" {
             continue;
         }
-        match prefix_map.get(prefix.as_str()) {
-            None => {
-                if warned_prefixes.insert(prefix.to_owned()) {
-                    diags.push(
-                        Diagnostic::warning(
-                            DiagnosticCode::UnknownPrefix,
-                            format!(
-                                "{context}: prefix `{prefix}:` is not declared in the loaded \
-                                 prefixes/ontology — it may be injected at runtime"
-                            ),
-                        )
-                        .with_file(&file.path)
-                        .with_span(span),
-                    );
-                }
+        let full = if let Some(base) = query_prefixes.get(prefix.as_str()) {
+            format!("{base}{local}")
+        } else if let Some(base) = prefix_map.get(prefix.as_str()) {
+            format!("{base}{local}")
+        } else {
+            if warned_prefixes.insert(prefix.to_owned()) {
+                diags.push(
+                    Diagnostic::warning(
+                        DiagnosticCode::UnknownPrefix,
+                        format!(
+                            "{context}: prefix `{prefix}:` is not declared in the loaded \
+                             prefixes/ontology — it may be injected at runtime"
+                        ),
+                    )
+                    .with_file(&file.path)
+                    .with_span(span),
+                );
             }
-            Some(base) => {
-                if !ontology_loaded {
-                    continue;
-                }
-                let full = format!("{base}{local}");
-                if checked.insert(full.clone()) && !element_in_store(store, &full) {
-                    diags.push(
-                        Diagnostic::error(
-                            DiagnosticCode::SparqlElementMissing,
-                            format!(
-                                "{context}: `{prefix}:{local}` ({full}) is referenced by the \
-                                 SPARQL query but is not present in the ontology"
-                            ),
-                        )
-                        .with_file(&file.path)
-                        .with_span(span),
-                    );
-                }
-            }
+            continue;
+        };
+        if !ontology_loaded {
+            continue;
+        }
+        if checked.insert(full.clone()) && !element_in_store(store, &full) {
+            diags.push(
+                Diagnostic::error(
+                    DiagnosticCode::SparqlElementMissing,
+                    format!(
+                        "{context}: `{prefix}:{local}` ({full}) is referenced by the \
+                         SPARQL query but is not present in the ontology"
+                    ),
+                )
+                .with_file(&file.path)
+                .with_span(span),
+            );
         }
     }
 
@@ -1068,21 +1077,25 @@ fn element_in_store(store: &SparqlStore, iri: &str) -> bool {
 /// - `prefixed`: `(prefix, local)` pairs, e.g. `ast:Pump` or the default
 ///   namespace `:hasId` (reported with the empty prefix).
 /// - `full_iris`: IRIs written in angle brackets, e.g. `<http://…>`.
-/// - `declared`: prefix names declared by the query itself (e.g. via
-///   `PREFIX odrl:`), so callers can tell declared prefixes apart from used
-///   ones.
+/// - `declared`: `(prefix, iri)` pairs declared by the query itself (e.g.
+///   `("odrl", "http://www.w3.org/ns/odrl/2/")` from `PREFIX odrl: <…>`), so
+///   callers can resolve prefixed names against the query's own bindings.
 ///
 /// PREFIX/BASE declaration IRIs, string literals, comments, blank nodes and
 /// variables are skipped.
-fn extract_sparql_refs(sparql: &str) -> (Vec<(String, String)>, Vec<String>, Vec<String>) {
+fn extract_sparql_refs(
+    sparql: &str,
+) -> (Vec<(String, String)>, Vec<String>, Vec<(String, String)>) {
     let bytes = sparql.as_bytes();
     let mut i = 0;
     let mut prefixed = Vec::new();
     let mut full_iris = Vec::new();
     let mut declared = Vec::new();
-    // Set while scanning a `PREFIX x:` / `BASE` declaration so the following
-    // `<iri>` (which is a namespace declaration, not an element reference) is
-    // not recorded.
+    // The prefix name whose namespace IRI is the next `<…>` (from
+    // `PREFIX name: <iri>`), so that `<iri>` is recorded as a declaration
+    // rather than as an element reference.
+    let mut pending_decl: Option<String> = None;
+    // Set by `BASE` so the following `<iri>` is skipped (a base, not a reference).
     let mut skip_next_iri = false;
 
     while i < bytes.len() {
@@ -1097,7 +1110,9 @@ fn extract_sparql_refs(sparql: &str) -> (Vec<(String, String)>, Vec<String>, Vec
             }
             b'<' => match iriref_end(sparql, i) {
                 Some((content, next)) => {
-                    if skip_next_iri {
+                    if let Some(name) = pending_decl.take() {
+                        declared.push((name, content.to_owned()));
+                    } else if skip_next_iri {
                         skip_next_iri = false;
                     } else {
                         full_iris.push(content.to_owned());
@@ -1120,13 +1135,12 @@ fn extract_sparql_refs(sparql: &str) -> (Vec<(String, String)>, Vec<String>, Vec
                         i += 1;
                     }
                     let token = &sparql[start..i];
-                    if token.eq_ignore_ascii_case("PREFIX") || token.eq_ignore_ascii_case("BASE") {
+                    if token.eq_ignore_ascii_case("BASE") {
                         skip_next_iri = true;
                     } else if let Some((prefix, local)) = split_prefixed_name(token) {
                         if local.is_empty() {
                             // `name:` — the prefix being declared in `PREFIX name: <iri>`
-                            skip_next_iri = true;
-                            declared.push(prefix.to_owned());
+                            pending_decl = Some(prefix.to_owned());
                         } else {
                             prefixed.push((prefix.to_owned(), local.to_owned()));
                         }
