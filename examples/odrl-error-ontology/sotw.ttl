@@ -1,0 +1,40 @@
+@prefix odrl: <http://www.w3.org/ns/odrl/2/>.
+@prefix temp: <http://example.com/request/>.
+@prefix dct: <http://purl.org/dc/terms/>.
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>.
+@prefix pol: <http://www.smolang.org/greenhouseDT-policy#> .
+@prefix ast: <http://www.smolang.org/greenhouseDT#> .
+
+<urn:uuid:sotw-1> a pol:Sotw;
+                  pol:identifier "urn:uuid:sotw-1" ;
+                  pol:timestamp temp:currentTime ;
+                  pol:includes pol:greenhouseAssetCollection .
+
+temp:currentTime dct:issued "2026-07-16T11:20:10.999Z"^^xsd:dateTime.
+
+pol:greenhouseAssetCollection a odrl:AssetCollection ;
+    pol:identifier "urn:uuid:greenhouse-assetCollection" ;
+    odrl:description "The universal asset collection that contains the data related to plants" ;
+    odrl:label "Greenhouse Asset Collection" .
+
+ast:plantId a odrl:Asset ;
+    pol:identifier "urn:uuid:plantId" ;
+    odrl:description "The identifier of the plant" ;
+    odrl:partOf pol:greenhouseAssetCollection ;
+    odrl:label "plantId" .
+ast:idealMoisture a odrl:Asset ;
+    pol:identifier "urn:uuid:idealMoisture" ;
+    odrl:description "The ideal moisture level of the plant" ;
+    odrl:partOf pol:greenhouseAssetCollection ;
+    odrl:label "idealMoisture" .
+ast:potId a odrl:Asset ;
+    pol:identifier "urn:uuid:potId" ;
+    odrl:description "The identifier of the pot" ;
+    odrl:partOf pol:greenhouseAssetCollection ;
+    odrl:label "potId" .
+ast:hasMoisture a odrl:Asset ;
+    pol:identifier "urn:uuid:hasMoisture" ;
+    odrl:description "The current moisture level of the plant" ;
+    odrl:partOf pol:greenhouseAssetCollection ;
+    odrl:label "hasMoisture" .
+
