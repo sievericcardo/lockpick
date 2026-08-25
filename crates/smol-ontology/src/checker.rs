@@ -853,8 +853,8 @@ fn check_sparql_elements(
     let mut checked: HashSet<String> = HashSet::new();
 
     for (prefix, local) in prefixed {
-        // prog:, smol: and domain: are reserved for runtime-only elements.
-        if prefix == "prog" || prefix == "smol" || prefix == "domain" {
+        // prog:, smol:, domain: and run: are reserved for runtime-only elements.
+        if prefix == "prog" || prefix == "smol" || prefix == "domain" || prefix == "run" {
             continue;
         }
         match prefix_map.get(prefix.as_str()) {
