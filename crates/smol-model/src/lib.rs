@@ -8,6 +8,7 @@
 //!
 //! The main entry point is [`check_model`].
 
+pub mod cfg;
 pub mod checks;
 pub mod ctl;
 pub mod kripke;

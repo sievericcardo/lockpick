@@ -151,6 +151,8 @@ pub enum DiagnosticCode {
     StateNotReachable = 5007,
     AdaptationDeadlock = 5008,
     InvariantViolation = 5009,
+    UnreachableStatement = 5010,
+    ProgramPropertyViolation = 5011,
 }
 
 impl std::fmt::Display for DiagnosticCode {

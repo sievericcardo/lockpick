@@ -32,6 +32,8 @@ pub struct Manifest {
     pub prefixes: Option<PrefixesSection>,
     /// Optional CTL properties to model-check.
     pub properties: Option<PropertiesSection>,
+    /// Optional model-checking configuration.
+    pub model: Option<ModelSection>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -85,6 +87,20 @@ pub struct PropertiesSection {
     pub check: Vec<String>,
 }
 
+/// `[model]` section: whole-program model-checking configuration.
+///
+/// Example:
+/// ```toml
+/// [model]
+/// inline_depth = 3
+/// ```
+#[derive(Debug, Default, Deserialize)]
+pub struct ModelSection {
+    /// Number of method-call levels inlined when building the whole-program CFG
+    /// (deeper calls are conservatively summarized). Defaults to 3.
+    pub inline_depth: Option<usize>,
+}
+
 /// The fully-resolved file lists for a project.
 pub struct ResolvedManifest {
     pub project_name: String,
@@ -96,6 +112,8 @@ pub struct ResolvedManifest {
     pub prefixes: std::collections::HashMap<String, String>,
     /// CTL formulas declared in `[properties]` section of `smol.toml`.
     pub properties: Vec<String>,
+    /// Method-inlining depth for the whole-program CFG model.
+    pub inline_depth: usize,
 }
 
 /// Load and resolve a `smol.toml` manifest file.
@@ -148,6 +166,11 @@ pub fn load(manifest_path: &Path) -> Result<ResolvedManifest, Vec<Diagnostic>> {
 
     let properties = manifest.properties.map(|p| p.check).unwrap_or_default();
 
+    let inline_depth = manifest
+        .model
+        .and_then(|m| m.inline_depth)
+        .unwrap_or(3);
+
     Ok(ResolvedManifest {
         project_name: manifest.project.name,
         smol_files,
@@ -156,6 +179,7 @@ pub fn load(manifest_path: &Path) -> Result<ResolvedManifest, Vec<Diagnostic>> {
         entry_file,
         prefixes,
         properties,
+        inline_depth,
     })
 }
 

@@ -372,10 +372,12 @@ pub fn verify(ts: &TransitionSystem, prop: &Property) -> Result<(), String> {
     let reach = crate::model::reachable(ts);
 
     let name_of = |idx: usize| -> String {
-        if ts.names[idx].is_empty() {
+        if ts.labels[idx].is_empty() {
             "<unclassified>".to_owned()
         } else {
-            ts.names[idx].clone()
+            let mut v: Vec<String> = ts.labels[idx].iter().cloned().collect();
+            v.sort();
+            v.join(" ")
         }
     };
 
@@ -385,7 +387,7 @@ pub fn verify(ts: &TransitionSystem, prop: &Property) -> Result<(), String> {
             // named (classified) state over the unclassified initial state.
             let inner_sat = sat_of(inner);
             let witness = (0..ts.n)
-                .filter(|&s| reach.contains(&s) && !inner_sat[s] && !ts.names[s].is_empty())
+                .filter(|&s| reach.contains(&s) && !inner_sat[s] && !ts.labels[s].is_empty())
                 .map(|s| name_of(s))
                 .next()
                 .or_else(|| {
@@ -413,7 +415,7 @@ pub fn verify(ts: &TransitionSystem, prop: &Property) -> Result<(), String> {
         Property::Af(inner) => {
             let inner_sat = sat_of(inner);
             let witness = (0..ts.n)
-                .filter(|&s| reach.contains(&s) && !inner_sat[s] && !ts.names[s].is_empty())
+                .filter(|&s| reach.contains(&s) && !inner_sat[s] && !ts.labels[s].is_empty())
                 .map(|s| name_of(s))
                 .next()
                 .or_else(|| {

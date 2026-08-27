@@ -33,6 +33,7 @@ pub fn run_manifest(
                 &resolved.shacl_files,
                 &merged,
                 &resolved.properties,
+                resolved.inline_depth,
             )
         }
     }
@@ -42,6 +43,7 @@ pub fn run_manifest(
 ///
 /// `extra_prefixes` — caller-supplied prefix map (from CLI / manifest).
 /// `properties` — CTL formulas to model-check (from the manifest, if any).
+/// `inline_depth` — method-inlining depth for the whole-program CFG model.
 #[must_use]
 #[allow(clippy::implicit_hasher)]
 pub fn run_files(
@@ -50,6 +52,7 @@ pub fn run_files(
     shacl_paths: &[PathBuf],
     extra_prefixes: &HashMap<String, String>,
     properties: &[String],
+    inline_depth: usize,
 ) -> Vec<Diagnostic> {
     let mut all_diags = Vec::new();
 
@@ -110,7 +113,7 @@ pub fn run_files(
             let model = if had_parse_error {
                 Vec::new()
             } else {
-                smol_model::check_model(&files, &model_properties)
+                smol_model::check_model(&files, &model_properties, inline_depth)
             };
             (onto, model)
         },

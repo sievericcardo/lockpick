@@ -17,8 +17,15 @@ pub struct Property {
 }
 
 /// Run all model checks and return diagnostics.
+///
+/// `inline_depth` controls how many levels of method calls are inlined when
+/// building the whole-program CFG (deeper calls are summarized).
 #[must_use]
-pub fn check_model(files: &[File], properties: &[Property]) -> Vec<Diagnostic> {
+pub fn check_model(
+    files: &[File],
+    properties: &[Property],
+    inline_depth: usize,
+) -> Vec<Diagnostic> {
     let map = model::build_class_map(files);
     let extracted = model::extract(&map);
 
@@ -43,8 +50,12 @@ pub fn check_model(files: &[File], properties: &[Property]) -> Vec<Diagnostic> {
     let ts = model::build_transition_system(&roots);
     check_reachability(&ts, &extracted.states, &mut diags);
 
+    // Whole-program CFG-based model (structural / guard APs, method sequencing).
+    let program_ts = model::build_program_ts(files, &map, &extracted, inline_depth);
+    check_unreachable_statements(&program_ts, &mut diags);
+
     for prop in properties {
-        check_property(&ts, prop, &mut diags);
+        check_property(&ts, &program_ts, prop, &mut diags);
     }
 
     diags
@@ -607,12 +618,15 @@ fn stmt_advances(stmt: &Stmt, var: &str) -> bool {
 // E5007: reachability
 fn check_reachability(ts: &TransitionSystem, states: &[StateClass], diags: &mut Vec<Diagnostic>) {
     let reach = model::reachable(ts);
-    let name_to_idx: HashMap<&str, usize> = ts
-        .names
-        .iter()
-        .enumerate()
-        .map(|(i, n)| (n.as_str(), i))
-        .collect();
+    let name_to_idx: HashMap<&str, usize> = {
+        let mut m = HashMap::new();
+        for (i, labels) in ts.labels.iter().enumerate() {
+            for l in labels {
+                m.entry(l.as_str()).or_insert(i);
+            }
+        }
+        m
+    };
 
     for s in states {
         if s.root.is_empty() {
@@ -638,8 +652,31 @@ fn check_reachability(ts: &TransitionSystem, states: &[StateClass], diags: &mut 
     }
 }
 
-// E5009: user CTL properties
-fn check_property(ts: &TransitionSystem, prop: &Property, diags: &mut Vec<Diagnostic>) {
+// E5010: whole-program unreachable statement (CFG node with no path from init)
+fn check_unreachable_statements(ts: &TransitionSystem, diags: &mut Vec<Diagnostic>) {
+    let reach = model::reachable(ts);
+    for i in 0..ts.n {
+        if !reach.contains(&i) && !ts.labels[i].is_empty() {
+            let mut v: Vec<String> = ts.labels[i].iter().cloned().collect();
+            v.sort();
+            diags.push(Diagnostic::error(
+                DiagnosticCode::UnreachableStatement,
+                format!(
+                    "program point `{}` is unreachable: no path from the initial state",
+                    v.join(" ")
+                ),
+            ));
+        }
+    }
+}
+
+// User CTL properties (E5009 / E5011): dispatch per formula.
+fn check_property(
+    ts: &TransitionSystem,
+    program_ts: &TransitionSystem,
+    prop: &Property,
+    diags: &mut Vec<Diagnostic>,
+) {
     match crate::ctl::parse_prop(&prop.formula) {
         Err(e) => {
             diags.push(Diagnostic::error(
@@ -648,12 +685,47 @@ fn check_property(ts: &TransitionSystem, prop: &Property, diags: &mut Vec<Diagno
             ));
         }
         Ok(parsed) => {
-            if let Err(msg) = crate::ctl::verify(ts, &parsed) {
+            // Dispatch: formulas referencing structural / guard APs are checked
+            // against the whole-program CFG model; classification-only formulas
+            // use the fast classification-hierarchy model.
+            let uses_structural = contains_structural_ap(&parsed);
+            let target = if uses_structural {
+                program_ts
+            } else {
+                ts
+            };
+            let code = if uses_structural {
+                DiagnosticCode::ProgramPropertyViolation
+            } else {
+                DiagnosticCode::InvariantViolation
+            };
+            if let Err(msg) = crate::ctl::verify(target, &parsed) {
                 diags.push(Diagnostic::error(
-                    DiagnosticCode::InvariantViolation,
+                    code,
                     format!("property `{}` failed: {msg}", prop.name),
                 ));
             }
         }
+    }
+}
+
+/// True if `p` references a structural / guard atomic proposition anywhere.
+fn contains_structural_ap(p: &crate::ctl::Property) -> bool {
+    use crate::ctl::Property;
+    match p {
+        Property::Atom(a) => crate::cfg::is_structural_label(a),
+        Property::True | Property::False => false,
+        Property::Not(a) => contains_structural_ap(a),
+        Property::Ax(a)
+        | Property::Ex(a)
+        | Property::Ag(a)
+        | Property::Ef(a)
+        | Property::Af(a)
+        | Property::Eg(a) => contains_structural_ap(a),
+        Property::And(a, b)
+        | Property::Or(a, b)
+        | Property::Implies(a, b)
+        | Property::Au(a, b)
+        | Property::Eu(a, b) => contains_structural_ap(a) || contains_structural_ap(b),
     }
 }

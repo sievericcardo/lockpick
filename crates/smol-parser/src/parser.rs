@@ -801,7 +801,59 @@ fn parse_simulate_stmt(pair: Pair<Rule>) -> Stmt {
 
 fn parse_classify_stmt(pair: Pair<Rule>) -> Stmt {
     let span = span_from_pair(&pair);
-    Stmt::Skip { span }
+    let mut ty: Option<Type> = None;
+    let mut target: Option<Expr> = None;
+    let mut classify_arg: Option<Expr> = None;
+
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::classify_assignment => {
+                for p in inner.into_inner() {
+                    match p.as_rule() {
+                        Rule::type_expr => ty = Some(parse_type_expr(p)),
+                        Rule::assignment_target => {
+                            let mut expr = Expr::Null(span);
+                            for q in p.into_inner() {
+                                match q.as_rule() {
+                                    // `name_expr` is not an `expression` rule;
+                                    // build the base variable directly.
+                                    Rule::name_expr => {
+                                        let q_span = span_from_pair(&q);
+                                        expr = Expr::Var(parse_name(q), q_span);
+                                    }
+                                    _ => expr = apply_postfix(expr, q),
+                                }
+                            }
+                            target = Some(expr);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Rule::expression => classify_arg = Some(parse_expression(inner)),
+            _ => {}
+        }
+    }
+
+    let Some(arg) = classify_arg else {
+        return Stmt::Skip { span };
+    };
+    let arg_span = arg.span();
+    let classify = Expr::Classify {
+        expr: Box::new(arg),
+        span: arg_span,
+    };
+
+    match target {
+        // `[Type] target = classify(expr);` keeps the assignment semantics
+        // (type annotation, target disambiguation, model widening).
+        Some(lhs) => decl_or_assign(span, ty, lhs, classify),
+        // Bare `classify(expr);` — a standalone reclassification.
+        None => Stmt::Expr {
+            expr: classify,
+            span,
+        },
+    }
 }
 
 fn parse_super_stmt(pair: Pair<Rule>) -> Stmt {

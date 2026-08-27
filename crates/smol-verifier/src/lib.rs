@@ -55,6 +55,7 @@ pub fn verify_files(
         &[],
         &std::collections::HashMap::default(),
         &[],
+        3,
     )
 }
 
@@ -68,7 +69,7 @@ pub fn verify_files_with_prefixes(
     ontology_files: &[std::path::PathBuf],
     extra_prefixes: &std::collections::HashMap<String, String>,
 ) -> Vec<Diagnostic> {
-    pipeline::run_files(smol_files, ontology_files, &[], extra_prefixes, &[])
+    pipeline::run_files(smol_files, ontology_files, &[], extra_prefixes, &[], 3)
 }
 
 /// Like [`verify_files`] but with CTL properties to model-check.
@@ -86,5 +87,6 @@ pub fn verify_files_with_properties(
         &[],
         &std::collections::HashMap::default(),
         properties,
+        3,
     )
 }

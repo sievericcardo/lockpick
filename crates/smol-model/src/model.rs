@@ -7,7 +7,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use smol_syntax::ast::{ClassDecl, Expr, FieldDecl, FieldModifier, File, Type};
+use smol_syntax::ast::{ClassDecl, Expr, FieldDecl, FieldModifier, File, Stmt, Type};
 use smol_syntax::span::Span;
 
 /// A class declaration together with the file it was declared in.
@@ -387,6 +387,10 @@ impl<'a> Resolver<'a> {
 }
 
 /// An explicit-state transition system (Kripke-style) for CTL model checking.
+///
+/// Each state carries a *set* of atomic-proposition labels (state-class names,
+/// structural markers such as `entry_C_M`/`exit_C_M`, and guard-derived
+/// conditions).  The set is empty for an unclassified root state.
 #[derive(Debug, Clone)]
 pub struct TransitionSystem {
     /// Number of states
@@ -395,8 +399,9 @@ pub struct TransitionSystem {
     pub initials: Vec<usize>,
     /// Successor lists,
     pub successors: Vec<Vec<usize>>,
-    /// Name of each state (`""` for unclassified roots)
-    pub names: Vec<String>,
+    /// Set of labels (APs) satisfied in each state (`HashSet::new()` for
+    /// unclassified roots).
+    pub labels: Vec<HashSet<String>>,
 }
 
 /// Build the global transition system from the roots.
@@ -409,7 +414,7 @@ pub struct TransitionSystem {
 pub fn build_transition_system(roots: &[Root]) -> TransitionSystem {
     let mut n = 0usize;
     let mut initials = Vec::new();
-    let mut names = Vec::new();
+    let mut labels = Vec::new();
     let mut successors = Vec::new();
 
     // A map from root entity to the index of its unclassified state
@@ -423,14 +428,14 @@ pub fn build_transition_system(roots: &[Root]) -> TransitionSystem {
         let init = n;
         n += 1;
         initials.push(init);
-        names.push(String::new());
+        labels.push(HashSet::new());
         successors.push(Vec::new());
 
         let mut state_indices = Vec::new();
         for state in &root.states {
             let index = n;
             n += 1;
-            names.push(state.clone());
+            labels.push(HashSet::from([state.clone()]));
             successors.push(Vec::new());
             state_indices.push(index);
         }
@@ -466,7 +471,7 @@ pub fn build_transition_system(roots: &[Root]) -> TransitionSystem {
         n,
         initials,
         successors,
-        names,
+        labels,
     }
 }
 
@@ -483,4 +488,81 @@ pub fn reachable(ts: &TransitionSystem) -> HashSet<usize> {
         }
     }
     seen
+}
+
+/// Build the *whole-program* transition system for a set of source files.
+///
+/// Constructs a CFG starting from the `main` block(s) of `files` (inlining
+/// method calls up to `inline_depth`, summarizing deeper calls), then converts
+/// the CFG into a [`TransitionSystem`]: each CFG node becomes a state carrying
+/// the node's AP labels, the CFG entry becomes the single initial state, and
+/// terminal nodes are given self-loops (citreelo requires a total transition
+/// relation).
+///
+/// If no `main` block exists, a minimal single-state (self-looping) system is
+/// returned so callers can always check reachability trivially.
+#[must_use]
+pub fn build_program_ts(
+    files: &[File],
+    map: &ClassMap,
+    extracted: &Extracted,
+    inline_depth: usize,
+) -> TransitionSystem {
+    let mut main_stmts: Vec<Stmt> = Vec::new();
+    let mut entry_file = String::new();
+    for f in files {
+        if let Some(m) = &f.main {
+            for s in m {
+                main_stmts.push(s.clone());
+            }
+            if entry_file.is_empty() {
+                entry_file = f.path.clone();
+            }
+        }
+    }
+
+    if main_stmts.is_empty() {
+        return TransitionSystem {
+            n: 1,
+            initials: vec![0],
+            successors: vec![vec![0]],
+            labels: vec![HashSet::new()],
+        };
+    }
+
+    let mut cfg = crate::cfg::build_cfg(
+        &main_stmts,
+        map,
+        extracted,
+        &entry_file,
+        "",
+        true,
+        inline_depth,
+    );
+
+    // Mark the terminal node(s) of `main` with `at_program_end`.
+    for &e in &cfg.exits {
+        cfg.nodes[e].labels.insert("at_program_end".to_owned());
+    }
+
+    let n = cfg.nodes.len();
+    let mut successors = vec![Vec::new(); n];
+    let mut labels = vec![HashSet::new(); n];
+    for node in &cfg.nodes {
+        successors[node.id] = node.succs.clone();
+        labels[node.id] = node.labels.clone();
+    }
+    // citreelo requires a total transition relation: self-loop terminal nodes.
+    for i in 0..n {
+        if successors[i].is_empty() {
+            successors[i].push(i);
+        }
+    }
+
+    TransitionSystem {
+        n,
+        initials: vec![cfg.entry],
+        successors,
+        labels,
+    }
 }
