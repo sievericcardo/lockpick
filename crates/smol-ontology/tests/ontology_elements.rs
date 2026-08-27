@@ -313,3 +313,135 @@ fn distinct_similar_predicates_not_warned() {
         "assigner/assignee must not be flagged, got: {diags:#?}"
     );
 }
+
+// --- classifies disjoint-union (E3015) ---
+
+const DU_ONT: &str = r#"
+@prefix domain: <http://example.org/domain/> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+domain:HealthState rdf:type owl:Class ;
+    owl:disjointUnionOf ( domain:Healthy domain:Unhealthy domain:Dead ) .
+domain:Healthy rdf:type owl:Class ; rdfs:subClassOf domain:HealthState .
+domain:Unhealthy rdf:type owl:Class ; rdfs:subClassOf domain:HealthState .
+domain:Dead rdf:type owl:Class ; rdfs:subClassOf domain:HealthState .
+"#;
+
+const DU_SRC_OK: &str = r#"
+abstract class Twin() end
+class HealthState extends Twin() classifies "<domain:HealthState>"; end
+class Healthy extends HealthState() classifies "<domain:Healthy>"; end
+class Unhealthy extends HealthState() classifies "<domain:Unhealthy>"; end
+class Dead extends HealthState() classifies "<domain:Dead>"; end
+"#;
+
+#[test]
+fn disjoint_union_matching_ontology_is_ok() {
+    let ont = write_tmp("smol_du_ok.ttl", DU_ONT);
+    let diags = smol_ontology::check_ontology(&parse(DU_SRC_OK), &[ont], &[], &HashMap::new());
+    assert!(
+        !has_code(&diags, DiagnosticCode::ClassifiesDisjointUnion),
+        "matching disjoint union must not error, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn disjoint_union_missing_ontology_declaration_is_error() {
+    // Same SMOL model but the ontology never declares HealthState as a
+    // disjoint union (only subClassOf) -> coverage check must fire.
+    let no_du = DU_ONT.replace(
+        "    owl:disjointUnionOf ( domain:Healthy domain:Unhealthy domain:Dead ) .\n",
+        "",
+    );
+    let ont = write_tmp("smol_du_missing.ttl", &no_du);
+    let diags = smol_ontology::check_ontology(&parse(DU_SRC_OK), &[ont], &[], &HashMap::new());
+    assert!(
+        has_code(&diags, DiagnosticCode::ClassifiesDisjointUnion),
+        "missing ontology disjoint union must error, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn disjoint_union_mismatched_ontology_members_is_error() {
+    // Ontology declares a 4th member (Sick) that the SMOL model does not have.
+    let with_sick = DU_ONT.replace(
+        "    owl:disjointUnionOf ( domain:Healthy domain:Unhealthy domain:Dead ) .\n",
+        "    owl:disjointUnionOf ( domain:Healthy domain:Unhealthy domain:Dead domain:Sick ) .\n",
+    );
+    let ont = write_tmp("smol_du_mismatch.ttl", &with_sick);
+    let diags = smol_ontology::check_ontology(&parse(DU_SRC_OK), &[ont], &[], &HashMap::new());
+    assert!(
+        has_code(&diags, DiagnosticCode::ClassifiesDisjointUnion),
+        "mismatched disjoint union members must error, got: {diags:#?}"
+    );
+}
+
+const DU_SRC_BAD_SUBSUMES: &str = r#"
+abstract class Twin() end
+class HealthState extends Twin() classifies "<domain:HealthState>"; end
+class Healthy extends HealthState() classifies "<domain:Healthy>"; end
+class Unhealthy extends HealthState() classifies "<domain:Unhealthy>"; end
+class Dead extends HealthState() classifies "<domain:Greenhouse>"; end
+"#;
+
+#[test]
+fn disjoint_union_subclass_not_under_superclass_is_error() {
+    // `Dead` classifies domain:Greenhouse which is not a subclass of
+    // HealthState -> subsumption check must fire.
+    let ont = write_tmp("smol_du_subsumes.ttl", DU_ONT);
+    let diags =
+        smol_ontology::check_ontology(&parse(DU_SRC_BAD_SUBSUMES), &[ont], &[], &HashMap::new());
+    assert!(
+        has_code(&diags, DiagnosticCode::ClassifiesDisjointUnion),
+        "subclass classifying a non-subsumed class must error, got: {diags:#?}"
+    );
+}
+
+// The superclass itself may omit `classifies`; the superclass OWL class is then
+// inferred from the ontology's `owl:disjointUnionOf` (as in the greenhouse
+// example where `HealthState` declares no `classifies`).
+
+const DU_SRC_INFERRED_OK: &str = r#"
+abstract class Twin() end
+class HealthState extends Twin() end
+class Healthy extends HealthState() classifies "<domain:Healthy>"; end
+class Unhealthy extends HealthState() classifies "<domain:Unhealthy>"; end
+class Dead extends HealthState() classifies "<domain:Dead>"; end
+"#;
+
+#[test]
+fn disjoint_union_inferred_superclass_matching_is_ok() {
+    // Subclasses Healthy/Unhealthy/Dead match the ontology's disjoint union of
+    // HealthState -> no error even though HealthState has no `classifies`.
+    let ont = write_tmp("smol_du_inferred_ok.ttl", DU_ONT);
+    let diags =
+        smol_ontology::check_ontology(&parse(DU_SRC_INFERRED_OK), &[ont], &[], &HashMap::new());
+    assert!(
+        !has_code(&diags, DiagnosticCode::ClassifiesDisjointUnion),
+        "inferred superclass with matching disjoint union must not error, got: {diags:#?}"
+    );
+}
+
+const DU_SRC_INFERRED_MISSING_STATE: &str = r#"
+abstract class Twin() end
+class HealthState extends Twin() end
+class Healthy extends HealthState() classifies "<domain:Healthy>"; end
+class Unhealthy extends HealthState() classifies "<domain:Unhealthy>"; end
+"#;
+
+#[test]
+fn disjoint_union_inferred_superclass_missing_state_is_error() {
+    // One state (`Dead`) is removed: the subclasses' disjoint union is
+    // {Healthy, Unhealthy} but the ontology's disjoint union of HealthState is
+    // {Healthy, Unhealthy, Dead} -> must error.
+    let ont = write_tmp("smol_du_inferred_missing.ttl", DU_ONT);
+    let diags = smol_ontology::check_ontology(
+        &parse(DU_SRC_INFERRED_MISSING_STATE),
+        &[ont],
+        &[],
+        &HashMap::new(),
+    );
+    assert!(
+        has_code(&diags, DiagnosticCode::ClassifiesDisjointUnion),
+        "missing a disjoint-union state must error, got: {diags:#?}"
+    );
+}

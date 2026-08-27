@@ -195,3 +195,174 @@ class PolicyPermission (Policy policy, String name) end
         "expected ListFieldNotExplicit, got: {diags:#?}"
     );
 }
+
+// --- `adapts` modifier checks (E2014) ---
+
+#[test]
+fn method_using_adapt_with_adapts_is_ok() {
+    let src = r#"
+class Twin() end
+class Plant extends Twin() end
+
+class PlantModel extends Twin()
+    Unit reclassify() adapts Plant
+        Plant p = new Plant();
+        adapt(p);
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::MissingAdapts),
+        "method with adapts must not be flagged, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn method_using_adapt_without_adapts_is_error() {
+    let src = r#"
+class Twin() end
+class Plant extends Twin() end
+
+class PlantModel extends Twin()
+    Unit reclassify()
+        Plant p = new Plant();
+        adapt(p);
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::MissingAdapts),
+        "method using adapt without adapts must be flagged, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn method_using_classify_without_adapts_is_error() {
+    let src = r#"
+class Twin() end
+class Plant extends Twin() end
+class HealthState extends Twin() end
+
+class PlantModel extends Twin()
+    Unit reclassify()
+        Plant p = new Plant();
+        HealthState h = classify(p);
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::MissingAdapts),
+        "method using classify without adapts must be flagged, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn method_calling_adapt_using_method_needs_adapts() {
+    let src = r#"
+class Twin() end
+class Plant extends Twin() end
+
+class Model extends Twin()
+    Unit helper() adapts Plant
+        Plant p = new Plant();
+        adapt(p);
+    end
+    Unit caller()
+        this.helper();
+    end
+end
+"#;
+    let diags = check_src(src);
+    let flagged: Vec<_> = diags
+        .iter()
+        .filter(|d| d.code == DiagnosticCode::MissingAdapts)
+        .collect();
+    assert!(
+        flagged.iter().any(|d| d.message.contains("caller")),
+        "caller of an adapt-using method must declare adapts, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn method_calling_abstract_method_is_not_flagged() {
+    // `adaptModel` calls the abstract `adaptAddition` (no body), so it must not
+    // be forced to declare `adapts` — only the concrete override is checked.
+    let src = r#"
+class Twin() end
+class Plant extends Twin() end
+
+abstract class Base extends Twin()
+    abstract Unit adaptAddition()
+    Unit adaptModel()
+        this.adaptAddition();
+    end
+end
+
+class Sub extends Base()
+    override Unit adaptAddition() adapts Plant
+        Plant p = new Plant();
+        adapt(p);
+    end
+end
+"#;
+    let diags = check_src(src);
+    let flagged: Vec<_> = diags
+        .iter()
+        .filter(|d| d.code == DiagnosticCode::MissingAdapts)
+        .collect();
+    assert!(
+        !flagged.iter().any(|d| d.message.contains("adaptModel")),
+        "adaptModel must not be flagged, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn override_missing_supermethod_adapts_is_error() {
+    let src = r#"
+class Twin() end
+class Plant extends Twin() end
+
+abstract class Base extends Twin()
+    abstract Unit adaptAddition()
+end
+
+class Sub extends Base()
+    override Unit adaptAddition() adapts Plant
+        Plant p = new Plant();
+        adapt(p);
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::MissingAdapts),
+        "override whose supermethod lacks the adapts class must be flagged, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn override_with_supermethod_adapts_is_ok() {
+    let src = r#"
+class Twin() end
+class Plant extends Twin() end
+
+abstract class Base extends Twin()
+    abstract Unit adaptAddition() adapts Plant
+end
+
+class Sub extends Base()
+    override Unit adaptAddition() adapts Plant
+        Plant p = new Plant();
+        adapt(p);
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::MissingAdapts),
+        "override whose supermethod lists the same adapts classes must be ok, got: {diags:#?}"
+    );
+}

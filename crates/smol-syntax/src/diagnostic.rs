@@ -118,6 +118,7 @@ pub enum DiagnosticCode {
     WrongArgCount = 2011,
     DuplicateField = 2012,
     ListFieldNotExplicit = 2013,
+    MissingAdapts = 2014,
 
     // Ontology errors
     OntologyLoadFailed = 3001,
@@ -134,6 +135,7 @@ pub enum DiagnosticCode {
     LinkTurtleInvalid = 3012,
     SparqlElementMissing = 3013,
     SuspiciousOntologyPredicate = 3014,
+    ClassifiesDisjointUnion = 3015,
 
     // Manifest / IO errors
     ManifestNotFound = 4001,

@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use oxidowl::ontology::{Axiom, Class, ClassExpression, IRI};
 use oxidowl::query::SparqlStore;
 use oxidowl::semantics::RdfTerm;
 use oxidowl::{OntologyFormat, Reasoner, ReasonerConfig, ShaclValidator};
@@ -170,7 +171,6 @@ pub fn check_ontology(
                     &mut diags,
                 );
             }
-
             // retrieves "SPARQL" — must be a valid SELECT query
             if let Some(ann) = &cls.retrieves {
                 check_retrieves_sparql(
@@ -211,6 +211,12 @@ pub fn check_ontology(
             );
         }
     }
+
+    // Cross-class disjoint-union check: for a class with `classifies <X>` whose
+    // direct subclasses also declare `classifies`, the subclasses' OWL classes
+    // must form a disjoint union equal to `X`. Only applies to DL classifies
+    // (not SPARQL), since the oxidowl reasoner can compute the disjoint union.
+    check_classifies_disjoint_unions(smol_files, &reasoner, &prefix_map, &mut diags);
 
     // SHACL validation
     for shapes_path in shacl_paths {
@@ -500,6 +506,264 @@ fn validate_iri_as_owl_class(
             .with_file(&file.path)
             .with_span(span),
         );
+    }
+}
+
+/// Resolve a `classifies` annotation to a single named OWL class IRI, but only
+/// when it *uses DL* — i.e. it is not a SPARQL query and names exactly one
+/// class. Returns `None` for SPARQL queries and complex Manchester expressions
+/// that cannot be reduced to a single named class.
+fn resolve_dl_class(iri: &str, prefix_map: &HashMap<String, String>) -> Option<String> {
+    if is_sparql_query(iri) {
+        return None;
+    }
+    let bracketed = extract_angle_iris(iri);
+    if bracketed.len() == 1 {
+        resolve_iri_silent(&bracketed[0], prefix_map)
+    } else if bracketed.is_empty() {
+        resolve_iri_silent(iri, prefix_map)
+    } else {
+        None
+    }
+}
+
+/// Resolve a bare or prefixed IRI to its full form without emitting any
+/// diagnostics (used by the disjoint-union check to avoid duplicate warnings).
+fn resolve_iri_silent(iri: &str, prefix_map: &HashMap<String, String>) -> Option<String> {
+    if iri.starts_with('<') {
+        return Some(iri.trim_matches(|c| c == '<' || c == '>').to_owned());
+    }
+    if let Some(colon_pos) = iri.find(':') {
+        let prefix = &iri[..colon_pos];
+        let local = &iri[colon_pos + 1..];
+        if let Some(base) = prefix_map.get(prefix) {
+            return Some(format!("{base}{local}"));
+        }
+        return None;
+    }
+    Some(iri.to_owned())
+}
+
+/// A named-class `ClassExpression` from a full IRI string.
+fn named_class(iri: &str) -> ClassExpression {
+    ClassExpression::Class(Class::new(IRI::new(iri)))
+}
+
+/// The set of named classes the ontology declares as the `owl:disjointUnionOf`
+/// members of `class_iri`, or `None` when no such axiom is present.
+fn disjoint_union_members(reasoner: &Reasoner, class_iri: &str) -> Option<HashSet<String>> {
+    let ontology = reasoner.get_ontology()?;
+    let ontology = ontology.read().ok()?;
+    let mut members: Option<HashSet<String>> = None;
+    for axiom in ontology.axioms() {
+        if let Axiom::DisjointUnion(du) = axiom
+            && du.class.iri().is_some_and(|i| i.as_str() == class_iri)
+        {
+            let mut set = HashSet::new();
+            for expr in &du.disjoint_classes {
+                if let Some(iri) = expr.iri() {
+                    set.insert(iri.as_str().to_owned());
+                }
+            }
+            members = Some(set);
+        }
+    }
+    members
+}
+
+/// Cross-class check: for a class that has a DL `classifies <X>`, its direct
+/// subclasses which also declare DL `classifies <X1..Xn>` must form a disjoint
+/// union equal to `X` (e.g. `Healthy`, `Unhealthy` and `Dead` must partition
+/// `HealthState`). The oxidowl reasoner is used to verify subsumption and
+/// disjointness; coverage is checked against the ontology's `owl:disjointUnionOf`.
+fn check_classifies_disjoint_unions(
+    files: &[File],
+    reasoner: &Reasoner,
+    prefix_map: &HashMap<String, String>,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let mut classes: HashMap<&str, (&str, Option<&str>, &str, Span)> = HashMap::new();
+    for file in files {
+        for cls in &file.classes {
+            classes.insert(
+                cls.name.as_str(),
+                (
+                    cls.extends.as_deref().unwrap_or(""),
+                    cls.classifies.as_ref().map(|c| c.iri.as_str()),
+                    file.path.as_str(),
+                    cls.span,
+                ),
+            );
+        }
+    }
+
+    for (name, &(_, classifies, file, span)) in &classes {
+        // Direct subclasses that also declare a DL classifies.
+        let mut subs: Vec<(String, String)> = Vec::new();
+        let mut non_dl = false;
+        for (sub, &(sub_extends, sub_classifies, _, _)) in &classes {
+            if sub_extends == *name
+                && let Some(xi_raw) = sub_classifies
+                && let Some(xi) = resolve_dl_class(xi_raw, prefix_map)
+            {
+                subs.push((sub.to_string(), xi));
+            } else if sub_extends == *name && sub_classifies.is_some() {
+                non_dl = true;
+            }
+        }
+        if subs.is_empty() || non_dl {
+            continue;
+        }
+        let members: HashSet<String> = subs.iter().map(|(_, xi)| xi.clone()).collect();
+        // Determine the superclass OWL class `X` that these subclasses should
+        // partition. Prefer the superclass's own DL `classifies`; otherwise
+        // infer it from the ontology's `owl:disjointUnionOf` whose members
+        // contain the subclasses' classifies (e.g. `HealthState` declares no
+        // `classifies`, but `ast:HealthState owl:disjointUnionOf (…)` pins it).
+        let x = if let Some(x_raw) = classifies {
+            resolve_dl_class(x_raw, prefix_map)
+        } else {
+            find_superclass_by_disjoint_union(reasoner, &members)
+        };
+        let Some(x) = x else {
+            continue;
+        };
+        check_disjoint_union(name, file, span, &x, &subs, reasoner, diags);
+    }
+}
+
+/// Find the OWL class that the ontology declares as the `owl:disjointUnionOf`
+/// superclass of the given member set — i.e. the class `X` such that
+/// `X owl:disjointUnionOf (…)` and its members contain `members`. Returns the
+/// unique candidate, or `None` when there is none (no partition is declared for
+/// these classes) or several (ambiguous).
+fn find_superclass_by_disjoint_union(
+    reasoner: &Reasoner,
+    members: &HashSet<String>,
+) -> Option<String> {
+    let ontology = reasoner.get_ontology()?;
+    let ontology = ontology.read().ok()?;
+    let mut found: Option<String> = None;
+    for axiom in ontology.axioms() {
+        if let Axiom::DisjointUnion(du) = axiom {
+            let set: HashSet<String> = du
+                .disjoint_classes
+                .iter()
+                .filter_map(|expr| expr.iri().map(|i| i.as_str().to_owned()))
+                .collect();
+            if set.is_superset(members)
+                && let Some(iri) = du.class.iri()
+            {
+                let candidate = iri.as_str().to_owned();
+                if found.as_ref().is_some_and(|f| f != &candidate) {
+                    return None; // ambiguous: several superclasses match
+                }
+                found = Some(candidate);
+            }
+        }
+    }
+    found
+}
+
+#[allow(clippy::too_many_arguments)]
+fn check_disjoint_union(
+    cls: &str,
+    file: &str,
+    span: Span,
+    x: &str,
+    subs: &[(String, String)],
+    reasoner: &Reasoner,
+    diags: &mut Vec<Diagnostic>,
+) {
+    let members: HashSet<String> = subs.iter().map(|(_, xi)| xi.clone()).collect();
+    let mut member_names: Vec<&str> = members.iter().map(|s| s.as_str()).collect();
+    member_names.sort_unstable();
+
+    // 1. Coverage: the ontology must declare `X owl:disjointUnionOf (...)` whose
+    //    members are exactly the subclasses' classifies classes.
+    match disjoint_union_members(reasoner, x) {
+        Some(declared) if declared == members => {}
+        Some(declared) => {
+            let mut declared: Vec<String> = declared.into_iter().collect();
+            declared.sort_unstable();
+            diags.push(
+                Diagnostic::error(
+                    DiagnosticCode::ClassifiesDisjointUnion,
+                    format!(
+                        "class `{cls}` classifies `{x}`, but the ontology declares `{x}` as the \
+                         disjoint union of [{}], not the subclasses' classes [{}]",
+                        declared.join(", "),
+                        member_names.join(", "),
+                    ),
+                )
+                .with_file(file)
+                .with_span(span),
+            );
+        }
+        None => {
+            let subclass_names: Vec<&str> = subs.iter().map(|(n, _)| n.as_str()).collect();
+            diags.push(
+                Diagnostic::error(
+                    DiagnosticCode::ClassifiesDisjointUnion,
+                    format!(
+                        "class `{cls}` classifies `{x}` and its direct subclasses [{subclass_names}] \
+                         also declare `classifies`, but the ontology does not declare `{x}` as their \
+                         disjoint union",
+                        subclass_names = subclass_names.join(", "),
+                    ),
+                )
+                .with_file(file)
+                .with_span(span),
+            );
+        }
+    }
+
+    // 2. Subsumption: every subclass class `Xi` must be a subclass of `X`.
+    let x_expr = named_class(x);
+    for (sub, xi) in subs {
+        let xi_expr = named_class(xi);
+        let subsumed =
+            with_suppressed_output(|| reasoner.is_subsumed_by(&xi_expr, &x_expr)).unwrap_or(false);
+        if !subsumed {
+            diags.push(
+                Diagnostic::error(
+                    DiagnosticCode::ClassifiesDisjointUnion,
+                    format!(
+                        "class `{sub}` classifies `{xi}`, which is not a subclass of `{x}` \
+                         (the classifies of its superclass `{cls}`)",
+                    ),
+                )
+                .with_file(file)
+                .with_span(span),
+            );
+        }
+    }
+
+    // 3. Disjointness: the subclass classes must be pairwise disjoint.
+    for i in 0..subs.len() {
+        for j in (i + 1)..subs.len() {
+            let inter = ClassExpression::ObjectIntersectionOf(vec![
+                named_class(&subs[i].1),
+                named_class(&subs[j].1),
+            ]);
+            let satisfiable =
+                with_suppressed_output(|| reasoner.is_class_satisfiable(&inter)).unwrap_or(true);
+            if satisfiable {
+                diags.push(
+                    Diagnostic::error(
+                        DiagnosticCode::ClassifiesDisjointUnion,
+                        format!(
+                            "classes `{}` and `{}` classify `{}` and `{}`, which are not disjoint \
+                             in the ontology — the disjoint union of the subclasses of `{cls}` \
+                             does not match `{x}`",
+                            subs[i].0, subs[j].0, subs[i].1, subs[j].1,
+                        ),
+                    )
+                    .with_file(file)
+                    .with_span(span),
+                );
+            }
+        }
     }
 }
 
