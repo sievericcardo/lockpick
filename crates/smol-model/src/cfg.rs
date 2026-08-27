@@ -21,7 +21,7 @@ use std::collections::{HashMap, HashSet};
 
 use smol_syntax::ast::{Expr, MethodDecl, Stmt};
 
-use crate::model::{ClassMap, Extracted, Resolver, ResolvedType};
+use crate::model::{ClassMap, Extracted, ResolvedType, Resolver};
 
 /// The set of possible states for each classification root at a program point.
 ///
@@ -359,11 +359,7 @@ impl<'a> CfgBuilder<'a> {
         depth_limit: usize,
         entry_states: EntityStates,
     ) -> Block {
-        let guard = format!(
-            "guard_{}_{}",
-            sanitize_ident(file),
-            cond.span().start
-        );
+        let guard = format!("guard_{}_{}", sanitize_ident(file), cond.span().start);
 
         let mut branch_labels = state_labels(&entry_states);
         branch_labels.insert(guard);
@@ -439,11 +435,7 @@ impl<'a> CfgBuilder<'a> {
         depth_limit: usize,
         entry_states: EntityStates,
     ) -> Block {
-        let guard = format!(
-            "guard_{}_{}",
-            sanitize_ident(file),
-            cond.span().start
-        );
+        let guard = format!("guard_{}_{}", sanitize_ident(file), cond.span().start);
 
         let mut header_labels = state_labels(&entry_states);
         header_labels.insert(guard.clone());
@@ -597,12 +589,7 @@ impl<'a> CfgBuilder<'a> {
 
     /// Widen a single root to all of its possible states.
     fn widen_root(&self, states: &mut EntityStates, root: &str) {
-        if let Some(r) = self
-            .extracted
-            .roots
-            .iter()
-            .find(|r| r.entity == root)
-        {
+        if let Some(r) = self.extracted.roots.iter().find(|r| r.entity == root) {
             let all: HashSet<String> = r.states.iter().cloned().collect();
             states.insert(root.to_owned(), all);
         }

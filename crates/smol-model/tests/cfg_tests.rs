@@ -6,7 +6,12 @@
 use smol_model::cfg::{build_cfg, init_entity_states, state_labels};
 use smol_model::model;
 
-fn parse_src(src: &str) -> (smol_syntax::ast::File, Vec<smol_syntax::diagnostic::Diagnostic>) {
+fn parse_src(
+    src: &str,
+) -> (
+    smol_syntax::ast::File,
+    Vec<smol_syntax::diagnostic::Diagnostic>,
+) {
     smol_parser::parse("test.smol", src)
 }
 
@@ -102,7 +107,10 @@ fn while_builds_loop_with_back_edge() {
     assert_eq!(header.succs.len(), 2);
     // The body node has a back-edge to the header.
     let body = &cfg.nodes[header.succs[0]];
-    assert!(body.succs.contains(&header.id), "body must loop back to header");
+    assert!(
+        body.succs.contains(&header.id),
+        "body must loop back to header"
+    );
     // The loop-exit node leads to the continuation node.
     let exit = &cfg.nodes[header.succs[1]];
     assert_eq!(exit.succs.len(), 1);
@@ -193,8 +201,7 @@ end
         .filter(|l| l.starts_with("entry_") || l.starts_with("exit_"))
         .collect();
     assert!(
-        entry_labels.contains(&"entry_Model_run")
-            && entry_labels.contains(&"exit_Model_run"),
+        entry_labels.contains(&"entry_Model_run") && entry_labels.contains(&"exit_Model_run"),
         "expected inlined entry/exit labels, got {entry_labels:?}"
     );
 
@@ -235,10 +242,8 @@ end
     let program_ts = model::build_program_ts(std::slice::from_ref(&file), &map, &extracted, 3);
 
     // When the inlined method exits, the plant must be in one of its states.
-    let prop = smol_model::ctl::parse_prop(
-        "AG (exit_Model_run -> (Healthy || Unhealthy))",
-    )
-    .expect("property parses");
+    let prop = smol_model::ctl::parse_prop("AG (exit_Model_run -> (Healthy || Unhealthy))")
+        .expect("property parses");
     assert!(
         smol_model::ctl::verify(&program_ts, &prop).is_ok(),
         "structural AG property should hold"

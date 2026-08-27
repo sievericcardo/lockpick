@@ -689,11 +689,7 @@ fn check_property(
             // against the whole-program CFG model; classification-only formulas
             // use the fast classification-hierarchy model.
             let uses_structural = contains_structural_ap(&parsed);
-            let target = if uses_structural {
-                program_ts
-            } else {
-                ts
-            };
+            let target = if uses_structural { program_ts } else { ts };
             let code = if uses_structural {
                 DiagnosticCode::ProgramPropertyViolation
             } else {
