@@ -131,7 +131,7 @@ fn check_stmt(
             // SMOL allows declaring the variable with the element type as shorthand:
             //   Room r = access("...")   →  r is actually List<Room>
             // If the declared type is already List<T> we use it as-is.
-            let var_ty = if matches!(init, Expr::Access { .. } | Expr::Construct { .. })
+            let var_ty = if matches!(init, Expr::Access { .. } | Expr::Construct { .. } | Expr::Member { .. })
                 && !matches!(ty, Type::List(_) | Type::ExplList(_))
             {
                 Type::List(Box::new(ty.clone()))
@@ -404,7 +404,7 @@ fn infer_expr(
         }
 
         // FMU / semantic builtins — parse without false errors, defer deep checking
-        Expr::Member { .. } => Type::Boolean,
+        Expr::Member { .. } => Type::Named("_list_inferred".to_owned()),
         Expr::Validate { .. } => Type::Boolean,
         Expr::Simulate { args, .. } => {
             for arg in args {

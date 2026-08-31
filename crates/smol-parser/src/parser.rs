@@ -673,12 +673,44 @@ fn parse_call_stmt(pair: Pair<Rule>) -> Stmt {
                 }
             }
             Rule::call_receiver => {
+                let mut rec: Option<Expr> = None;
                 for r in inner.into_inner() {
-                    if r.as_rule() == Rule::expr_primary {
-                        receiver = Some(parse_expression(r));
-                        break;
+                    match r.as_rule() {
+                        Rule::expr_primary => {
+                            rec = Some(parse_expression(r));
+                        }
+                        Rule::field_in_receiver => {
+                            let r_span = span_from_pair(&r);
+                            let field = r.into_inner()
+                                .next()
+                                .map(|n| parse_name(n))
+                                .unwrap_or_default();
+                            if let Some(base) = rec {
+                                rec = Some(Expr::Field {
+                                    receiver: Box::new(base),
+                                    field,
+                                    span: r_span,
+                                });
+                            }
+                        }
+                        Rule::port_access => {
+                            let r_span = span_from_pair(&r);
+                            let port = r.into_inner()
+                                .find(|p| p.as_rule() == Rule::string_lit)
+                                .map(parse_string_lit)
+                                .unwrap_or_default();
+                            if let Some(base) = rec {
+                                rec = Some(Expr::Port {
+                                    receiver: Box::new(base),
+                                    port,
+                                    span: r_span,
+                                });
+                            }
+                        }
+                        _ => {}
                     }
                 }
+                receiver = rec;
             }
             Rule::name => method = parse_name(inner),
             Rule::arg_list => args = parse_arg_list(inner),
@@ -786,7 +818,15 @@ fn parse_construct_stmt(pair: Pair<Rule>) -> Stmt {
 
 fn parse_owl_stmt(pair: Pair<Rule>) -> Stmt {
     let span = span_from_pair(&pair);
-    Stmt::Skip { span }
+    let (ty, exprs) = collect_assignment_parts(&pair);
+
+    let target = exprs.first().cloned().unwrap_or_else(|| Expr::Null(span));
+    let query = match exprs.get(1) {
+        Some(Expr::StrLit(s, _)) => s.clone(),
+        _ => String::new(),
+    };
+    let rhs = Expr::Member { expr: query, span };
+    decl_or_assign(span, ty, target, rhs)
 }
 
 fn parse_validate_stmt(pair: Pair<Rule>) -> Stmt {
@@ -975,10 +1015,32 @@ fn parse_expr_eq(pair: Pair<Rule>) -> Expr {
 fn parse_expr_cmp(pair: Pair<Rule>) -> Expr {
     let span = span_from_pair(&pair);
     let mut result = Expr::Null(span);
+    let mut pending_op: Option<BinOp> = None;
 
     for inner in pair.into_inner() {
-        if inner.as_rule() == Rule::expr_add {
-            result = parse_expression(inner);
+        match inner.as_rule() {
+            Rule::expr_add => {
+                let rhs = parse_expression(inner);
+                if let Some(op) = pending_op.take() {
+                    result = Expr::BinOp {
+                        op,
+                        left: Box::new(result),
+                        right: Box::new(rhs),
+                        span,
+                    };
+                } else {
+                    result = rhs;
+                }
+            }
+            Rule::cmp_op => {
+                pending_op = Some(match inner.as_str() {
+                    "<=" => BinOp::LtEq,
+                    ">=" => BinOp::GtEq,
+                    ">" => BinOp::Gt,
+                    _ => BinOp::Lt,
+                });
+            }
+            _ => {}
         }
     }
 
@@ -988,10 +1050,31 @@ fn parse_expr_cmp(pair: Pair<Rule>) -> Expr {
 fn parse_expr_add(pair: Pair<Rule>) -> Expr {
     let span = span_from_pair(&pair);
     let mut result = Expr::Null(span);
+    let mut pending_op: Option<BinOp> = None;
 
     for inner in pair.into_inner() {
-        if inner.as_rule() == Rule::expr_mul {
-            result = parse_expression(inner);
+        match inner.as_rule() {
+            Rule::expr_mul => {
+                let rhs = parse_expression(inner);
+                if let Some(op) = pending_op.take() {
+                    result = Expr::BinOp {
+                        op,
+                        left: Box::new(result),
+                        right: Box::new(rhs),
+                        span,
+                    };
+                } else {
+                    result = rhs;
+                }
+            }
+            Rule::add_op => {
+                pending_op = Some(match inner.as_str() {
+                    "++" => BinOp::Concat,
+                    "+" => BinOp::Add,
+                    _ => BinOp::Sub,
+                });
+            }
+            _ => {}
         }
     }
 
@@ -1001,10 +1084,31 @@ fn parse_expr_add(pair: Pair<Rule>) -> Expr {
 fn parse_expr_mul(pair: Pair<Rule>) -> Expr {
     let span = span_from_pair(&pair);
     let mut result = Expr::Null(span);
+    let mut pending_op: Option<BinOp> = None;
 
     for inner in pair.into_inner() {
-        if inner.as_rule() == Rule::expr_unary {
-            result = parse_expression(inner);
+        match inner.as_rule() {
+            Rule::expr_unary => {
+                let rhs = parse_expression(inner);
+                if let Some(op) = pending_op.take() {
+                    result = Expr::BinOp {
+                        op,
+                        left: Box::new(result),
+                        right: Box::new(rhs),
+                        span,
+                    };
+                } else {
+                    result = rhs;
+                }
+            }
+            Rule::mul_op => {
+                pending_op = Some(match inner.as_str() {
+                    "*" => BinOp::Mul,
+                    "/" => BinOp::Div,
+                    _ => BinOp::Mod,
+                });
+            }
+            _ => {}
         }
     }
 
