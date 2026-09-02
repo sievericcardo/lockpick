@@ -195,9 +195,7 @@ fn collect_reads_in_expr(expr: &Expr, reads: &mut HashSet<String>) {
             collect_reads_in_expr(receiver, reads);
         }
 
-        Expr::MethodCall {
-            receiver, args, ..
-        } => {
+        Expr::MethodCall { receiver, args, .. } => {
             collect_reads_in_expr(receiver, reads);
             for a in args {
                 collect_reads_in_expr(a, reads);

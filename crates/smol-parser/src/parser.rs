@@ -681,7 +681,8 @@ fn parse_call_stmt(pair: Pair<Rule>) -> Stmt {
                         }
                         Rule::field_in_receiver => {
                             let r_span = span_from_pair(&r);
-                            let field = r.into_inner()
+                            let field = r
+                                .into_inner()
                                 .next()
                                 .map(|n| parse_name(n))
                                 .unwrap_or_default();
@@ -695,7 +696,8 @@ fn parse_call_stmt(pair: Pair<Rule>) -> Stmt {
                         }
                         Rule::port_access => {
                             let r_span = span_from_pair(&r);
-                            let port = r.into_inner()
+                            let port = r
+                                .into_inner()
                                 .find(|p| p.as_rule() == Rule::string_lit)
                                 .map(parse_string_lit)
                                 .unwrap_or_default();
