@@ -119,6 +119,9 @@ pub enum DiagnosticCode {
     DuplicateField = 2012,
     ListFieldNotExplicit = 2013,
     MissingAdapts = 2014,
+    UnusedVariable = 2015,
+    UnusedParameter = 2016,
+    DeadMethod = 2017,
 
     // Ontology errors
     OntologyLoadFailed = 3001,

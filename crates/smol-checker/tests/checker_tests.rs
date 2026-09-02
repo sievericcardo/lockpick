@@ -366,3 +366,174 @@ end
         "override whose supermethod lists the same adapts classes must be ok, got: {diags:#?}"
     );
 }
+
+// ── Dead-code analysis ────────────────────────────────────────────────────────
+
+#[test]
+fn unused_local_variable_is_warned() {
+    let src = r#"
+class Counter (Int value)
+    Unit increment()
+        Int unused = 42;
+        this.value = this.value;
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::UnusedVariable),
+        "expected UnusedVariable for `unused`, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn used_local_variable_is_not_warned() {
+    let src = r#"
+class Counter (Int value)
+    Unit double()
+        Int v = this.value;
+        this.value = v;
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::UnusedVariable),
+        "used variable must not be flagged, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn unused_parameter_is_warned() {
+    let src = r#"
+class Printer ()
+    Unit printFixed(Int ignored)
+        print(42);
+    end
+end
+
+main
+    Printer p = new Printer();
+    p.printFixed(0);
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::UnusedParameter),
+        "expected UnusedParameter for `ignored`, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn used_parameter_is_not_warned() {
+    let src = r#"
+class Adder ()
+    Int add(Int x, Int y)
+        return x + y;
+    end
+end
+
+main
+    Adder a = new Adder();
+    Int r = a.add(1, 2);
+    print(r);
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::UnusedParameter),
+        "used parameters must not be flagged, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn dead_method_is_warned() {
+    let src = r#"
+class Util ()
+    Unit neverCalled()
+        print(1);
+    end
+end
+
+main
+    Util u = new Util();
+    print(u);
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::DeadMethod),
+        "expected DeadMethod for `neverCalled`, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn called_method_is_not_flagged_as_dead() {
+    let src = r#"
+class Util ()
+    Unit doWork()
+        print(1);
+    end
+end
+
+main
+    Util u = new Util();
+    u.doWork();
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::DeadMethod),
+        "called method must not be flagged as dead, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn override_method_is_not_flagged_as_dead() {
+    let src = r#"
+abstract class Base ()
+    abstract Unit run()
+end
+
+class Impl extends Base ()
+    override Unit run()
+        print(1);
+    end
+end
+
+main
+    Base b = new Impl();
+    b.run();
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::DeadMethod),
+        "override method must not be flagged as dead, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn lhs_plain_assign_does_not_count_as_read() {
+    // `result` is assigned on the LHS and only printed — that IS a read (print).
+    let src = r#"
+class Box (Int value)
+    Int compute()
+        Int result = this.value;
+        result = result + 1;
+        return result;
+    end
+end
+
+main
+    Box b = new Box(0);
+    Int v = b.compute();
+    print(v);
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::UnusedVariable),
+        "reassigned-then-returned variable must not be flagged, got: {diags:#?}"
+    );
+}
