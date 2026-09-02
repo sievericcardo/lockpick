@@ -1,0 +1,13 @@
+[project]
+name = "geosim"
+
+[sources]
+files = ["simulate_onto.smol"]
+
+[ontologies]
+files = [
+    "total-mini.ttl",
+]
+
+[entry]
+main = "simulate_onto.smol"
