@@ -122,6 +122,9 @@ pub enum DiagnosticCode {
     UnusedVariable = 2015,
     UnusedParameter = 2016,
     DeadMethod = 2017,
+    NullDereference = 2018,
+    DomainMutation = 2019,
+    FmoNotDestroyed = 2020,
 
     // Ontology errors
     OntologyLoadFailed = 3001,
@@ -139,6 +142,7 @@ pub enum DiagnosticCode {
     SparqlElementMissing = 3013,
     SuspiciousOntologyPredicate = 3014,
     ClassifiesDisjointUnion = 3015,
+    SparqlInjection = 3016,
 
     // Manifest / IO errors
     ManifestNotFound = 4001,

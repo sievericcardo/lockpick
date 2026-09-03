@@ -537,3 +537,192 @@ end
         "reassigned-then-returned variable must not be flagged, got: {diags:#?}"
     );
 }
+
+// ── Null-safety (E2018) ───────────────────────────────────────────────────────
+
+#[test]
+fn null_dereference_on_literal_null_field_access_is_error() {
+    let src = r#"
+class Wrapper (Int value)
+    Int get(Wrapper w)
+        Wrapper x = null;
+        return x.value;
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::NullDereference),
+        "expected NullDereference for `x.value` where x is null, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn null_dereference_on_literal_null_method_call_is_error() {
+    let src = r#"
+class Counter ()
+    Unit step()
+        skip;
+    end
+    Unit run()
+        Counter c = null;
+        c.step();
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::NullDereference),
+        "expected NullDereference for `c.step()` where c is null, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn null_guarded_if_no_false_positive() {
+    let src = r#"
+class Node (Int val)
+    Int safeGet(Node n)
+        if n != null then
+            return n.val;
+        else
+            return 0;
+        end
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::NullDereference),
+        "null-guarded access must not be flagged, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn null_guarded_while_no_false_positive() {
+    let src = r#"
+class Node (Node next, Int val)
+    Unit walk(Node cur)
+        while cur != null do
+            print(cur.val);
+            cur = cur.next;
+        end
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::NullDereference),
+        "while-guarded access must not be flagged, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn reassigned_null_is_flagged_after_assignment() {
+    let src = r#"
+class Obj (Int v) end
+
+class Test ()
+    Unit run()
+        Obj o = new Obj(1);
+        o = null;
+        print(o.v);
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::NullDereference),
+        "expected NullDereference after explicit null assignment, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn unknown_param_nullness_no_false_positive() {
+    // Parameter `other` has unknown nullness; method body accesses it without
+    // a null guard.  We must NOT flag this (we can't prove it's null).
+    let src = r#"
+class Geo (Int size)
+    Boolean canMerge(Geo other)
+        return other.size == this.size;
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::NullDereference),
+        "unknown-nullness parameter must not be flagged, got: {diags:#?}"
+    );
+}
+
+// ── SPARQL injection (E3016) ──────────────────────────────────────────────────
+
+#[test]
+fn sparql_tainted_arg_is_warned() {
+    let src = r#"
+class Repo ()
+    Unit fetch()
+        List<Repo> results = access("SELECT ?x WHERE { ?x a <foo:Repo> }");
+        Repo first = results.content;
+        List<Repo> more = access("SELECT ?x WHERE { ?x a <foo:Repo> . FILTER(?x = %1) }", first);
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::SparqlInjection),
+        "expected SparqlInjection when access result used as SPARQL arg, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn non_tainted_sparql_arg_no_warning() {
+    let src = r#"
+class Repo (String id)
+    Unit fetch()
+        List<Repo> results = access("SELECT ?x WHERE { ?x a <foo:Repo> . FILTER(?id = %1) }", this.id);
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::SparqlInjection),
+        "field arg (non-tainted) must not be flagged, got: {diags:#?}"
+    );
+}
+
+// ── FMO lifecycle (E2020) ─────────────────────────────────────────────────────
+
+#[test]
+fn fmo_not_destroyed_is_warned() {
+    let src = r#"
+class Sim ()
+    Unit run()
+        FMO[in Double speed, out Double pos] fmu = null;
+        print(fmu);
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::FmoNotDestroyed),
+        "expected FmoNotDestroyed for undestroyed FMO variable, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn fmo_destroyed_no_warning() {
+    let src = r#"
+class Sim ()
+    Unit run()
+        FMO[in Double speed, out Double pos] fmu = null;
+        print(fmu);
+        destroy(fmu);
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::FmoNotDestroyed),
+        "destroyed FMO variable must not be warned, got: {diags:#?}"
+    );
+}
