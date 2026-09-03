@@ -52,7 +52,12 @@ fn warn_if_tainted(
     }
 }
 
-fn check_expr_taint(expr: &Expr, tainted: &HashSet<String>, file: &str, diags: &mut Vec<Diagnostic>) {
+fn check_expr_taint(
+    expr: &Expr,
+    tainted: &HashSet<String>,
+    file: &str,
+    diags: &mut Vec<Diagnostic>,
+) {
     match expr {
         Expr::Access { args, span, .. } | Expr::Construct { args, span, .. } => {
             for arg in args {
@@ -62,7 +67,9 @@ fn check_expr_taint(expr: &Expr, tainted: &HashSet<String>, file: &str, diags: &
         }
         Expr::MethodCall { receiver, args, .. } => {
             check_expr_taint(receiver, tainted, file, diags);
-            for arg in args { check_expr_taint(arg, tainted, file, diags); }
+            for arg in args {
+                check_expr_taint(arg, tainted, file, diags);
+            }
         }
         Expr::Field { receiver, .. } | Expr::Port { receiver, .. } => {
             check_expr_taint(receiver, tainted, file, diags);
@@ -71,7 +78,9 @@ fn check_expr_taint(expr: &Expr, tainted: &HashSet<String>, file: &str, diags: &
         | Expr::BuiltinCall { args, .. }
         | Expr::Super { args, .. }
         | Expr::Simulate { args, .. } => {
-            for arg in args { check_expr_taint(arg, tainted, file, diags); }
+            for arg in args {
+                check_expr_taint(arg, tainted, file, diags);
+            }
         }
         Expr::Classify { expr, .. } | Expr::UnaryOp { expr, .. } => {
             check_expr_taint(expr, tainted, file, diags);
@@ -105,26 +114,38 @@ fn check_stmts_taint(stmts: &[Stmt], tainted: &mut HashSet<String>, file: &str) 
                 }
             }
             Stmt::Return { value, .. } => {
-                if let Some(v) = value { check_expr_taint(v, tainted, file, &mut diags); }
+                if let Some(v) = value {
+                    check_expr_taint(v, tainted, file, &mut diags);
+                }
             }
-            Stmt::If { cond, then_body, else_body, .. } => {
+            Stmt::If {
+                cond,
+                then_body,
+                else_body,
+                ..
+            } => {
                 check_expr_taint(cond, tainted, file, &mut diags);
                 let mut then_t = tainted.clone();
                 diags.extend(check_stmts_taint(then_body, &mut then_t, file));
                 let mut else_t = tainted.clone();
                 diags.extend(check_stmts_taint(else_body, &mut else_t, file));
                 // Conservative union of both branches.
-                for name in then_t { tainted.insert(name); }
-                for name in else_t { tainted.insert(name); }
+                for name in then_t {
+                    tainted.insert(name);
+                }
+                for name in else_t {
+                    tainted.insert(name);
+                }
             }
             Stmt::While { cond, body, .. } => {
                 check_expr_taint(cond, tainted, file, &mut diags);
                 let mut body_t = tainted.clone();
                 diags.extend(check_stmts_taint(body, &mut body_t, file));
-                for name in body_t { tainted.insert(name); }
+                for name in body_t {
+                    tainted.insert(name);
+                }
             }
-            Stmt::Print { value, .. }
-            | Stmt::Destroy { value, .. } => {
+            Stmt::Print { value, .. } | Stmt::Destroy { value, .. } => {
                 check_expr_taint(value, tainted, file, &mut diags);
             }
             Stmt::Expr { expr, .. } | Stmt::Adapt { expr, .. } => {
@@ -143,7 +164,9 @@ pub fn check_sparql_taint(files: &[File], _env: &ClassEnv) -> Vec<Diagnostic> {
     for file in files {
         for cls in &file.classes {
             for method in &cls.methods {
-                if method.flags.is_abstract { continue; }
+                if method.flags.is_abstract {
+                    continue;
+                }
                 let mut tainted: HashSet<String> = HashSet::new();
                 diags.extend(check_stmts_taint(&method.body, &mut tainted, &file.path));
             }

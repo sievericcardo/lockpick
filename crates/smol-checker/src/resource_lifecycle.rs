@@ -25,10 +25,17 @@ fn collect_destroyed(stmts: &[Stmt]) -> HashSet<String> {
     let mut destroyed = HashSet::new();
     for stmt in stmts {
         match stmt {
-            Stmt::Destroy { value: Expr::Var(name, _), .. } => {
+            Stmt::Destroy {
+                value: Expr::Var(name, _),
+                ..
+            } => {
                 destroyed.insert(name.clone());
             }
-            Stmt::If { then_body, else_body, .. } => {
+            Stmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 destroyed.extend(collect_destroyed(then_body));
                 destroyed.extend(collect_destroyed(else_body));
             }
@@ -51,7 +58,11 @@ fn collect_fmo_vars(stmts: &[Stmt]) -> Vec<(String, Span)> {
                     vars.push((name.clone(), *span));
                 }
             }
-            Stmt::If { then_body, else_body, .. } => {
+            Stmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 vars.extend(collect_fmo_vars(then_body));
                 vars.extend(collect_fmo_vars(else_body));
             }

@@ -47,7 +47,12 @@ fn nullness_of(expr: &Expr, env: &NullEnv) -> Nullness {
 }
 
 fn narrow(env: &mut NullEnv, cond: &Expr, branch_is_true: bool) {
-    let Expr::BinOp { op, left, right, .. } = cond else { return };
+    let Expr::BinOp {
+        op, left, right, ..
+    } = cond
+    else {
+        return;
+    };
     let var_name = match (left.as_ref(), right.as_ref()) {
         (Expr::Var(n, _), Expr::Null(_)) | (Expr::Null(_), Expr::Var(n, _)) => n.clone(),
         _ => return,
@@ -61,7 +66,11 @@ fn narrow(env: &mut NullEnv, cond: &Expr, branch_is_true: bool) {
         BinOp::Eq => {
             env.insert(
                 var_name,
-                if branch_is_true { Nullness::Null } else { Nullness::NonNull },
+                if branch_is_true {
+                    Nullness::Null
+                } else {
+                    Nullness::NonNull
+                },
             );
         }
         _ => {}
@@ -72,15 +81,25 @@ fn assigned_in(stmts: &[Stmt]) -> HashSet<String> {
     let mut vars = HashSet::new();
     for stmt in stmts {
         match stmt {
-            Stmt::VarDecl { name, .. } => { vars.insert(name.clone()); }
-            Stmt::Assign { lhs, .. } => {
-                if let Expr::Var(name, _) = lhs { vars.insert(name.clone()); }
+            Stmt::VarDecl { name, .. } => {
+                vars.insert(name.clone());
             }
-            Stmt::If { then_body, else_body, .. } => {
+            Stmt::Assign { lhs, .. } => {
+                if let Expr::Var(name, _) = lhs {
+                    vars.insert(name.clone());
+                }
+            }
+            Stmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 vars.extend(assigned_in(then_body));
                 vars.extend(assigned_in(else_body));
             }
-            Stmt::While { body, .. } => { vars.extend(assigned_in(body)); }
+            Stmt::While { body, .. } => {
+                vars.extend(assigned_in(body));
+            }
             _ => {}
         }
     }
@@ -97,9 +116,12 @@ fn check_var_receiver(
     if let Expr::Var(name, _) = receiver {
         if env.get(name.as_str()) == Some(&Nullness::Null) {
             diags.push(
-                Diagnostic::error(DiagnosticCode::NullDereference, format!("`{name}` is null at this point"))
-                    .with_file(file)
-                    .with_span(span),
+                Diagnostic::error(
+                    DiagnosticCode::NullDereference,
+                    format!("`{name}` is null at this point"),
+                )
+                .with_file(file)
+                .with_span(span),
             );
         }
     }
@@ -111,23 +133,40 @@ fn check_expr(expr: &Expr, env: &NullEnv, file: &str, diags: &mut Vec<Diagnostic
             check_var_receiver(receiver, env, file, *span, diags);
             check_expr(receiver, env, file, diags);
         }
-        Expr::MethodCall { receiver, args, span, .. } => {
+        Expr::MethodCall {
+            receiver,
+            args,
+            span,
+            ..
+        } => {
             check_var_receiver(receiver, env, file, *span, diags);
             check_expr(receiver, env, file, diags);
-            for arg in args { check_expr(arg, env, file, diags); }
+            for arg in args {
+                check_expr(arg, env, file, diags);
+            }
         }
         Expr::New { args, .. }
         | Expr::Construct { args, .. }
         | Expr::BuiltinCall { args, .. }
         | Expr::Super { args, .. } => {
-            for arg in args { check_expr(arg, env, file, diags); }
+            for arg in args {
+                check_expr(arg, env, file, diags);
+            }
         }
-        Expr::Access { connector, args, .. } => {
-            if let Some(c) = connector { check_expr(c, env, file, diags); }
-            for arg in args { check_expr(arg, env, file, diags); }
+        Expr::Access {
+            connector, args, ..
+        } => {
+            if let Some(c) = connector {
+                check_expr(c, env, file, diags);
+            }
+            for arg in args {
+                check_expr(arg, env, file, diags);
+            }
         }
         Expr::Simulate { args, .. } => {
-            for arg in args { check_expr(arg, env, file, diags); }
+            for arg in args {
+                check_expr(arg, env, file, diags);
+            }
         }
         Expr::Classify { expr, .. } | Expr::UnaryOp { expr, .. } => {
             check_expr(expr, env, file, diags);
@@ -136,7 +175,9 @@ fn check_expr(expr: &Expr, env: &NullEnv, file: &str, diags: &mut Vec<Diagnostic
             check_expr(left, env, file, diags);
             check_expr(right, env, file, diags);
         }
-        Expr::Port { receiver, .. } => { check_expr(receiver, env, file, diags); }
+        Expr::Port { receiver, .. } => {
+            check_expr(receiver, env, file, diags);
+        }
         _ => {}
     }
 }
@@ -159,9 +200,16 @@ fn check_stmts(stmts: &[Stmt], env: &mut NullEnv, file: &str) -> Vec<Diagnostic>
                 }
             }
             Stmt::Return { value, .. } => {
-                if let Some(v) = value { check_expr(v, env, file, &mut diags); }
+                if let Some(v) = value {
+                    check_expr(v, env, file, &mut diags);
+                }
             }
-            Stmt::If { cond, then_body, else_body, .. } => {
+            Stmt::If {
+                cond,
+                then_body,
+                else_body,
+                ..
+            } => {
                 check_expr(cond, env, file, &mut diags);
 
                 let mut then_env = env.clone();
@@ -208,7 +256,9 @@ pub fn check_null_safety(files: &[File], _env: &ClassEnv) -> Vec<Diagnostic> {
     for file in files {
         for cls in &file.classes {
             for method in &cls.methods {
-                if method.flags.is_abstract { continue; }
+                if method.flags.is_abstract {
+                    continue;
+                }
                 let mut null_env = NullEnv::new();
                 null_env.insert("this".to_owned(), Nullness::NonNull);
                 diags.extend(check_stmts(&method.body, &mut null_env, &file.path));
