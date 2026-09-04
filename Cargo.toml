@@ -69,6 +69,10 @@ license.workspace = true
 name = "lockpick"
 path = "src/main.rs"
 
+[lib]
+name = "lockpick"
+path = "src/lib.rs"
+
 [dependencies]
 smol-verifier = { workspace = true }
 clap          = { workspace = true }
