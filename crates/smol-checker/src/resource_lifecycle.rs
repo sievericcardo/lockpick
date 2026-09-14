@@ -154,9 +154,7 @@ fn stmt_escapes(stmt: &Stmt, var: &str) -> bool {
                 || passes_as_arg(rhs, var)
         }
         Stmt::Expr { expr, .. } => passes_as_arg(expr, var),
-        Stmt::Return { value, .. } => {
-            value.as_ref().is_some_and(|v| expr_mentions_var(v, var))
-        }
+        Stmt::Return { value, .. } => value.as_ref().is_some_and(|v| expr_mentions_var(v, var)),
         Stmt::Adapt { expr, .. } => expr_mentions_var(expr, var),
         Stmt::If {
             then_body,
@@ -175,9 +173,9 @@ fn expr_mentions_var(expr: &Expr, var: &str) -> bool {
     match expr {
         Expr::Var(name, _) => name == var,
         Expr::Field { receiver, .. } => expr_mentions_var(receiver, var),
-        Expr::MethodCall {
-            receiver, args, ..
-        } => expr_mentions_var(receiver, var) || args.iter().any(|a| expr_mentions_var(a, var)),
+        Expr::MethodCall { receiver, args, .. } => {
+            expr_mentions_var(receiver, var) || args.iter().any(|a| expr_mentions_var(a, var))
+        }
         Expr::New { args, .. }
         | Expr::BuiltinCall { args, .. }
         | Expr::Construct { args, .. }
@@ -205,9 +203,7 @@ fn expr_mentions_var(expr: &Expr, var: &str) -> bool {
 /// query. A use as call *receiver* (`fmu.port("out")`) does not count.
 fn passes_as_arg(expr: &Expr, var: &str) -> bool {
     match expr {
-        Expr::MethodCall {
-            receiver, args, ..
-        } => {
+        Expr::MethodCall { receiver, args, .. } => {
             args.iter().any(|a| expr_mentions_var(a, var)) || passes_as_arg(receiver, var)
         }
         Expr::New { args, .. }

@@ -139,7 +139,11 @@ class X ()
 end
 "#,
     );
-    assert!(diags.iter().all(|d| d.severity != smol_syntax::diagnostic::Severity::Error));
+    assert!(
+        diags
+            .iter()
+            .all(|d| d.severity != smol_syntax::diagnostic::Severity::Error)
+    );
     let m = &file.classes[0].methods[0];
     assert_eq!(m.requires.len(), 1);
     assert_eq!(m.ensures.len(), 1);
@@ -160,7 +164,11 @@ class X ()
 end
 "#,
     );
-    assert!(diags.iter().all(|d| d.severity != smol_syntax::diagnostic::Severity::Error));
+    assert!(
+        diags
+            .iter()
+            .all(|d| d.severity != smol_syntax::diagnostic::Severity::Error)
+    );
     let m = &file.classes[0].methods[0];
     assert_eq!(m.requires.len(), 1);
     assert_eq!(m.ensures.len(), 1);
@@ -179,12 +187,25 @@ class X (Nullable<String> name)
 end
 "#,
     );
-    assert!(diags.iter().all(|d| d.severity != smol_syntax::diagnostic::Severity::Error));
-    assert!(matches!(file.classes[0].fields[0].ty, smol_syntax::ast::Type::Nullable(_)));
-    assert_eq!(format!("{}", file.classes[0].fields[0].ty), "Nullable<String>");
+    assert!(
+        diags
+            .iter()
+            .all(|d| d.severity != smol_syntax::diagnostic::Severity::Error)
+    );
+    assert!(matches!(
+        file.classes[0].fields[0].ty,
+        smol_syntax::ast::Type::Nullable(_)
+    ));
+    assert_eq!(
+        format!("{}", file.classes[0].fields[0].ty),
+        "Nullable<String>"
+    );
     let m = &file.classes[0].methods[0];
     assert!(matches!(m.ret_type, smol_syntax::ast::Type::Nullable(_)));
-    assert!(matches!(m.params[0].ty, smol_syntax::ast::Type::Nullable(_)));
+    assert!(matches!(
+        m.params[0].ty,
+        smol_syntax::ast::Type::Nullable(_)
+    ));
 }
 
 #[test]
@@ -203,7 +224,11 @@ class X ()
 end
 "#,
     );
-    assert!(diags.iter().all(|d| d.severity != smol_syntax::diagnostic::Severity::Error));
+    assert!(
+        diags
+            .iter()
+            .all(|d| d.severity != smol_syntax::diagnostic::Severity::Error)
+    );
     let body = &file.classes[0].methods[0].body;
     match &body[0] {
         smol_syntax::ast::Stmt::While { decreases, .. } => assert!(decreases.is_some()),
@@ -225,7 +250,11 @@ class X ()
 end
 "#,
     );
-    assert!(diags.iter().all(|d| d.severity != smol_syntax::diagnostic::Severity::Error));
+    assert!(
+        diags
+            .iter()
+            .all(|d| d.severity != smol_syntax::diagnostic::Severity::Error)
+    );
     let body = &file.classes[0].methods[0].body;
     match &body[0] {
         smol_syntax::ast::Stmt::While { decreases, .. } => assert!(decreases.is_none()),
@@ -246,7 +275,9 @@ fn parse_effect_prefixes() {
         );
         let (file, diags) = parse("<test>", &src);
         assert!(
-            diags.iter().all(|d| d.severity != smol_syntax::diagnostic::Severity::Error),
+            diags
+                .iter()
+                .all(|d| d.severity != smol_syntax::diagnostic::Severity::Error),
             "annotation {annotation}: {diags:#?}"
         );
         let m = &file.classes[0].methods[0];
@@ -259,7 +290,10 @@ fn parse_effect_prefixes() {
     );
     assert!(file.classes[0].methods[0].flags.is_pure());
     // Legacy method without annotation keeps `effect: None`.
-    let (file, _) = parse("<test>", "class X ()\n    Unit foo()\n        skip;\n    end\nend\n");
+    let (file, _) = parse(
+        "<test>",
+        "class X ()\n    Unit foo()\n        skip;\n    end\nend\n",
+    );
     assert_eq!(file.classes[0].methods[0].flags.effect, None);
     assert!(file.classes[0].methods[0].requires.is_empty());
     assert!(file.classes[0].methods[0].ensures.is_empty());

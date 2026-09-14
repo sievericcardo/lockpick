@@ -1458,8 +1458,11 @@ fn attach_jml_annotations(file: &mut File, src: &str) {
 
     for annot in &annots {
         match annot.kind {
-            JmlKind::Requires | JmlKind::Ensures | JmlKind::Pure
-            | JmlKind::DomainReads | JmlKind::DomainWrites => {
+            JmlKind::Requires
+            | JmlKind::Ensures
+            | JmlKind::Pure
+            | JmlKind::DomainReads
+            | JmlKind::DomainWrites => {
                 // Innermost enclosing method, else the following method.
                 let target = methods
                     .iter()

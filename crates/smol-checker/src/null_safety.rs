@@ -2,7 +2,7 @@
 //!
 //! Tracks the *definite* nullness of local variables **and field paths**
 //! (e.g. `this.f`, `x.f`) and flags dereferences of receivers that are
-//! provably nullable at that point. 
+//! provably nullable at that point.
 //!
 //! # Soundness contract (no false positives)
 //!
@@ -92,9 +92,9 @@ fn join(a: Nullness, b: Nullness) -> Nullness {
 fn path_key(expr: &Expr) -> Option<String> {
     match expr {
         Expr::Var(name, _) => Some(name.clone()),
-        Expr::Field { receiver, field, .. } => {
-            Some(format!("{}.{field}", path_key(receiver)?))
-        }
+        Expr::Field {
+            receiver, field, ..
+        } => Some(format!("{}.{field}", path_key(receiver)?)),
         _ => None,
     }
 }
@@ -127,7 +127,9 @@ fn as_target(expr: &Expr) -> Option<Target> {
 fn static_type(expr: &Expr, flow: &NullEnv, ctx: &Ctx) -> Option<Type> {
     match expr {
         Expr::Var(name, _) => flow.var_types.get(name).cloned(),
-        Expr::Field { receiver, field, .. } => {
+        Expr::Field {
+            receiver, field, ..
+        } => {
             let mut rec_ty = static_type(receiver, flow, ctx)?;
             // A nullable owner still exposes the inner class's fields.
             if let Type::Nullable(inner) = rec_ty {
@@ -308,13 +310,7 @@ fn check_receiver(
     }
 }
 
-fn check_expr(
-    expr: &Expr,
-    flow: &NullEnv,
-    ctx: &Ctx,
-    file: &str,
-    diags: &mut Vec<Diagnostic>,
-) {
+fn check_expr(expr: &Expr, flow: &NullEnv, ctx: &Ctx, file: &str, diags: &mut Vec<Diagnostic>) {
     match expr {
         Expr::Field { receiver, span, .. } => {
             check_receiver(receiver, flow, ctx, file, *span, diags);
@@ -373,12 +369,7 @@ fn check_expr(
 /// nullness joins on the lattice, provability unions (sticky), declared
 /// types union.
 fn merge_into(base: &mut NullEnv, other: &NullEnv) {
-    let keys: HashSet<String> = base
-        .vars
-        .keys()
-        .chain(other.vars.keys())
-        .cloned()
-        .collect();
+    let keys: HashSet<String> = base.vars.keys().chain(other.vars.keys()).cloned().collect();
     for name in &keys {
         let a = base.vars.get(name).cloned().unwrap_or(Nullness::Maybe);
         let b = other.vars.get(name).cloned().unwrap_or(Nullness::Maybe);
@@ -402,12 +393,7 @@ fn merge_into(base: &mut NullEnv, other: &NullEnv) {
     }
 }
 
-fn check_stmts(
-    stmts: &[Stmt],
-    flow: &mut NullEnv,
-    ctx: &Ctx,
-    file: &str,
-) -> Vec<Diagnostic> {
+fn check_stmts(stmts: &[Stmt], flow: &mut NullEnv, ctx: &Ctx, file: &str) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
     for stmt in stmts {
         match stmt {
@@ -523,10 +509,8 @@ pub fn check_null_safety(files: &[File], env: &ClassEnv) -> Vec<Diagnostic> {
                 }
                 let mut flow = NullEnv::new();
                 flow.vars.insert("this".to_owned(), Nullness::NonNull);
-                flow.var_types.insert(
-                    "this".to_owned(),
-                    Type::Named(cls.name.clone()),
-                );
+                flow.var_types
+                    .insert("this".to_owned(), Type::Named(cls.name.clone()));
                 for param in &method.params {
                     flow.var_types.insert(param.name.clone(), param.ty.clone());
                     flow.vars.insert(param.name.clone(), Nullness::Maybe);

@@ -154,9 +154,7 @@ impl ClassEnv {
             // `null` flows into any nullable type.
             (Type::Named(a), Type::Nullable(_)) if a == "_null" => true,
             // `Nullable(T)` flows into `Nullable(U)` iff `T` flows into `U`.
-            (Type::Nullable(from_ty), Type::Nullable(to_ty)) => {
-                self.is_assignable(from_ty, to_ty)
-            }
+            (Type::Nullable(from_ty), Type::Nullable(to_ty)) => self.is_assignable(from_ty, to_ty),
             // `T` flows into `Nullable(U)` iff `T` flows into `U`.
             (from_ty, Type::Nullable(to_ty)) => self.is_assignable(from_ty, to_ty),
             // Strict: `Nullable(T)` never flows into a non-nullable slot.

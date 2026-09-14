@@ -54,7 +54,14 @@ pub fn check_hoare(files: &[File], env: &ClassEnv) -> Vec<Diagnostic> {
             let mut types = HashMap::new();
             types.insert("this".to_owned(), cls.name.clone());
             for init in &cls.init_fields {
-                visit_expr_for_calls(&init.init, Some(cls.name.as_str()), &types, &file.path, env, &mut diags);
+                visit_expr_for_calls(
+                    &init.init,
+                    Some(cls.name.as_str()),
+                    &types,
+                    &file.path,
+                    env,
+                    &mut diags,
+                );
             }
             for method in &cls.methods {
                 if method.flags.is_abstract {
@@ -342,15 +349,15 @@ fn visit_expr_for_calls(
         span,
     } = expr
     {
-        check_call(receiver, method, args, *span, this_class, types, file, env, diags);
+        check_call(
+            receiver, method, args, *span, this_class, types, file, env, diags,
+        );
     }
     match expr {
         Expr::Field { receiver, .. } | Expr::Port { receiver, .. } => {
             visit_expr_for_calls(receiver, this_class, types, file, env, diags);
         }
-        Expr::MethodCall {
-            receiver, args, ..
-        } => {
+        Expr::MethodCall { receiver, args, .. } => {
             visit_expr_for_calls(receiver, this_class, types, file, env, diags);
             for arg in args {
                 visit_expr_for_calls(arg, this_class, types, file, env, diags);
@@ -498,9 +505,7 @@ fn subst_expr(expr: &Expr, map: &HashMap<String, Expr>) -> Expr {
             span,
         } => Expr::Access {
             sparql: sparql.clone(),
-            connector: connector
-                .as_ref()
-                .map(|c| Box::new(subst_expr(c, map))),
+            connector: connector.as_ref().map(|c| Box::new(subst_expr(c, map))),
             args: args.iter().map(|a| subst_expr(a, map)).collect(),
             span: *span,
         },
@@ -556,9 +561,7 @@ fn mentions_var(expr: &Expr, name: &str) -> bool {
     match expr {
         Expr::Var(n, _) => n == name,
         Expr::Field { receiver, .. } | Expr::Port { receiver, .. } => mentions_var(receiver, name),
-        Expr::MethodCall {
-            receiver, args, ..
-        } => {
+        Expr::MethodCall { receiver, args, .. } => {
             mentions_var(receiver, name) || args.iter().any(|a| mentions_var(a, name))
         }
         Expr::New { args, .. }
@@ -573,9 +576,7 @@ fn mentions_var(expr: &Expr, name: &str) -> bool {
                 || connector.as_ref().is_some_and(|c| mentions_var(c, name))
         }
         Expr::Classify { expr, .. } | Expr::UnaryOp { expr, .. } => mentions_var(expr, name),
-        Expr::BinOp { left, right, .. } => {
-            mentions_var(left, name) || mentions_var(right, name)
-        }
+        Expr::BinOp { left, right, .. } => mentions_var(left, name) || mentions_var(right, name),
         _ => false,
     }
 }
@@ -668,13 +669,9 @@ fn eval_bool(expr: &Expr) -> Option<bool> {
                 (Some(false), Some(false)) => Some(false),
                 _ => None,
             },
-            BinOp::Eq | BinOp::NotEq => eval_equality(left, right).map(|eq| {
-                if *op == BinOp::Eq {
-                    eq
-                } else {
-                    !eq
-                }
-            }),
+            BinOp::Eq | BinOp::NotEq => {
+                eval_equality(left, right).map(|eq| if *op == BinOp::Eq { eq } else { !eq })
+            }
             BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq => {
                 let (a, b) = (eval_num(left)?, eval_num(right)?);
                 Some(match op {

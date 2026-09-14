@@ -131,8 +131,7 @@ fn finish_interval(lo: Option<i128>, hi: Option<i128>) -> (Interval, bool) {
     if provable {
         return (Interval::top(), true);
     }
-    let in_range =
-        |v: i128| v >= i64::MIN as i128 && v <= i64::MAX as i128;
+    let in_range = |v: i128| v >= i64::MIN as i128 && v <= i64::MAX as i128;
     if lo.map_or(true, in_range) && hi.map_or(true, in_range) {
         (
             Interval {
@@ -241,8 +240,7 @@ fn eval_int(expr: &Expr, env: &HashMap<String, Interval>) -> (Interval, bool) {
                     (iv, overflow || ov)
                 }
                 BinOp::Div => {
-                    if let (Some(a), Some(b)) = (l.is_singleton(), r.is_singleton())
-                    {
+                    if let (Some(a), Some(b)) = (l.is_singleton(), r.is_singleton()) {
                         if b == 0 {
                             return (Interval::top(), overflow);
                         }
@@ -255,8 +253,7 @@ fn eval_int(expr: &Expr, env: &HashMap<String, Interval>) -> (Interval, bool) {
                     (Interval::top(), overflow)
                 }
                 BinOp::Mod => {
-                    if let (Some(a), Some(b)) = (l.is_singleton(), r.is_singleton())
-                    {
+                    if let (Some(a), Some(b)) = (l.is_singleton(), r.is_singleton()) {
                         if b == 0 {
                             return (Interval::top(), overflow);
                         }
