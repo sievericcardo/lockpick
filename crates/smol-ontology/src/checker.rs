@@ -131,7 +131,7 @@ pub fn check_ontology(
             return diags;
         }
     };
-    // Collect TTL content and extract prefixes while loading.
+    // Collect TTL prefixes while loading.
     let mut ttl_prefixes: HashMap<String, String> = HashMap::new();
     for path in ontology_paths {
         if let Ok(content) = std::fs::read_to_string(path) {

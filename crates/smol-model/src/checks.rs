@@ -50,6 +50,11 @@ pub fn check_model(
     let ts = model::build_transition_system(&roots);
     check_reachability(&ts, &extracted.states, &mut diags);
 
+    // §2.10 initial-state concretisation (additive: never alters CTL results).
+    diags.extend(crate::concretise::check_initial_concretisation(
+        files, &map, &extracted, &ts,
+    ));
+
     // Whole-program CFG-based model (structural / guard APs, method sequencing).
     let program_ts = model::build_program_ts(files, &map, &extracted, inline_depth);
     check_unreachable_statements(&program_ts, &mut diags);
@@ -315,7 +320,9 @@ impl BodyChecker<'_> {
                 self.walk_stmts(resolver, then_body);
                 self.walk_stmts(resolver, else_body);
             }
-            Stmt::While { cond, body, span } => {
+            Stmt::While {
+                cond, body, span, ..
+            } => {
                 self.walk_expr(resolver, cond);
                 self.check_while_advance(resolver, cond, body, *span);
                 self.walk_stmts(resolver, body);

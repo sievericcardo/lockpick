@@ -199,7 +199,9 @@ fn check_stmt(
             var_env.pop();
         }
 
-        Stmt::While { cond, body, span } => {
+        Stmt::While {
+            cond, body, span, ..
+        } => {
             let cond_ty = infer_expr(cond, var_env, env, file, &mut diags);
             if !matches!(cond_ty, Type::Boolean) {
                 // `null` comparisons produce Boolean logically; relax for now

@@ -49,6 +49,9 @@ pub enum Type {
     Generic(String, Vec<Type>),
     /// FMU object type: `FMO[in Double speed, out Double position]`
     Fmo(Vec<FmoPort>),
+    /// Nullable type: `Nullable<T>` — accepts a value of `T` or `null`.
+    /// (Spelled as a generic so it parses with the fixed `smol.pest` grammar.)
+    Nullable(Box<Type>),
 }
 
 impl std::fmt::Display for Type {
@@ -86,6 +89,7 @@ impl std::fmt::Display for Type {
                 }
                 write!(f, "]")
             }
+            Type::Nullable(inner) => write!(f, "Nullable<{inner}>"),
         }
     }
 }
@@ -124,6 +128,17 @@ pub struct Param {
     pub span: Span,
 }
 
+/// Effect contract of a method (`pure` / `domain-reads` / `domain-writes` prefix).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum Effect {
+    /// No observable side effects.
+    Pure,
+    /// May read (but not write) domain state.
+    DomainReads,
+    /// May read and write domain state.
+    DomainWrites,
+}
+
 /// Method flags.
 #[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 #[allow(clippy::struct_excessive_bools)]
@@ -134,6 +149,17 @@ pub struct MethodFlags {
     pub is_rule: bool,
     /// `domain` modifier — method is exposed in the RDF knowledge graph.
     pub is_domain: bool,
+    /// Effect contract from the `pure` / `domain-reads` / `domain-writes`
+    /// prefix. `None` means no declared contract (legacy default).
+    pub effect: Option<Effect>,
+}
+
+impl MethodFlags {
+    /// Convenience: `true` iff the method is declared `pure`.
+    #[must_use]
+    pub fn is_pure(&self) -> bool {
+        matches!(self.effect, Some(Effect::Pure))
+    }
 }
 
 /// A method (or abstract method declaration).
@@ -145,6 +171,11 @@ pub struct MethodDecl {
     pub params: Vec<Param>,
     /// Classes mentioned in `adapts Foo, Bar`.
     pub adapts: Vec<String>,
+    /// `requires <expr>` preconditions (Hoare triples / ODRL guards).
+    /// Empty when no clause is present (legacy default).
+    pub requires: Vec<Expr>,
+    /// `ensures <expr>` postconditions. Empty when absent.
+    pub ensures: Vec<Expr>,
     /// Body statements; empty for abstract methods.
     pub body: Vec<Stmt>,
     pub span: Span,
@@ -239,6 +270,8 @@ pub enum Stmt {
     /// `while cond do stmts end`
     While {
         cond: Expr,
+        /// Optional `decreases <expr>` termination measure.
+        decreases: Option<Box<Expr>>,
         body: Vec<Stmt>,
         span: Span,
     },

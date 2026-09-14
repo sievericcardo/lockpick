@@ -22,11 +22,17 @@ pub fn parse(path: &str, src: &str) -> (File, Vec<Diagnostic>) {
         Ok(mut pairs) => {
             let program_pair = pairs.next().expect("Program rule must produce a pair");
             let (classes, main_stmts) = parse_program(program_pair, &mut diagnostics);
-            let file = File {
+            let mut file = File {
                 path: path.to_owned(),
                 classes,
                 main: main_stmts,
             };
+            // The `smol.pest` grammar is fixed: contracts, effects and loop
+            // variants travel as JML comments (`/*@ … @*/`, `//@ …`) which the
+            // grammar skips. Attach them to the AST here (no diagnostics: an
+            // unparsable annotation is silently ignored to stay
+            // false-positive-free).
+            attach_jml_annotations(&mut file, src);
             (file, diagnostics)
         }
         Err(err) => {
@@ -175,53 +181,59 @@ fn parse_name_list(pair: Pair<Rule>) -> Vec<String> {
         .collect()
 }
 
-/// Parse a type expression into a Type AST node
+/// Parse a type expression into a Type AST node.
+///
+/// Nullable types use the `Nullable<T>` generic sugar (which parses with the
+/// fixed `smol.pest` grammar): `Nullable<Inner>` yields `Type::Nullable`.
 fn parse_type_expr(pair: Pair<Rule>) -> Type {
-    let inner = pair
-        .into_inner()
-        .next()
-        .expect("Type expression must have inner");
-    match inner.as_rule() {
-        Rule::simple_type => {
-            let name_str = inner
-                .into_inner()
-                .next()
-                .expect("Simple type must have a name");
-            let name = name_str.as_str();
-            // Primitive types are capitalised in SMOL (`Int`, `String`, …), so
-            // they land here as `type_name`.  Normalise them to the dedicated
-            // AST variants so the type checker treats them as primitives.
-            match name {
-                "Int" => Type::Int,
-                "Double" => Type::Double,
-                "Boolean" => Type::Boolean,
-                "String" => Type::String,
-                "Unit" => Type::Unit,
-                _ => Type::Named(name.to_owned()),
+    let mut base: Option<Type> = None;
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::simple_type => {
+                let name_str = inner
+                    .into_inner()
+                    .next()
+                    .expect("Simple type must have a name");
+                let name = name_str.as_str();
+                // Primitive types are capitalised in SMOL (`Int`, `String`, …), so
+                // they land here as `type_name`.  Normalise them to the dedicated
+                // AST variants so the type checker treats them as primitives.
+                base = Some(match name {
+                    "Int" => Type::Int,
+                    "Double" => Type::Double,
+                    "Boolean" => Type::Boolean,
+                    "String" => Type::String,
+                    "Unit" => Type::Unit,
+                    _ => Type::Named(name.to_owned()),
+                });
             }
-        }
-        Rule::generic_type => {
-            let mut parts = inner.into_inner();
-            let name_str = parts.next().expect("generic_type must have name");
-            let name = name_str.as_str().to_owned();
+            Rule::generic_type => {
+                let mut parts = inner.into_inner();
+                let name_str = parts.next().expect("generic_type must have name");
+                let name = name_str.as_str().to_owned();
 
-            let type_list = parts.next().expect("generic_type must have type_list");
-            let type_params = parse_type_list(type_list);
-            // `List<T>` and `ExplList<T>` are first-class list types, not generic
-            // containers — normalise them so both the model resolver and the
-            // type checker can recognise their list semantics.
-            if type_params.len() == 1 {
-                match name.as_str() {
-                    "List" => return Type::List(Box::new(type_params[0].clone())),
-                    "ExplList" => return Type::ExplList(Box::new(type_params[0].clone())),
-                    _ => {}
-                }
+                let type_list = parts.next().expect("generic_type must have type_list");
+                let type_params = parse_type_list(type_list);
+                // `List<T>` and `ExplList<T>` are first-class list types, not generic
+                // containers — normalise them so both the model resolver and the
+                // type checker can recognise their list semantics.
+                // `Nullable<T>` is the nullable-type sugar for `Type::Nullable`.
+                base = Some(if type_params.len() == 1 {
+                    match name.as_str() {
+                        "List" => Type::List(Box::new(type_params[0].clone())),
+                        "ExplList" => Type::ExplList(Box::new(type_params[0].clone())),
+                        "Nullable" => Type::Nullable(Box::new(type_params[0].clone())),
+                        _ => Type::Generic(name, type_params),
+                    }
+                } else {
+                    Type::Generic(name, type_params)
+                });
             }
-            Type::Generic(name, type_params)
+            Rule::fmu_type => base = Some(parse_fmu_type(inner)),
+            _ => {}
         }
-        Rule::fmu_type => parse_fmu_type(inner),
-        _ => Type::Named("Unknown".to_owned()),
     }
+    base.unwrap_or_else(|| Type::Named("Unknown".to_owned()))
 }
 
 fn parse_type_list(pair: Pair<Rule>) -> Vec<Type> {
@@ -427,6 +439,8 @@ fn parse_method_def(pair: Pair<Rule>) -> MethodDecl {
     let mut name = String::new();
     let mut params = Vec::new();
     let mut adapts = Vec::new();
+    let requires = Vec::new();
+    let ensures = Vec::new();
     let mut body = Vec::new();
 
     for inner in pair.into_inner() {
@@ -435,6 +449,10 @@ fn parse_method_def(pair: Pair<Rule>) -> MethodDecl {
             Rule::rule_kw => flags.is_rule = true,
             Rule::domain_kw => flags.is_domain = true,
             Rule::override_kw => flags.is_override = true,
+            // NOTE: `requires`/`ensures` contracts and `pure`/`domain-reads`/
+            // `domain-writes` effects are supplied via JML comments (`/*@ … @*/`,
+            // see `attach_jml_annotations`) — the `smol.pest` grammar is fixed
+            // and carries no dedicated syntax for them.
             Rule::type_expr => ret_type = parse_type_expr(inner),
             Rule::name => name = parse_name(inner),
             Rule::param_list => params = parse_param_list(inner),
@@ -450,6 +468,8 @@ fn parse_method_def(pair: Pair<Rule>) -> MethodDecl {
         name,
         params,
         adapts,
+        requires,
+        ensures,
         body,
         span,
     }
@@ -592,17 +612,26 @@ fn parse_if_stmt(pair: Pair<Rule>) -> Stmt {
 fn parse_while_stmt(pair: Pair<Rule>) -> Stmt {
     let span = span_from_pair(&pair);
     let mut cond = Expr::Null(span);
+    let decreases = None;
     let mut body = Vec::new();
 
     for inner in pair.into_inner() {
         match inner.as_rule() {
             Rule::expression => cond = parse_expression(inner),
+            // NOTE: the `decreases` variant is supplied via a JML comment
+            // (`/*@ decreases <expr> @*/` inside the loop body) — the fixed
+            // grammar carries no dedicated syntax for it.
             Rule::statement_list => body = parse_statement_list(inner),
             _ => {}
         }
     }
 
-    Stmt::While { cond, body, span }
+    Stmt::While {
+        cond,
+        decreases,
+        body,
+        span,
+    }
 }
 
 /// Build a declaration (`Type name = …`) when a leading type and a plain-name
@@ -1278,4 +1307,324 @@ fn parse_string_lit(pair: Pair<Rule>) -> String {
     } else {
         s.to_owned()
     }
+}
+
+// ── JML contract annotations ────────────────────────────────────────────────
+// The `smol.pest` grammar is fixed and carries no dedicated syntax for Hoare
+// contracts, effect declarations or loop variants. They travel as JML-style
+// comments instead — the convention already used informally in example code
+// (`/*@ requires other != null @*/`):
+//
+// ```smol
+// class Calc ()
+//     /*@ requires x > 0 @*/
+//     /*@ ensures result > 0 @*/
+//     /*@ pure @*/
+//     Int ident(Int x)
+//         return x;
+//     end
+// end
+//
+// class Loop ()
+//     Unit run()
+//         Int i = 0;
+//         while i < 10 do
+//             /*@ decreases 10 - i @*/
+//             i = i + 1;
+//         end
+//     end
+// end
+// ```
+//
+// Supported annotations (block `/*@ … @*/` or line `//@ …`):
+// - `requires <expr>` / `ensures <expr>` → `MethodDecl.requires`/`ensures`
+// - `pure` / `domain-reads` / `domain-writes` → `MethodFlags.effect`
+// - `decreases <expr>` → `Stmt::While.decreases`
+// - Nullable types use the `Nullable<T>` generic sugar (plain grammar).
+//
+// An annotation attaches to the innermost method (or `while` for `decreases`)
+// whose source span contains the comment; an annotation preceding a method
+// attaches to the following method. Unparsable annotation bodies are silently
+// ignored so legacy code can never regress.
+
+/// A single extracted JML annotation with its byte offset in the source.
+struct JmlAnnotation {
+    kind: JmlKind,
+    /// Raw expression text for `requires`/`ensures`/`decreases`.
+    body: String,
+    offset: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum JmlKind {
+    Requires,
+    Ensures,
+    Decreases,
+    Pure,
+    DomainReads,
+    DomainWrites,
+}
+
+/// Scan `src` for `/*@ … @*/` and `//@ …` annotations (byte offsets included).
+fn extract_jml_annotations(src: &str) -> Vec<JmlAnnotation> {
+    let mut out = Vec::new();
+    let bytes = src.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if src[i..].starts_with("/*@") {
+            let start = i;
+            let rest = &src[i + 3..];
+            if let Some(end) = rest.find("@*/") {
+                let body = rest[..end].trim().to_owned();
+                push_jml(&mut out, body, start);
+                i += 3 + end + 3;
+                continue;
+            }
+            break; // unterminated block comment — let the grammar report it
+        } else if src[i..].starts_with("//@") {
+            let start = i;
+            let rest = &src[i + 3..];
+            let end = rest.find('\n').map_or(rest.len(), |p| p);
+            push_jml(&mut out, rest[..end].trim().to_owned(), start);
+            i += 3 + end;
+            continue;
+        }
+        // Advance by one UTF-8 scalar.
+        i += src[i..].chars().next().map_or(1, |c| c.len_utf8());
+    }
+    out
+}
+
+fn push_jml(out: &mut Vec<JmlAnnotation>, body: String, offset: usize) {
+    let (kind, expr_body) = if let Some(rest) = strip_jml_head(&body, "requires") {
+        (JmlKind::Requires, rest.to_owned())
+    } else if let Some(rest) = strip_jml_head(&body, "ensures") {
+        (JmlKind::Ensures, rest.to_owned())
+    } else if let Some(rest) = strip_jml_head(&body, "decreases") {
+        (JmlKind::Decreases, rest.to_owned())
+    } else if body == "pure" {
+        (JmlKind::Pure, String::new())
+    } else if body == "domain-reads" {
+        (JmlKind::DomainReads, String::new())
+    } else if body == "domain-writes" {
+        (JmlKind::DomainWrites, String::new())
+    } else {
+        return; // not a contract annotation (ordinary comment mentioning `@`)
+    };
+    out.push(JmlAnnotation {
+        kind,
+        body: expr_body,
+        offset,
+    });
+}
+
+/// Match `<head> <expr>` where `<head>` is followed by whitespace.
+fn strip_jml_head<'a>(body: &'a str, head: &str) -> Option<&'a str> {
+    let rest = body.strip_prefix(head)?;
+    if rest.is_empty() || !rest.as_bytes()[0].is_ascii_whitespace() {
+        return None;
+    }
+    Some(rest.trim())
+}
+
+/// Parse an annotation expression with the fixed grammar (no new rules).
+fn parse_jml_expr(text: &str) -> Option<Expr> {
+    if text.is_empty() {
+        return None;
+    }
+    let mut pairs = SmolParser::parse(Rule::expression, text).ok()?;
+    let pair = pairs.next()?;
+    Some(parse_expression(pair))
+}
+
+fn span_contains(span: Span, offset: usize) -> bool {
+    span.start <= offset && offset < span.end
+}
+
+/// Attach extracted JML annotations to methods / `while` loops by span.
+fn attach_jml_annotations(file: &mut File, src: &str) {
+    let annots = extract_jml_annotations(src);
+    if annots.is_empty() {
+        return;
+    }
+    // Method index in source order: (span, class_idx, method_idx).
+    let mut methods: Vec<(Span, usize, usize)> = Vec::new();
+    for (ci, class) in file.classes.iter().enumerate() {
+        for (mi, method) in class.methods.iter().enumerate() {
+            methods.push((method.span, ci, mi));
+        }
+    }
+    methods.sort_by_key(|(span, _, _)| span.start);
+
+    for annot in &annots {
+        match annot.kind {
+            JmlKind::Requires | JmlKind::Ensures | JmlKind::Pure
+            | JmlKind::DomainReads | JmlKind::DomainWrites => {
+                // Innermost enclosing method, else the following method.
+                let target = methods
+                    .iter()
+                    .find(|(span, _, _)| span_contains(*span, annot.offset))
+                    .or_else(|| {
+                        methods
+                            .iter()
+                            .find(|(span, _, _)| span.start > annot.offset)
+                    });
+                if let Some(&(_, ci, mi)) = target {
+                    let method = &mut file.classes[ci].methods[mi];
+                    match annot.kind {
+                        JmlKind::Requires => {
+                            if let Some(expr) = parse_jml_expr(&annot.body) {
+                                method.requires.push(expr);
+                            }
+                        }
+                        JmlKind::Ensures => {
+                            if let Some(expr) = parse_jml_expr(&annot.body) {
+                                method.ensures.push(expr);
+                            }
+                        }
+                        JmlKind::Pure => method.flags.effect = Some(Effect::Pure),
+                        JmlKind::DomainReads => {
+                            method.flags.effect = Some(Effect::DomainReads);
+                        }
+                        JmlKind::DomainWrites => {
+                            method.flags.effect = Some(Effect::DomainWrites);
+                        }
+                        JmlKind::Decreases => unreachable!(),
+                    }
+                }
+            }
+            JmlKind::Decreases => {
+                // Innermost enclosing `while`, else the next `while` in the
+                // enclosing-or-following method.
+                if !attach_decreases_to_enclosing_while(file, annot) {
+                    attach_decreases_to_following_while(file, &methods, annot);
+                }
+            }
+        }
+    }
+}
+
+/// Attach to the innermost `while` whose span contains the annotation.
+fn attach_decreases_to_enclosing_while(file: &mut File, annot: &JmlAnnotation) -> bool {
+    for class in &mut file.classes {
+        for method in &mut class.methods {
+            if span_contains(method.span, annot.offset)
+                && attach_decreases_in_stmts(&mut method.body, annot)
+            {
+                return true;
+            }
+        }
+    }
+    if let Some(main) = file.main.as_mut() {
+        if attach_decreases_in_stmts(main, annot) {
+            return true;
+        }
+    }
+    false
+}
+
+fn attach_decreases_in_stmts(stmts: &mut [Stmt], annot: &JmlAnnotation) -> bool {
+    // Deepest match first: recurse into nested bodies before testing siblings
+    // so the innermost enclosing loop wins.
+    for stmt in stmts.iter_mut() {
+        let nested: Option<&mut Vec<Stmt>> = match stmt {
+            Stmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                if attach_decreases_in_stmts(then_body, annot) {
+                    return true;
+                }
+                if attach_decreases_in_stmts(else_body, annot) {
+                    return true;
+                }
+                None
+            }
+            Stmt::While { body, .. } => Some(body),
+            _ => None,
+        };
+        if let Some(body) = nested {
+            if attach_decreases_in_stmts(body, annot) {
+                return true;
+            }
+        }
+    }
+    for stmt in stmts.iter_mut() {
+        if let Stmt::While {
+            span, decreases, ..
+        } = stmt
+        {
+            if decreases.is_none() && span_contains(*span, annot.offset) {
+                if let Some(expr) = parse_jml_expr(&annot.body) {
+                    *decreases = Some(Box::new(expr));
+                    return true;
+                }
+                return false;
+            }
+        }
+    }
+    false
+}
+
+/// Attach to the first `while` following the annotation in source order.
+fn attach_decreases_to_following_while(
+    file: &mut File,
+    methods: &[(Span, usize, usize)],
+    annot: &JmlAnnotation,
+) {
+    let target = methods
+        .iter()
+        .find(|(span, _, _)| span_contains(*span, annot.offset))
+        .or_else(|| {
+            methods
+                .iter()
+                .find(|(span, _, _)| span.start > annot.offset)
+        });
+    if let Some(&(_, ci, mi)) = target {
+        let body = &mut file.classes[ci].methods[mi].body;
+        if let Some(slot) = first_empty_decreases_after(body, annot.offset) {
+            if let Some(expr) = parse_jml_expr(&annot.body) {
+                *slot = Some(Box::new(expr));
+            }
+        }
+    }
+}
+
+/// First `decreases`-less `while` (in traversal order) starting after `offset`.
+fn first_empty_decreases_after(
+    stmts: &mut [Stmt],
+    offset: usize,
+) -> Option<&mut Option<Box<Expr>>> {
+    for stmt in stmts.iter_mut() {
+        match stmt {
+            Stmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                if let Some(slot) = first_empty_decreases_after(then_body, offset) {
+                    return Some(slot);
+                }
+                if let Some(slot) = first_empty_decreases_after(else_body, offset) {
+                    return Some(slot);
+                }
+            }
+            Stmt::While {
+                span,
+                decreases,
+                body,
+                ..
+            } => {
+                if decreases.is_none() && span.start > offset {
+                    return Some(decreases);
+                }
+                if let Some(slot) = first_empty_decreases_after(body, offset) {
+                    return Some(slot);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }

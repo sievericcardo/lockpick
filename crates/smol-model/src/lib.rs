@@ -10,6 +10,7 @@
 
 pub mod cfg;
 pub mod checks;
+pub mod concretise;
 pub mod ctl;
 pub mod kripke;
 pub mod model;

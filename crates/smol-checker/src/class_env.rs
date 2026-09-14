@@ -142,12 +142,25 @@ impl ClassEnv {
     }
 
     /// Check if `ty_a` is assignable to `ty_b`.
+    ///
+    /// Nullable rules (strict): `Nullable(T)` accepts `T` and `null`;
+    /// plain `T` does NOT accept `Nullable(T)`.
     #[must_use]
     #[allow(clippy::match_same_arms)]
     pub fn is_assignable(&self, from: &Type, to: &Type) -> bool {
         match (from, to) {
             // null is represented as Type::Named("_null") internally — allow any ref type.
             (Type::Named(a), Type::Named(_)) if a == "_null" => true,
+            // `null` flows into any nullable type.
+            (Type::Named(a), Type::Nullable(_)) if a == "_null" => true,
+            // `Nullable(T)` flows into `Nullable(U)` iff `T` flows into `U`.
+            (Type::Nullable(from_ty), Type::Nullable(to_ty)) => {
+                self.is_assignable(from_ty, to_ty)
+            }
+            // `T` flows into `Nullable(U)` iff `T` flows into `U`.
+            (from_ty, Type::Nullable(to_ty)) => self.is_assignable(from_ty, to_ty),
+            // Strict: `Nullable(T)` never flows into a non-nullable slot.
+            (Type::Nullable(_), _) => false,
             (Type::Int, Type::Int)
             | (Type::Double, Type::Double)
             | (Type::String, Type::String)

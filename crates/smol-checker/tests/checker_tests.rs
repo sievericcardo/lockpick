@@ -726,3 +726,300 @@ end
         "destroyed FMO variable must not be warned, got: {diags:#?}"
     );
 }
+
+// ── Domain effects (E2019) ──────────────────────────────────────────────────
+
+#[test]
+fn domain_write_in_plain_method_is_warned() {
+    let src = r#"
+class Plant (domain Double moisture)
+    Unit sync()
+        this.moisture = 1.0;
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::DomainMutation),
+        "expected DomainMutation for domain write in plain method, got: {diags:#?}"
+    );
+    assert!(
+        diags.iter().filter(|d| d.is_error()).count() == 0,
+        "DomainMutation must be warning-level, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn domain_write_in_domain_method_is_clean() {
+    let src = r#"
+class Plant (domain Double moisture)
+    domain Unit sync()
+        this.moisture = 1.0;
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::DomainMutation),
+        "domain method writing domain field must not be flagged, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn transitive_domain_write_is_warned() {
+    let src = r#"
+class Plant (domain Double moisture)
+    domain Unit sync()
+        this.moisture = 1.0;
+    end
+    Unit driver()
+        this.sync();
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::DomainMutation),
+        "expected DomainMutation for transitive domain write, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn hidden_field_in_links_is_warned() {
+    let src = r#"
+class Plant (hidden String secret)
+links "a ast:Plant ; ast:secret %secret";
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::DomainMutation),
+        "expected DomainMutation for hidden field leaked into links, got: {diags:#?}"
+    );
+}
+
+// ── Path-sensitive FMO lifecycle (W2020) ─────────────────────────────────────
+
+#[test]
+fn fmo_destroyed_on_all_branches_no_warning() {
+    let src = r#"
+class Sim ()
+    Unit run(Boolean flag)
+        FMO[in Double speed, out Double pos] fmu = null;
+        if flag then
+            destroy(fmu);
+        else
+            destroy(fmu);
+        end
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::FmoNotDestroyed),
+        "destroy on every branch must not be warned, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn fmo_destroyed_on_one_branch_is_warned() {
+    let src = r#"
+class Sim ()
+    Unit run(Boolean flag)
+        FMO[in Double speed, out Double pos] fmu = null;
+        if flag then
+            destroy(fmu);
+        else
+            print("leak");
+        end
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::FmoNotDestroyed),
+        "expected FmoNotDestroyed when one branch leaks, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn fmo_destroy_only_in_loop_body_is_warned() {
+    let src = r#"
+class Sim ()
+    Unit run(List<String> items)
+        FMO[in Double speed, out Double pos] fmu = null;
+        while items != null do
+            destroy(fmu);
+            items = items.next;
+        end
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::FmoNotDestroyed),
+        "expected FmoNotDestroyed when destroy is only inside a loop body, got: {diags:#?}"
+    );
+}
+
+// ── Inter-procedural SPARQL taint ────────────────────────────────────────────
+
+#[test]
+fn interprocedural_taint_through_query_sink_is_warned() {
+    let src = r#"
+class Store ()
+    Unit lookup(String key)
+        List<String> r = access("SELECT ?x { ?x <urn:p> \"%1\" }", key);
+        print(r);
+    end
+    Unit driver()
+        List<String> tainted = access("SELECT ?y { ?y a <urn:T> }");
+        this.lookup(tainted.content);
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::SparqlInjection),
+        "expected SparqlInjection across method boundary, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn interprocedural_taint_clean_call_no_warning() {
+    let src = r#"
+class Store ()
+    Unit lookup(String key)
+        List<String> r = access("SELECT ?x { ?x <urn:p> \"%1\" }", key);
+        print(r);
+    end
+    Unit driver()
+        this.lookup("static-key");
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::SparqlInjection),
+        "clean call must not be flagged, got: {diags:#?}"
+    );
+}
+
+// ── Symbolic execution: arithmetic (E2021/E2022) ────────────────────────────
+
+#[test]
+fn definite_division_by_zero_is_error() {
+    let src = r#"
+class Calc ()
+    Int div(Int x, Int y)
+        Int q = x / 0;
+        return q;
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::DivisionByZero),
+        "expected DivisionByZero, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn guarded_division_no_false_positive() {
+    let src = r#"
+class Calc ()
+    Int div(Int x, Int y)
+        if y != 0 then
+            Int q = x / y;
+            return q;
+        else
+            return 0;
+        end
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::DivisionByZero),
+        "guarded division must not be flagged, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn zero_guard_then_divide_is_error() {
+    let src = r#"
+class Calc ()
+    Int div(Int x, Int y)
+        if y == 0 then
+            Int q = x / y;
+            return q;
+        else
+            return 0;
+        end
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::DivisionByZero),
+        "expected DivisionByZero on the y==0 path, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn constant_overflow_is_error() {
+    let src = r#"
+class Calc ()
+    Int big()
+        Int x = 9223372036854775807 + 1;
+        return x;
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::IntegerOverflow),
+        "expected IntegerOverflow, got: {diags:#?}"
+    );
+}
+
+// ── Symbolic execution: termination (E5012) ─────────────────────────────────
+
+#[test]
+fn loop_without_variant_is_warned() {
+    let src = r#"
+class Loop ()
+    Unit run()
+        Int i = 0;
+        while i < 10 do
+            print(i);
+        end
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::LoopTerminationUnproven),
+        "expected LoopTerminationUnproven, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn loop_with_variant_no_warning() {
+    let src = r#"
+class Loop ()
+    Unit run()
+        Int i = 0;
+        while i < 10 do
+            print(i);
+            i = i + 1;
+        end
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::LoopTerminationUnproven),
+        "loop with variant must not be flagged, got: {diags:#?}"
+    );
+}

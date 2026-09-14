@@ -14,7 +14,7 @@
 //!    submitted). `prog:`-prefixed elements are runtime-only and skipped;
 //!    unresolvable prefixes produce a warning (they may be injected at runtime).
 //! 5b. Ontology-data sanity: predicates that are near-duplicates of another
-//!     predicate (e.g. `odrl:assignero` next to `odrl:assigner`) trigger a
+//!     predicate (e.g. `odrl:assignero` vs `odrl:assigner`) trigger a
 //!     typo warning.
 //! 6. SHACL shapes validation for shape graphs provided in `smol.toml`.
 

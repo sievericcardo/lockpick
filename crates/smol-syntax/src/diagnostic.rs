@@ -125,6 +125,14 @@ pub enum DiagnosticCode {
     NullDereference = 2018,
     DomainMutation = 2019,
     FmoNotDestroyed = 2020,
+    IntegerOverflow = 2021,
+    DivisionByZero = 2022,
+    // Nullability / FMO ownership (WAVE1 foundation; enforced by later waves)
+    NullableFieldDereference = 2023,
+    FmoEscaped = 2024,
+    FmoUseAfterDestroy = 2025,
+    EffectContractViolation = 2026,
+    PureViolation = 2027,
 
     // Ontology errors
     OntologyLoadFailed = 3001,
@@ -143,6 +151,8 @@ pub enum DiagnosticCode {
     SuspiciousOntologyPredicate = 3014,
     ClassifiesDisjointUnion = 3015,
     SparqlInjection = 3016,
+    // Heap-taint extension of the SPARQL-taint pass (reserved code).
+    HeapTaint = 3021,
 
     // Manifest / IO errors
     ManifestNotFound = 4001,
@@ -162,6 +172,17 @@ pub enum DiagnosticCode {
     InvariantViolation = 5009,
     UnreachableStatement = 5010,
     ProgramPropertyViolation = 5011,
+    LoopTerminationUnproven = 5012,
+    // Concretisation (WAVE1 foundation; enforced by later waves)
+    InitialConcretisationFailure = 5013,
+    ConcretisationTimeout = 5014,
+
+    // Hoare-contract range 60xx (WAVE1 foundation; discharged by later waves)
+    HoareRangeStart = 6000,
+    PreconditionUnsatisfied = 6001,
+    PostconditionViolated = 6002,
+    SmtDischargeFailed = 6003,
+    SmtTimeout = 6004,
 }
 
 impl std::fmt::Display for DiagnosticCode {
