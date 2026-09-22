@@ -148,7 +148,7 @@ end
 }
 
 #[test]
-fn unannotated_method_keeps_e2019_warning_only() {
+fn unannotated_method_is_silent() {
     let src = r#"
 class Plant (domain Double moisture)
     Unit sync()
@@ -160,24 +160,18 @@ end
     unsafe { std::env::remove_var("SMOL_STRICT_EFFECTS") };
     let diags = check_src(src);
     assert!(
-        has_code(&diags, DiagnosticCode::DomainMutation),
-        "expected E2019 DomainMutation for unannotated write, got: {diags:#?}"
+        !has_code(&diags, DiagnosticCode::DomainMutation),
+        "unannotated domain write must not produce DomainMutation, got: {diags:#?}"
     );
     assert!(
         !has_code(&diags, DiagnosticCode::EffectContractViolation)
             && !has_code(&diags, DiagnosticCode::PureViolation),
         "unannotated methods must never get the new codes, got: {diags:#?}"
     );
-    assert!(
-        codes(&diags, DiagnosticCode::DomainMutation)
-            .iter()
-            .all(|d| d.severity == Severity::Warning),
-        "default E2019 must stay warning-level, got: {diags:#?}"
-    );
 }
 
 #[test]
-fn strict_env_upgrades_e2019_to_error() {
+fn strict_env_does_not_produce_e2019() {
     let src = r#"
 class Plant (domain Double moisture)
     Unit sync()
@@ -191,14 +185,9 @@ end
     // NOTE: still holding the first `_guard` — do NOT lock again (Mutex is
     // not reentrant); clean up the env var before asserting.
     unsafe { std::env::remove_var("SMOL_STRICT_EFFECTS") };
-    let e2019 = codes(&diags, DiagnosticCode::DomainMutation);
     assert!(
-        !e2019.is_empty(),
-        "expected E2019 DomainMutation under strict mode, got: {diags:#?}"
-    );
-    assert!(
-        e2019.iter().all(|d| d.severity == Severity::Error),
-        "strict E2019 must be error-level, got: {diags:#?}"
+        !has_code(&diags, DiagnosticCode::DomainMutation),
+        "strict mode must not produce E2019 for a plain domain write, got: {diags:#?}"
     );
     assert!(
         !has_code(&diags, DiagnosticCode::EffectContractViolation)

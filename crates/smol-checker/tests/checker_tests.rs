@@ -730,7 +730,7 @@ end
 // ── Domain effects (E2019) ──────────────────────────────────────────────────
 
 #[test]
-fn domain_write_in_plain_method_is_warned() {
+fn domain_write_in_plain_method_is_silent() {
     let src = r#"
 class Plant (domain Double moisture)
     Unit sync()
@@ -740,12 +740,12 @@ end
 "#;
     let diags = check_src(src);
     assert!(
-        has_code(&diags, DiagnosticCode::DomainMutation),
-        "expected DomainMutation for domain write in plain method, got: {diags:#?}"
+        !has_code(&diags, DiagnosticCode::DomainMutation),
+        "domain write in plain method must not produce DomainMutation, got: {diags:#?}"
     );
     assert!(
         diags.iter().filter(|d| d.is_error()).count() == 0,
-        "DomainMutation must be warning-level, got: {diags:#?}"
+        "domain write in plain method must not produce errors, got: {diags:#?}"
     );
 }
 
@@ -766,7 +766,7 @@ end
 }
 
 #[test]
-fn transitive_domain_write_is_warned() {
+fn transitive_domain_write_is_silent() {
     let src = r#"
 class Plant (domain Double moisture)
     domain Unit sync()
@@ -779,8 +779,8 @@ end
 "#;
     let diags = check_src(src);
     assert!(
-        has_code(&diags, DiagnosticCode::DomainMutation),
-        "expected DomainMutation for transitive domain write, got: {diags:#?}"
+        !has_code(&diags, DiagnosticCode::DomainMutation),
+        "transitive domain write must not produce DomainMutation, got: {diags:#?}"
     );
 }
 

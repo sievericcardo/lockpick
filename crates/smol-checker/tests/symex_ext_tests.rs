@@ -65,6 +65,87 @@ end
     );
 }
 
+// ── Variable integer bounds (E5012) ─────────────────────────────────────────
+
+#[test]
+fn variable_bound_loop_without_progress_is_warned() {
+    let src = r#"
+class Loop ()
+    Unit run()
+        Int i = 0;
+        Int n = 10;
+        while i < n do
+            print(i);
+        end
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::LoopTerminationUnproven),
+        "variable-bound loop with no progress must keep E5012, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn variable_bound_loop_advancing_var_is_silent() {
+    let src = r#"
+class Loop ()
+    Unit run()
+        Int i = 0;
+        Int n = 10;
+        while i < n do
+            i = i + 1;
+        end
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::LoopTerminationUnproven),
+        "variable-bound loop advancing the compared variable must be silent, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn variable_bound_loop_advancing_bound_is_silent() {
+    let src = r#"
+class Loop ()
+    Unit run()
+        Int i = 0;
+        Int n = 10;
+        while i < n do
+            n = n - 1;
+        end
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        !has_code(&diags, DiagnosticCode::LoopTerminationUnproven),
+        "variable-bound loop advancing the bound variable must be silent, got: {diags:#?}"
+    );
+}
+
+#[test]
+fn constant_bound_loop_still_checked() {
+    let src = r#"
+class Loop ()
+    Unit run()
+        Int i = 0;
+        while i < 10 do
+            print(i);
+        end
+    end
+end
+"#;
+    let diags = check_src(src);
+    assert!(
+        has_code(&diags, DiagnosticCode::LoopTerminationUnproven),
+        "constant-bound loop with no progress must keep E5012, got: {diags:#?}"
+    );
+}
+
 // ── Widening + non-constant intervals (§2.4) ───────────────────────────────
 
 #[test]

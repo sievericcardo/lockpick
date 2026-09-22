@@ -23,9 +23,18 @@
 //!   Non-singleton divisors such as `[0, 5]` stay silent — no new false
 //!   positives.
 //! - **E5012 `LoopTerminationUnproven`** (warning): a `while` loop guarded by
-//!   an integer comparison with a constant bound but whose body shows no
+//!   an integer comparison over a tracked `Int` variable, whose body shows no
 //!   monotonic update of the compared variable toward the bound (the
 //!   ranking-function / variant argument of plan §2.3, in syntactic form).
+//!   The bound may be a constant *or* an integer expression over tracked
+//!   `Int` variables; for variable bounds the warning is also suppressed when
+//!   the body drives a bound variable in the opposite direction
+//!   (`while i < n` terminates by raising `i` *or* lowering `n`).
+//!   Integer bounds may be constants or expressions over tracked `Int`
+//!   variables, including non-linear ones such as `n * n`; since this is a
+//!   warning-level may-analysis, a loop whose bound is a non-linear
+//!   expression may still be flagged when no syntactic `var = var ± k`
+//!   progress is visible.
 //!   A `decreases expr` clause acts as the explicit variant: it suppresses
 //!   the warning when the body monotonically updates a variable of the
 //!   clause toward the bound (e.g. `decreases 10 - i` with `i = i + 1`);
@@ -662,10 +671,22 @@ impl Symex<'_> {
                     .with_span(span),
                 );
             }
-            (Some(dec), LoopNeed::Bounded { var, need }) => {
+            (Some(dec), LoopNeed::Bounded {
+                var,
+                need,
+                bound_vars,
+            }) => {
                 let vars = collect_vars(dec);
                 if vars.contains(&var) && find_progress(body, &var, &need) {
                     return;
+                }
+                // A clause variable that is a bound variable progressing in
+                // the opposite direction also establishes the variant
+                // (e.g. `decreases n` with `while i < n do n = n - 1`).
+                for bv in &bound_vars {
+                    if vars.contains(bv) && find_progress(body, bv, &opposite_need(&need)) {
+                        return;
+                    }
                 }
                 self.diags.push(
                     Diagnostic::warning(
@@ -696,9 +717,21 @@ impl Symex<'_> {
                     .with_span(span),
                 );
             }
-            (None, LoopNeed::Bounded { var, need }) => {
+            (None, LoopNeed::Bounded {
+                var,
+                need,
+                bound_vars,
+            }) => {
                 if find_progress(body, &var, &need) {
                     return;
+                }
+                // A variable bound advances toward the compared variable in
+                // the opposite direction (`while i < n` terminates if `n`
+                // decreases even when `i` stays put).
+                for bv in &bound_vars {
+                    if find_progress(body, bv, &opposite_need(&need)) {
+                        return;
+                    }
                 }
                 self.diags.push(
                     Diagnostic::warning(
@@ -767,14 +800,21 @@ impl Symex<'_> {
 enum LoopNeed {
     /// `while true`: no bound at all.
     Always,
-    /// Integer comparison against a constant bound.
-    Bounded { var: String, need: ProgressNeed },
-    /// Guards the syntactic check skips (lists, non-Int, non-constant).
+    /// Integer comparison of a tracked Int variable against an integer bound
+    /// (constant or an expression over tracked Int vars); `bound_vars` are
+    /// the variable names appearing in the bound expression.
+    Bounded {
+        var: String,
+        need: ProgressNeed,
+        bound_vars: HashSet<String>,
+    },
+    /// Guards the syntactic check skips (lists, non-Int, non-integer bound).
     Skipped,
 }
 
 /// Classify a loop guard exactly as the syntactic termination check does:
-/// `while true` is `Always`; `x <rel> const` over an `Int` variable is
+/// `while true` is `Always`; `x <rel> bound` over an `Int` variable with an
+/// integer bound (constant or an expression over tracked Int vars) is
 /// `Bounded`; anything else is `Skipped`.
 fn loop_need(cond: &Expr, int_vars: &HashSet<String>) -> LoopNeed {
     if matches!(cond, Expr::BoolLit(true, _)) {
@@ -786,7 +826,8 @@ fn loop_need(cond: &Expr, int_vars: &HashSet<String>) -> LoopNeed {
     else {
         return LoopNeed::Skipped;
     };
-    // Expect `x <rel> bound` with a constant bound and an Int variable.
+    // Expect `x <rel> bound` with an Int variable and an integer expression
+    // (constant or over tracked Int vars) on the other side.
     let (var, bound_expr, flipped) = match (left.as_ref(), right.as_ref()) {
         (Expr::Var(v, _), b) => (v.clone(), b.clone(), false),
         (b, Expr::Var(v, _)) => (v.clone(), b.clone(), true),
@@ -795,10 +836,11 @@ fn loop_need(cond: &Expr, int_vars: &HashSet<String>) -> LoopNeed {
     if !int_vars.contains(&var) {
         return LoopNeed::Skipped;
     }
-    let (bound, _) = eval_int(&bound_expr, &HashMap::new());
-    if bound.is_singleton().is_none() {
+    if !is_int_expr(&bound_expr, int_vars) {
         return LoopNeed::Skipped;
     }
+    let mut bound_vars = collect_vars(&bound_expr);
+    bound_vars.remove(&var);
     // Direction the variable must move for the bound to be approached:
     // upper-bounded (`x < b`) needs increases; lower-bounded needs decreases.
     let need = match (op, flipped) {
@@ -811,7 +853,33 @@ fn loop_need(cond: &Expr, int_vars: &HashSet<String>) -> LoopNeed {
         (BinOp::NotEq, _) => ProgressNeed::Either,
         _ => return LoopNeed::Skipped,
     };
-    LoopNeed::Bounded { var, need }
+    LoopNeed::Bounded {
+        var,
+        need,
+        bound_vars,
+    }
+}
+
+/// True if `expr` is an integer expression: an integer literal, a variable
+/// tracked as `Int`, an arithmetic `BinOp` (Add/Sub/Mul/Div/Mod) over integer
+/// expressions, or a unary negation over an integer expression.
+fn is_int_expr(expr: &Expr, int_vars: &HashSet<String>) -> bool {
+    match expr {
+        Expr::IntLit(..) => true,
+        Expr::Var(name, _) => int_vars.contains(name.as_str()),
+        Expr::BinOp { op, left, right, .. } => match op {
+            BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod => {
+                is_int_expr(left, int_vars) && is_int_expr(right, int_vars)
+            }
+            _ => false,
+        },
+        Expr::UnaryOp {
+            op: smol_syntax::ast::UnaryOp::Neg,
+            expr,
+            ..
+        } => is_int_expr(expr, int_vars),
+        _ => false,
+    }
 }
 
 /// Collect all variable names occurring in an expression (used for
@@ -867,6 +935,16 @@ enum ProgressNeed {
     Increase,
     Decrease,
     Either,
+}
+
+/// The direction a *bound* variable must move for the compared variable to
+/// reach it: the mirror of the compared variable's required direction.
+fn opposite_need(need: &ProgressNeed) -> ProgressNeed {
+    match need {
+        ProgressNeed::Increase => ProgressNeed::Decrease,
+        ProgressNeed::Decrease => ProgressNeed::Increase,
+        ProgressNeed::Either => ProgressNeed::Either,
+    }
 }
 
 fn stmt_progress(stmt: &Stmt, var: &str, need: &ProgressNeed) -> bool {

@@ -6,15 +6,14 @@
 //!
 //! # Rules
 //!
-//! 1. **Domain-write effect** (`DomainMutation`, E2019, warning level):
-//!    a method with *no* effect annotation that is *not* marked `domain`
-//!    must not directly assign to a `domain`-modified field (`this.f = …`
-//!    or `obj.f = …` where `f` is declared `domain`). The fix is to add
-//!    the `domain` modifier to the method. The check is also
-//!    inter-procedural: a non-`domain` method must not call a `domain`
-//!    method that (transitively) writes a `domain` field — the effect is
-//!    propagated through the call graph to a fixed point, exactly like
-//!    method-contract summaries in KeY/Crowbar.
+//! 1. **Domain-write effect** (`DomainMutation`, E2019): *removed / not
+//!    enforced.* Earlier versions warned when a method with *no* effect
+//!    annotation that was *not* marked `domain` wrote a `domain`-modified
+//!    field, directly or transitively through the call graph. The verifier
+//!    no longer reports this: a method may change a `domain` attribute
+//!    without the `domain` keyword. The fixed-point computation of
+//!    domain-write effects is retained only to support the `domain-reads`
+//!    contract in rule 3.
 //! 2. **Hidden-leak effect** (`DomainMutation`, E2019, warning level): a
 //!    `links` Turtle fragment must not interpolate a `hidden` field
 //!    (`%field` where `field` is declared `hidden`), because `links`
@@ -26,21 +25,19 @@
 //!    - `domain-reads` methods must not write a `domain` field (directly
 //!      or transitively) → `EffectContractViolation` (E2026, error).
 //!    - `domain-writes` methods may write anything (silent).
-//!    - Unannotated methods are never flagged with the new codes; they
-//!      keep the existing E2019 warning behavior.
+//!    - Unannotated methods are never flagged with the new contract codes
+//!      (E2026/E2027).
 //!
 //! # Strict mode
 //!
-//! When the `SMOL_STRICT_EFFECTS=1` environment variable is set, existing
-//! E2019 `DomainMutation` diagnostics are upgraded from warning to error
-//! severity. Unset (default) preserves warning behavior. The flag is read
-//! here (inside this pass) so the `check()` signature stays unchanged.
+//! When the `SMOL_STRICT_EFFECTS=1` environment variable is set, the
+//! remaining E2019 `DomainMutation` diagnostics (rule 2, hidden-field
+//! leakage into `links`) are upgraded from warning to error severity. Unset
+//! (default) preserves warning behavior. The flag is read here (inside this
+//! pass) so the `check()` signature stays unchanged.
 //!
 //! # Soundness contract
 //!
-//! - Rule 1 is reported at warning level (not error) because established
-//!   example programs legitimately sync sensor data into `domain` fields from
-//!   plain methods; promoting to error is future work behind a strict flag.
 //! - Receiver types that cannot be resolved (`Unknown`) never trigger a
 //!   diagnostic (no false positives on unresolvable code).
 //! - Rule 2 reuses the same `%placeholder` extraction discipline as the
@@ -563,42 +560,10 @@ pub fn check_domain_effects(files: &[File], env: &ClassEnv) -> Vec<Diagnostic> {
         }
     }
 
-    // Report: direct writes + transitive effects in non-domain methods.
-    // Annotated methods are handled by the contract checks above and keep
-    // E2019 silence (no double-reporting); unannotated methods keep the
-    // existing warning behavior (upgraded to error under strict mode).
-    // To avoid double-reporting, a method with a direct write gets the
-    // direct diagnostic; a method whose effect is purely transitive gets the
-    // transitive diagnostic.
-    for (i, m) in methods.iter().enumerate() {
-        if m.is_domain || m.effect.is_some() || !has_effect[i] {
-            continue;
-        }
-        let info = env.get(&m.this);
-        let file = info.map_or("<unknown>", |c| c.file.as_str());
-        if m.direct_write {
-            diags.push(
-                domain_mutation_diag(format!(
-                    "method `{}` writes a `domain` field but is not marked `domain`; \
-                     add the `domain` modifier to declare the effect",
-                    m.name
-                ))
-                .with_file(file)
-                .with_span(m.span),
-            );
-        } else {
-            diags.push(
-                domain_mutation_diag(format!(
-                    "method `{}` transitively writes a `domain` field (via a called \
-                     `domain` method) but is not marked `domain`; add the `domain` \
-                     modifier to declare the effect",
-                    m.name
-                ))
-                .with_file(file)
-                .with_span(m.span),
-            );
-        }
-    }
+    // Rule 1 (domain-write effect warning for non-`domain` methods) has been
+    // removed: the verifier no longer reports E2019 for direct or transitive
+    // writes to `domain` fields. The fixed-point results above are kept only
+    // because rule 3 (`domain-reads`, `pure`) still consumes them.
 
     // Rule 2: hidden fields must not be interpolated into `links` fragments.
     for file in files {
