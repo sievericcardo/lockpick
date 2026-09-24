@@ -90,3 +90,56 @@ pub fn verify_files_with_properties(
         3,
     )
 }
+
+/// Verify a SMOL project from in-memory source texts (no disk reads).
+///
+/// `sources` — pairs of `(path, source text)`.  The path is used for
+/// diagnostics (`file` / `span`) and as the `File.path` identity; the source
+/// text is parsed directly instead of being read from disk.
+/// `ontology_files` — paths to `.ttl` / `.owx` ontology files.
+#[must_use]
+pub fn verify_sources(
+    sources: &[(std::path::PathBuf, String)],
+    ontology_files: &[std::path::PathBuf],
+) -> Vec<Diagnostic> {
+    pipeline::run_sources(
+        sources,
+        ontology_files,
+        &[],
+        &std::collections::HashMap::default(),
+        &[],
+        3,
+    )
+}
+
+/// Like [`verify_sources`] but with additional SPARQL prefixes.
+///
+/// Keys are prefix names (without colon), values are IRI strings.
+#[must_use]
+#[allow(clippy::implicit_hasher)]
+pub fn verify_sources_with_prefixes(
+    sources: &[(std::path::PathBuf, String)],
+    ontology_files: &[std::path::PathBuf],
+    extra_prefixes: &std::collections::HashMap<String, String>,
+) -> Vec<Diagnostic> {
+    pipeline::run_sources(sources, ontology_files, &[], extra_prefixes, &[], 3)
+}
+
+/// Like [`verify_sources`] but with CTL properties to model-check.
+///
+/// Each property is a CTL formula string (e.g. `"AG (Healthy || Unhealthy)"`).
+#[must_use]
+pub fn verify_sources_with_properties(
+    sources: &[(std::path::PathBuf, String)],
+    ontology_files: &[std::path::PathBuf],
+    properties: &[String],
+) -> Vec<Diagnostic> {
+    pipeline::run_sources(
+        sources,
+        ontology_files,
+        &[],
+        &std::collections::HashMap::default(),
+        properties,
+        3,
+    )
+}

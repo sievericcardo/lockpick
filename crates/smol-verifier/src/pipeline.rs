@@ -54,29 +54,59 @@ pub fn run_files(
     properties: &[String],
     inline_depth: usize,
 ) -> Vec<Diagnostic> {
+    // Read every path from disk up front.  On a read failure we produce the
+    // same `FileReadFailed` diagnostic as before and hand an empty source to
+    // `run_sources` (which yields an empty `File` for that path, exactly like
+    // the previous behaviour of skipping the parser for unreadable files).
+    let mut all_diags = Vec::new();
+    let mut sources = Vec::with_capacity(smol_paths.len());
+    for path in smol_paths {
+        match std::fs::read_to_string(path) {
+            Ok(src) => sources.push((path.clone(), src)),
+            Err(e) => {
+                all_diags.push(smol_syntax::diagnostic::Diagnostic::error(
+                    smol_syntax::diagnostic::DiagnosticCode::FileReadFailed,
+                    format!("cannot read `{}`: {e}", path.display()),
+                ));
+                sources.push((path.clone(), String::new()));
+            }
+        }
+    }
+
+    all_diags.extend(run_sources(
+        &sources,
+        ontology_paths,
+        shacl_paths,
+        extra_prefixes,
+        properties,
+        inline_depth,
+    ));
+    all_diags
+}
+
+/// Verify from in-memory sources.
+///
+/// `sources` — pairs of `(path, source text)`; the path is used as the
+/// `File.path` identity (and as the `file` field of any diagnostics).
+/// This is the shared parse+check pipeline behind both [`run_files`] and the
+/// `verify_sources*` entry points.
+#[must_use]
+#[allow(clippy::implicit_hasher)]
+pub fn run_sources(
+    sources: &[(PathBuf, String)],
+    ontology_paths: &[PathBuf],
+    shacl_paths: &[PathBuf],
+    extra_prefixes: &HashMap<String, String>,
+    properties: &[String],
+    inline_depth: usize,
+) -> Vec<Diagnostic> {
     let mut all_diags = Vec::new();
 
-    let parse_results: Vec<(File, Vec<Diagnostic>)> = smol_paths
+    let parse_results: Vec<(File, Vec<Diagnostic>)> = sources
         .par_iter()
-        .map(|path| {
-            let src = match std::fs::read_to_string(path) {
-                Ok(s) => s,
-                Err(e) => {
-                    return (
-                        File {
-                            path: path.to_string_lossy().into_owned(),
-                            classes: Vec::new(),
-                            main: None,
-                        },
-                        vec![smol_syntax::diagnostic::Diagnostic::error(
-                            smol_syntax::diagnostic::DiagnosticCode::FileReadFailed,
-                            format!("cannot read `{}`: {e}", path.display()),
-                        )],
-                    );
-                }
-            };
+        .map(|(path, src)| {
             let path_str = path.to_string_lossy().into_owned();
-            let (mut file, diags) = smol_parser::parse(&path_str, &src);
+            let (mut file, diags) = smol_parser::parse(&path_str, src);
             file.path = path_str;
             (file, diags)
         })
