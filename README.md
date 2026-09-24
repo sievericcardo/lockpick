@@ -38,7 +38,7 @@ A static verification and model-checking tool for **SMOL** (Sensor Modelling and
 
 ## Installation
 
-Build from source with a Rust toolchain (edition 2024 — Rust 1.85 or newer):
+Build from source with a Rust toolchain (edition 2024 — Rust 1.87 or newer):
 
 ```bash
 cargo build --release
@@ -112,6 +112,46 @@ setx LIBCLANG_PATH "C:\Program Files\LLVM\bin"
 ```
 
 You can also install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the **"Desktop development with C++"** workload selected. CMake is bundled with Visual Studio, or can be installed separately from [cmake.org](https://cmake.org/download/).
+
+## Docker
+
+You can run lockpick via Docker without installing Rust, CMake, or libclang
+locally. The image bundles both binaries (`lockpick` and `lockpick-lsp`) and
+builds all native dependencies (RocksDB, clang-sys) inside the builder stage.
+
+Build the image:
+
+```bash
+docker build -t lockpick .
+```
+
+Run it one-shot against files mounted from your host:
+
+```bash
+docker run --rm -v "$PWD:/work" -w /work lockpick lockpick check --manifest examples/odrl/smol.toml
+docker run --rm -v "$PWD:/work" -w /work lockpick lockpick check --files examples/error-file.smol --format json
+```
+
+For repeated checks, start a long-lived container once and `docker exec` into
+it:
+
+```bash
+docker run -d --name lockpick -v "$PWD:/work" -w /work lockpick sleep infinity
+docker exec lockpick lockpick check --manifest smol.toml
+docker exec lockpick lockpick check --files src/*.smol --ontology my-ontology.ttl
+docker exec lockpick lockpick check --manifest smol.toml --format json | jq '.error_count'
+docker stop lockpick && docker rm lockpick
+```
+
+You can also drop into an interactive shell with both binaries on `PATH`:
+
+```bash
+docker run --rm -it -v "$PWD:/work" -w /work lockpick bash
+```
+
+The container runs as the non-root user `lockpick` (uid 1000). If your mounted
+files are owned by a different uid, pass `--user "$(id -u):$(id -g)"` to run as
+that user instead.
 
 
 ## Usage (CLI)
@@ -221,6 +261,29 @@ lockpick = { path = "../lockpick" }
 # or
 smol-verifier = { path = "../lockpick/crates/smol-verifier" }
 ```
+
+Or import directly from GitHub. The root `lockpick` package re-exports the
+`smol-verifier` API, so `use lockpick::verify_manifest;` works:
+
+```toml
+[dependencies]
+lockpick = { git = "https://github.com/sievericcardo/lockpick" }
+# pin to a branch or tag (workspace version is 1.0.0)
+lockpick = { git = "https://github.com/sievericcardo/lockpick", branch = "main" }
+lockpick = { git = "https://github.com/sievericcardo/lockpick", tag = "v1.0.0" }
+```
+
+You can also depend on the underlying library crate directly:
+
+```toml
+[dependencies]
+smol-verifier = { git = "https://github.com/sievericcardo/lockpick", package = "smol-verifier" }
+```
+
+Note that importing from git still compiles the full dependency tree —
+including RocksDB and clang-sys — so it requires the same system dependencies
+(C++17 compiler, CMake, libclang) as building from source. See
+[System Dependencies](#system-dependencies).
 
 ### Verify a project from a manifest
 
