@@ -342,11 +342,6 @@ Pointing an editor at the binary:
 ./lockpick check --manifest smol.toml --prefix ast=http://example.org/ast/
 ```
 
-## Documentation
-
-- [Verification phases and diagnostics](docs/verification.md) — how each checker works
-- [Model checking](docs/model-checking.md) — CTL formal semantics, Kripke structures, fixpoint algorithms
-
 ## Architecture
 
 ```
