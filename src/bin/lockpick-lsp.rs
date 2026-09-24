@@ -67,11 +67,10 @@ impl Server {
         if let Some(ws) = &self.workspace_root {
             return ws.clone();
         }
-        if let Some(first) = self.open_docs.values().next() {
-            if let Some(parent) = first.path.parent() {
+        if let Some(first) = self.open_docs.values().next()
+            && let Some(parent) = first.path.parent() {
                 return parent.to_path_buf();
             }
-        }
         std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
     }
 
@@ -104,7 +103,8 @@ impl Server {
                     respond(out, id, Some(result), None)?;
                 }
             }
-            "initialized" => {
+            // Protocol-internal notifications we can safely ignore. Same with a message with no recognizable method (e.g. malformed) is skipped.
+            "initialized" | "$/cancelRequest" | "$/setTrace" | "workspace/didChangeConfiguration" | "" => {
                 // No-op: the client has completed the handshake.
             }
             "textDocument/didOpen" => {
@@ -128,10 +128,6 @@ impl Server {
                 // Standard LSP shutdown sequence: `shutdown` then `exit`.
                 process::exit(0);
             }
-            // Protocol-internal notifications we can safely ignore.
-            "$/cancelRequest" | "$/setTrace" | "workspace/didChangeConfiguration" => {}
-            // A message with no recognizable method (e.g. malformed) is skipped.
-            "" => {}
             _ => {
                 // Unknown method → standard JSON-RPC "method not found" error.
                 if let Some(id) = id {
@@ -158,11 +154,10 @@ impl Server {
         self.open_docs
             .insert(uri.to_string(), OpenDocument { path: path.clone(), text });
         // Fall back the workspace root to the directory of the first opened file.
-        if self.workspace_root.is_none() {
-            if let Some(parent) = path.parent() {
+        if self.workspace_root.is_none()
+            && let Some(parent) = path.parent() {
                 self.workspace_root = Some(parent.to_path_buf());
             }
-        }
     }
 
     /// FULL-sync change: `contentChanges[0].text` replaces the whole document.
@@ -257,7 +252,7 @@ impl Server {
     /// The text of a file, preferring the in-memory open document.
     fn text_for(&self, abs: &Path) -> Option<String> {
         for doc in self.open_docs.values() {
-            if &doc.path == abs {
+            if doc.path == abs {
                 return Some(doc.text.clone());
             }
         }
@@ -312,7 +307,7 @@ fn offset_to_position(text: &str, offset: usize) -> (usize, usize) {
     }
     let prefix = &text[..offset];
     let line = prefix.bytes().filter(|&b| b == b'\n').count();
-    let line_start = prefix.rfind('\n').map(|i| i + 1).unwrap_or(0);
+    let line_start = prefix.rfind('\n').map_or(0, |i| i + 1);
     let character = prefix[line_start..].chars().count();
     (line, character)
 }
@@ -344,16 +339,14 @@ fn absolute(p: &Path, ws: &Path) -> PathBuf {
 /// Extract the workspace root from `initialize` params (`rootUri` preferred,
 /// falling back to `rootPath`).
 fn extract_workspace_root(params: &Value) -> Option<PathBuf> {
-    if let Some(uri) = params["rootUri"].as_str() {
-        if !uri.is_empty() {
+    if let Some(uri) = params["rootUri"].as_str()
+        && !uri.is_empty() {
             return Some(uri_to_path(uri));
         }
-    }
-    if let Some(root) = params["rootPath"].as_str() {
-        if !root.is_empty() {
+    if let Some(root) = params["rootPath"].as_str()
+        && !root.is_empty() {
             return Some(PathBuf::from(root));
         }
-    }
     None
 }
 
@@ -393,13 +386,11 @@ fn read_message(reader: &mut impl BufRead) -> io::Result<Option<String>> {
         if line.is_empty() {
             break; // end of headers
         }
-        if let Some((key, value)) = line.split_once(':') {
-            if key.trim().eq_ignore_ascii_case("content-length") {
-                if let Ok(len) = value.trim().parse::<usize>() {
+        if let Some((key, value)) = line.split_once(':')
+            && key.trim().eq_ignore_ascii_case("content-length")
+                && let Ok(len) = value.trim().parse::<usize>() {
                     content_length = Some(len);
                 }
-            }
-        }
     }
     let Some(len) = content_length else {
         return Ok(None); // no Content-Length header: nothing to read
