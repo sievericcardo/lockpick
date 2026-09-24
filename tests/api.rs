@@ -4,7 +4,7 @@
 
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use lockpick::{verify_files, verify_sources, DiagnosticCode};
+use lockpick::{DiagnosticCode, verify_files, verify_sources};
 
 /// Write `content` to a uniquely-named temp file (pid + timestamp suffix) so
 /// parallel test runs never collide on the same path.
@@ -13,11 +13,7 @@ fn write_tmp(base: &str, content: &str) -> std::path::PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system clock before UNIX epoch")
         .as_nanos();
-    let p = std::env::temp_dir().join(format!(
-        "lockpick_{}_{}_{base}",
-        std::process::id(),
-        nanos
-    ));
+    let p = std::env::temp_dir().join(format!("lockpick_{}_{}_{base}", std::process::id(), nanos));
     std::fs::write(&p, content).unwrap();
     p
 }
@@ -58,7 +54,9 @@ fn diagnostics_are_serde_serializable() {
     let _ = std::fs::remove_file(&p);
 
     assert!(
-        diags.iter().any(|d| d.code == DiagnosticCode::DuplicateClass),
+        diags
+            .iter()
+            .any(|d| d.code == DiagnosticCode::DuplicateClass),
         "expected DuplicateClass, got: {diags:?}"
     );
 

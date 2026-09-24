@@ -21,12 +21,18 @@ impl JsonOutput {
     /// Build the JSON document from a verifier diagnostic list.
     #[must_use]
     pub fn from_diagnostics(diags: &[Diagnostic]) -> Self {
-        let error_count = diags.iter().filter(|d| d.severity == Severity::Error).count();
+        let error_count = diags
+            .iter()
+            .filter(|d| d.severity == Severity::Error)
+            .count();
         let warning_count = diags
             .iter()
             .filter(|d| d.severity == Severity::Warning)
             .count();
-        let note_count = diags.iter().filter(|d| d.severity == Severity::Note).count();
+        let note_count = diags
+            .iter()
+            .filter(|d| d.severity == Severity::Note)
+            .count();
         let diagnostics = diags.iter().map(JsonDiagnostic::from).collect();
         Self {
             diagnostics,

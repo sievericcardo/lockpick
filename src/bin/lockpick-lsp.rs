@@ -26,7 +26,7 @@
 //! exists) or via the in-memory `verify_sources` API over the open documents
 //! plus any `.smol` files found under the workspace.
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use smol_verifier::verify_manifest;
 use std::collections::{HashMap, HashSet};
 use std::io::{self, BufRead, Write};
@@ -68,9 +68,10 @@ impl Server {
             return ws.clone();
         }
         if let Some(first) = self.open_docs.values().next()
-            && let Some(parent) = first.path.parent() {
-                return parent.to_path_buf();
-            }
+            && let Some(parent) = first.path.parent()
+        {
+            return parent.to_path_buf();
+        }
         std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
     }
 
@@ -104,7 +105,11 @@ impl Server {
                 }
             }
             // Protocol-internal notifications we can safely ignore. Same with a message with no recognizable method (e.g. malformed) is skipped.
-            "initialized" | "$/cancelRequest" | "$/setTrace" | "workspace/didChangeConfiguration" | "" => {
+            "initialized"
+            | "$/cancelRequest"
+            | "$/setTrace"
+            | "workspace/didChangeConfiguration"
+            | "" => {
                 // No-op: the client has completed the handshake.
             }
             "textDocument/didOpen" => {
@@ -145,24 +150,37 @@ impl Server {
     // ─── Document lifecycle ─────────────────────────────────────────────── //
 
     fn on_did_open(&mut self, msg: &Value) {
-        let Some(params) = msg.get("params") else { return };
+        let Some(params) = msg.get("params") else {
+            return;
+        };
         let Some(uri) = params["textDocument"]["uri"].as_str() else {
             return;
         };
-        let text = params["textDocument"]["text"].as_str().unwrap_or("").to_string();
+        let text = params["textDocument"]["text"]
+            .as_str()
+            .unwrap_or("")
+            .to_string();
         let path = uri_to_path(uri);
-        self.open_docs
-            .insert(uri.to_string(), OpenDocument { path: path.clone(), text });
+        self.open_docs.insert(
+            uri.to_string(),
+            OpenDocument {
+                path: path.clone(),
+                text,
+            },
+        );
         // Fall back the workspace root to the directory of the first opened file.
         if self.workspace_root.is_none()
-            && let Some(parent) = path.parent() {
-                self.workspace_root = Some(parent.to_path_buf());
-            }
+            && let Some(parent) = path.parent()
+        {
+            self.workspace_root = Some(parent.to_path_buf());
+        }
     }
 
     /// FULL-sync change: `contentChanges[0].text` replaces the whole document.
     fn on_did_change(&mut self, msg: &Value) {
-        let Some(params) = msg.get("params") else { return };
+        let Some(params) = msg.get("params") else {
+            return;
+        };
         let Some(uri) = params["textDocument"]["uri"].as_str() else {
             return;
         };
@@ -340,20 +358,24 @@ fn absolute(p: &Path, ws: &Path) -> PathBuf {
 /// falling back to `rootPath`).
 fn extract_workspace_root(params: &Value) -> Option<PathBuf> {
     if let Some(uri) = params["rootUri"].as_str()
-        && !uri.is_empty() {
-            return Some(uri_to_path(uri));
-        }
+        && !uri.is_empty()
+    {
+        return Some(uri_to_path(uri));
+    }
     if let Some(root) = params["rootPath"].as_str()
-        && !root.is_empty() {
-            return Some(PathBuf::from(root));
-        }
+        && !root.is_empty()
+    {
+        return Some(PathBuf::from(root));
+    }
     None
 }
 
 /// Recursively collect every `*.smol` file under `dir`, skipping build
 /// artifacts and hidden directories.
 fn collect_smol_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
     for entry in entries.flatten() {
         let path = entry.path();
         let name = entry.file_name();
@@ -388,9 +410,10 @@ fn read_message(reader: &mut impl BufRead) -> io::Result<Option<String>> {
         }
         if let Some((key, value)) = line.split_once(':')
             && key.trim().eq_ignore_ascii_case("content-length")
-                && let Ok(len) = value.trim().parse::<usize>() {
-                    content_length = Some(len);
-                }
+            && let Ok(len) = value.trim().parse::<usize>()
+        {
+            content_length = Some(len);
+        }
     }
     let Some(len) = content_length else {
         return Ok(None); // no Content-Length header: nothing to read

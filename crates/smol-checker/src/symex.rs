@@ -671,11 +671,14 @@ impl Symex<'_> {
                     .with_span(span),
                 );
             }
-            (Some(dec), LoopNeed::Bounded {
-                var,
-                need,
-                bound_vars,
-            }) => {
+            (
+                Some(dec),
+                LoopNeed::Bounded {
+                    var,
+                    need,
+                    bound_vars,
+                },
+            ) => {
                 let vars = collect_vars(dec);
                 if vars.contains(&var) && find_progress(body, &var, &need) {
                     return;
@@ -717,11 +720,14 @@ impl Symex<'_> {
                     .with_span(span),
                 );
             }
-            (None, LoopNeed::Bounded {
-                var,
-                need,
-                bound_vars,
-            }) => {
+            (
+                None,
+                LoopNeed::Bounded {
+                    var,
+                    need,
+                    bound_vars,
+                },
+            ) => {
                 if find_progress(body, &var, &need) {
                     return;
                 }
@@ -867,7 +873,9 @@ fn is_int_expr(expr: &Expr, int_vars: &HashSet<String>) -> bool {
     match expr {
         Expr::IntLit(..) => true,
         Expr::Var(name, _) => int_vars.contains(name.as_str()),
-        Expr::BinOp { op, left, right, .. } => match op {
+        Expr::BinOp {
+            op, left, right, ..
+        } => match op {
             BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod => {
                 is_int_expr(left, int_vars) && is_int_expr(right, int_vars)
             }
