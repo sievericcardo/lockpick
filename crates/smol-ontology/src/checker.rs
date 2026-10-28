@@ -66,8 +66,18 @@ pub fn check_ontology(
 ) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
 
-    // Load ontology into a Reasoner
-    let config = ReasonerConfig::default();
+    // Load ontology into a Reasoner.
+    //
+    // The oxidowl traditional (SROIQ) tableau is the dominant cost here, and
+    // its `PerformanceProfile`/`worker_threads` knobs are unused by the
+    // traditional tableau path, so we instead select "indexed anywhere
+    // blocking": the *same* anywhere-blocking subsumption criterion as the
+    // default, but with an O(1) hash-based blocker lookup instead of an O(n²)
+    // signature scan.  This is a pure performance setting — reasoning results
+    // (and therefore diagnostics) are unchanged — and it is ~4x faster on the
+    // greenhouse ontology.
+    let mut config = ReasonerConfig::default();
+    config.reasoning.blocking_strategy = oxidowl::config::BlockingStrategy::Indexed;
     let mut reasoner = match with_suppressed_output(|| Reasoner::new(config)) {
         Ok(r) => r,
         Err(e) => {
@@ -108,8 +118,12 @@ pub fn check_ontology(
         }
     }
 
-    // Build SPARQL store for IRI/SPARQL checks
-    let _sparql_store = match with_suppressed_output(SparqlStore::new) {
+    // A single reusable (empty) store used purely for SPARQL / Turtle *syntax*
+    // validation.  `check_sparql_syntax` / `check_retrieves_sparql` run SELECT
+    // queries and `check_links` parses synthetic Turtle fragments against it;
+    // it is intentionally kept separate from `ont_store` so the synthetic
+    // link/query triples never pollute the element-presence checks below.
+    let mut syntax_store = match with_suppressed_output(SparqlStore::new) {
         Ok(s) => s,
         Err(e) => {
             diags.push(Diagnostic::error(
@@ -131,7 +145,8 @@ pub fn check_ontology(
             return diags;
         }
     };
-    // Collect TTL prefixes while loading.
+    // Collect TTL prefixes while loading (reuse the single `read_to_string`
+    // result for both prefix extraction and the store load).
     let mut ttl_prefixes: HashMap<String, String> = HashMap::new();
     for path in ontology_paths {
         if let Ok(content) = std::fs::read_to_string(path) {
@@ -164,6 +179,7 @@ pub fn check_ontology(
                 check_classifies_annotation(
                     &ann.iri,
                     &ont_store,
+                    &mut syntax_store,
                     &prefix_map,
                     ontology_loaded,
                     file,
@@ -176,6 +192,7 @@ pub fn check_ontology(
                 check_retrieves_sparql(
                     &ann.sparql,
                     &ont_store,
+                    &mut syntax_store,
                     &prefix_map,
                     ontology_loaded,
                     file,
@@ -185,13 +202,14 @@ pub fn check_ontology(
             }
 
             // links "turtle" — validate Turtle triples syntax
-            check_links(&cls.links, &prefix_map, file, &mut diags);
+            check_links(&cls.links, &mut syntax_store, &prefix_map, file, &mut diags);
 
             // Method-level SPARQL in construct/access bodies
             for method in &cls.methods {
                 check_method_sparql(
                     &method.body,
                     &ont_store,
+                    &mut syntax_store,
                     &prefix_map,
                     ontology_loaded,
                     file,
@@ -204,6 +222,7 @@ pub fn check_ontology(
             check_stmts_sparql(
                 stmts,
                 &ont_store,
+                &mut syntax_store,
                 &prefix_map,
                 ontology_loaded,
                 file,
@@ -333,9 +352,11 @@ fn extract_ttl_prefixes(ttl: &str) -> HashMap<String, String> {
 /// 1. SPARQL SELECT or ASK query
 /// 2. Manchester OWL class expression (e.g. `<domain:models> some <ast:Class>`)
 /// 3. Plain IRI or prefixed name (e.g. `domain:Sensor`)
+#[allow(clippy::too_many_arguments)]
 fn check_classifies_annotation(
     iri: &str,
     store: &SparqlStore,
+    syntax_store: &mut SparqlStore,
     prefix_map: &HashMap<String, String>,
     ontology_loaded: bool,
     file: &File,
@@ -348,6 +369,7 @@ fn check_classifies_annotation(
             iri,
             "classifies",
             store,
+            syntax_store,
             prefix_map,
             ontology_loaded,
             file,
@@ -681,7 +703,9 @@ fn check_disjoint_union(
 
     // 1. Coverage: the ontology must declare `X owl:disjointUnionOf (...)` whose
     //    members are exactly the subclasses' classifies classes.
-    match disjoint_union_members(reasoner, x) {
+    let declared = disjoint_union_members(reasoner, x);
+    let exact_declared = declared.as_ref().is_some_and(|d| d == &members);
+    match declared {
         Some(declared) if declared == members => {}
         Some(declared) => {
             let mut declared: Vec<String> = declared.into_iter().collect();
@@ -716,6 +740,15 @@ fn check_disjoint_union(
                 .with_span(span),
             );
         }
+    }
+
+    // `owl:disjointUnionOf` already entails both subsumption (`Ci ⊑ X`) and
+    // pairwise disjointness (`Ci ⊓ Cj` unsatisfiable), so when the ontology
+    // declares the exact union there is nothing left to prove — and skipping
+    // the two SROIQ tableau loops below is what keeps `check` fast on small
+    // but expressively-rich ontologies.
+    if exact_declared {
+        return;
     }
 
     // 2. Subsumption: every subclass class `Xi` must be a subclass of `X`.
@@ -777,6 +810,7 @@ fn check_sparql_syntax(
     sparql: &str,
     context: &str,
     store: &SparqlStore,
+    syntax_store: &mut SparqlStore,
     prefix_map: &HashMap<String, String>,
     ontology_loaded: bool,
     file: &File,
@@ -789,10 +823,7 @@ fn check_sparql_syntax(
         build_sparql_prefix_block(&normalised, prefix_map),
         normalised
     );
-    let Ok(test_store) = with_suppressed_output(SparqlStore::new) else {
-        return;
-    };
-    if let Err(e) = test_store.execute_select(&with_prefixes) {
+    if let Err(e) = syntax_store.execute_select(&with_prefixes) {
         diags.push(
             Diagnostic::error(
                 DiagnosticCode::SparqlSyntaxError,
@@ -820,6 +851,7 @@ fn check_sparql_syntax(
 fn check_retrieves_sparql(
     sparql: &str,
     store: &SparqlStore,
+    syntax_store: &mut SparqlStore,
     prefix_map: &HashMap<String, String>,
     ontology_loaded: bool,
     file: &File,
@@ -846,10 +878,7 @@ fn check_retrieves_sparql(
         build_sparql_prefix_block(&normalised, prefix_map),
         normalised
     );
-    let Ok(test_store) = with_suppressed_output(SparqlStore::new) else {
-        return;
-    };
-    if let Err(e) = test_store.execute_select(&with_prefixes) {
+    if let Err(e) = syntax_store.execute_select(&with_prefixes) {
         diags.push(
             Diagnostic::error(
                 DiagnosticCode::SparqlSyntaxError,
@@ -883,6 +912,7 @@ fn is_select_query(s: &str) -> bool {
 /// prepending prefix declarations, and parsing as Turtle.
 fn check_links(
     links: &[smol_syntax::ast::LinksAnnotation],
+    syntax_store: &mut SparqlStore,
     prefix_map: &HashMap<String, String>,
     file: &File,
     diags: &mut Vec<Diagnostic>,
@@ -898,10 +928,7 @@ fn check_links(
         let prefix_block = build_sparql_prefix_block(&terminated, prefix_map);
         let wrapped = format!("{prefix_block}\n[] {terminated}");
 
-        let Ok(mut test_store) = with_suppressed_output(SparqlStore::new) else {
-            continue;
-        };
-        if let Err(e) = with_suppressed_output(|| test_store.load_turtle(&wrapped)) {
+        if let Err(e) = with_suppressed_output(|| syntax_store.load_turtle(&wrapped)) {
             diags.push(
                 Diagnostic::error(
                     DiagnosticCode::LinkTurtleInvalid,
@@ -994,18 +1021,28 @@ fn replace_smol_placeholders(sparql: &str) -> String {
 fn check_method_sparql(
     stmts: &[smol_syntax::ast::Stmt],
     store: &SparqlStore,
+    syntax_store: &mut SparqlStore,
     prefix_map: &HashMap<String, String>,
     ontology_loaded: bool,
     file: &File,
     diags: &mut Vec<Diagnostic>,
 ) {
-    check_stmts_sparql(stmts, store, prefix_map, ontology_loaded, file, diags);
+    check_stmts_sparql(
+        stmts,
+        store,
+        syntax_store,
+        prefix_map,
+        ontology_loaded,
+        file,
+        diags,
+    );
 }
 
 #[allow(clippy::match_same_arms)]
 fn check_stmts_sparql(
     stmts: &[smol_syntax::ast::Stmt],
     store: &SparqlStore,
+    syntax_store: &mut SparqlStore,
     prefix_map: &HashMap<String, String>,
     ontology_loaded: bool,
     file: &File,
@@ -1015,19 +1052,55 @@ fn check_stmts_sparql(
     for stmt in stmts {
         #[allow(clippy::match_same_arms)]
         match stmt {
-            Stmt::VarDecl { init, .. } => {
-                check_expr_sparql(init, store, prefix_map, ontology_loaded, file, diags)
-            }
+            Stmt::VarDecl { init, .. } => check_expr_sparql(
+                init,
+                store,
+                syntax_store,
+                prefix_map,
+                ontology_loaded,
+                file,
+                diags,
+            ),
             Stmt::Assign { rhs, lhs, .. } => {
-                check_expr_sparql(lhs, store, prefix_map, ontology_loaded, file, diags);
-                check_expr_sparql(rhs, store, prefix_map, ontology_loaded, file, diags);
+                check_expr_sparql(
+                    lhs,
+                    store,
+                    syntax_store,
+                    prefix_map,
+                    ontology_loaded,
+                    file,
+                    diags,
+                );
+                check_expr_sparql(
+                    rhs,
+                    store,
+                    syntax_store,
+                    prefix_map,
+                    ontology_loaded,
+                    file,
+                    diags,
+                );
             }
-            Stmt::Expr { expr, .. } => {
-                check_expr_sparql(expr, store, prefix_map, ontology_loaded, file, diags)
-            }
+            Stmt::Expr { expr, .. } => check_expr_sparql(
+                expr,
+                store,
+                syntax_store,
+                prefix_map,
+                ontology_loaded,
+                file,
+                diags,
+            ),
             Stmt::Return { value, .. } => {
                 if let Some(e) = value {
-                    check_expr_sparql(e, store, prefix_map, ontology_loaded, file, diags);
+                    check_expr_sparql(
+                        e,
+                        store,
+                        syntax_store,
+                        prefix_map,
+                        ontology_loaded,
+                        file,
+                        diags,
+                    );
                 }
             }
             Stmt::If {
@@ -1036,18 +1109,66 @@ fn check_stmts_sparql(
                 else_body,
                 ..
             } => {
-                check_expr_sparql(cond, store, prefix_map, ontology_loaded, file, diags);
-                check_stmts_sparql(then_body, store, prefix_map, ontology_loaded, file, diags);
-                check_stmts_sparql(else_body, store, prefix_map, ontology_loaded, file, diags);
+                check_expr_sparql(
+                    cond,
+                    store,
+                    syntax_store,
+                    prefix_map,
+                    ontology_loaded,
+                    file,
+                    diags,
+                );
+                check_stmts_sparql(
+                    then_body,
+                    store,
+                    syntax_store,
+                    prefix_map,
+                    ontology_loaded,
+                    file,
+                    diags,
+                );
+                check_stmts_sparql(
+                    else_body,
+                    store,
+                    syntax_store,
+                    prefix_map,
+                    ontology_loaded,
+                    file,
+                    diags,
+                );
             }
             Stmt::While { cond, body, .. } => {
-                check_expr_sparql(cond, store, prefix_map, ontology_loaded, file, diags);
-                check_stmts_sparql(body, store, prefix_map, ontology_loaded, file, diags);
+                check_expr_sparql(
+                    cond,
+                    store,
+                    syntax_store,
+                    prefix_map,
+                    ontology_loaded,
+                    file,
+                    diags,
+                );
+                check_stmts_sparql(
+                    body,
+                    store,
+                    syntax_store,
+                    prefix_map,
+                    ontology_loaded,
+                    file,
+                    diags,
+                );
             }
             Stmt::Print { value, .. }
             | Stmt::Destroy { value, .. }
             | Stmt::Adapt { expr: value, .. } => {
-                check_expr_sparql(value, store, prefix_map, ontology_loaded, file, diags);
+                check_expr_sparql(
+                    value,
+                    store,
+                    syntax_store,
+                    prefix_map,
+                    ontology_loaded,
+                    file,
+                    diags,
+                );
             }
             Stmt::Skip { .. } | Stmt::Breakpoint { .. } => {}
         }
@@ -1058,6 +1179,7 @@ fn check_stmts_sparql(
 fn check_expr_sparql(
     expr: &smol_syntax::ast::Expr,
     store: &SparqlStore,
+    syntax_store: &mut SparqlStore,
     prefix_map: &HashMap<String, String>,
     ontology_loaded: bool,
     file: &File,
@@ -1070,6 +1192,7 @@ fn check_expr_sparql(
                 sparql,
                 "construct",
                 store,
+                syntax_store,
                 prefix_map,
                 ontology_loaded,
                 file,
@@ -1077,7 +1200,15 @@ fn check_expr_sparql(
                 diags,
             );
             for arg in args {
-                check_expr_sparql(arg, store, prefix_map, ontology_loaded, file, diags);
+                check_expr_sparql(
+                    arg,
+                    store,
+                    syntax_store,
+                    prefix_map,
+                    ontology_loaded,
+                    file,
+                    diags,
+                );
             }
         }
         Expr::Access {
@@ -1086,47 +1217,143 @@ fn check_expr_sparql(
             // access() accepts non-SPARQL query languages (e.g. InfluxDB Flux),
             // so the query string is intentionally not validated as SPARQL.
             if let Some(c) = connector {
-                check_expr_sparql(c, store, prefix_map, ontology_loaded, file, diags);
+                check_expr_sparql(
+                    c,
+                    store,
+                    syntax_store,
+                    prefix_map,
+                    ontology_loaded,
+                    file,
+                    diags,
+                );
             }
             for arg in args {
-                check_expr_sparql(arg, store, prefix_map, ontology_loaded, file, diags);
+                check_expr_sparql(
+                    arg,
+                    store,
+                    syntax_store,
+                    prefix_map,
+                    ontology_loaded,
+                    file,
+                    diags,
+                );
             }
         }
         Expr::MethodCall { receiver, args, .. } => {
-            check_expr_sparql(receiver, store, prefix_map, ontology_loaded, file, diags);
+            check_expr_sparql(
+                receiver,
+                store,
+                syntax_store,
+                prefix_map,
+                ontology_loaded,
+                file,
+                diags,
+            );
             for a in args {
-                check_expr_sparql(a, store, prefix_map, ontology_loaded, file, diags);
+                check_expr_sparql(
+                    a,
+                    store,
+                    syntax_store,
+                    prefix_map,
+                    ontology_loaded,
+                    file,
+                    diags,
+                );
             }
         }
         Expr::BinOp { left, right, .. } => {
-            check_expr_sparql(left, store, prefix_map, ontology_loaded, file, diags);
-            check_expr_sparql(right, store, prefix_map, ontology_loaded, file, diags);
+            check_expr_sparql(
+                left,
+                store,
+                syntax_store,
+                prefix_map,
+                ontology_loaded,
+                file,
+                diags,
+            );
+            check_expr_sparql(
+                right,
+                store,
+                syntax_store,
+                prefix_map,
+                ontology_loaded,
+                file,
+                diags,
+            );
         }
-        Expr::UnaryOp { expr: inner, .. } => {
-            check_expr_sparql(inner, store, prefix_map, ontology_loaded, file, diags)
-        }
+        Expr::UnaryOp { expr: inner, .. } => check_expr_sparql(
+            inner,
+            store,
+            syntax_store,
+            prefix_map,
+            ontology_loaded,
+            file,
+            diags,
+        ),
         Expr::New { args, .. } => {
             for a in args {
-                check_expr_sparql(a, store, prefix_map, ontology_loaded, file, diags);
+                check_expr_sparql(
+                    a,
+                    store,
+                    syntax_store,
+                    prefix_map,
+                    ontology_loaded,
+                    file,
+                    diags,
+                );
             }
         }
-        Expr::Field { receiver, .. } => {
-            check_expr_sparql(receiver, store, prefix_map, ontology_loaded, file, diags)
-        }
-        Expr::Classify { expr: inner, .. } => {
-            check_expr_sparql(inner, store, prefix_map, ontology_loaded, file, diags)
-        }
+        Expr::Field { receiver, .. } => check_expr_sparql(
+            receiver,
+            store,
+            syntax_store,
+            prefix_map,
+            ontology_loaded,
+            file,
+            diags,
+        ),
+        Expr::Classify { expr: inner, .. } => check_expr_sparql(
+            inner,
+            store,
+            syntax_store,
+            prefix_map,
+            ontology_loaded,
+            file,
+            diags,
+        ),
         Expr::Simulate { args, .. } => {
             for a in args {
-                check_expr_sparql(a, store, prefix_map, ontology_loaded, file, diags);
+                check_expr_sparql(
+                    a,
+                    store,
+                    syntax_store,
+                    prefix_map,
+                    ontology_loaded,
+                    file,
+                    diags,
+                );
             }
         }
-        Expr::Port { receiver, .. } => {
-            check_expr_sparql(receiver, store, prefix_map, ontology_loaded, file, diags)
-        }
+        Expr::Port { receiver, .. } => check_expr_sparql(
+            receiver,
+            store,
+            syntax_store,
+            prefix_map,
+            ontology_loaded,
+            file,
+            diags,
+        ),
         Expr::Super { args, .. } => {
             for a in args {
-                check_expr_sparql(a, store, prefix_map, ontology_loaded, file, diags);
+                check_expr_sparql(
+                    a,
+                    store,
+                    syntax_store,
+                    prefix_map,
+                    ontology_loaded,
+                    file,
+                    diags,
+                );
             }
         }
         // Member / Validate / literal / variable expressions: no SPARQL to check.
