@@ -166,7 +166,7 @@ pub fn load(manifest_path: &Path) -> Result<ResolvedManifest, Vec<Diagnostic>> {
 
     let properties = manifest.properties.map(|p| p.check).unwrap_or_default();
 
-    let inline_depth = manifest.model.and_then(|m| m.inline_depth).unwrap_or(10);
+    let inline_depth = manifest.model.and_then(|m| m.inline_depth).unwrap_or(3);
 
     Ok(ResolvedManifest {
         project_name: manifest.project.name,
