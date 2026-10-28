@@ -63,9 +63,19 @@ context_kw    = @{ "context"    ~ !lod_ }
 // Used for variable names, method names, and class names.
 name = @{ !keyword ~ let_ ~ lod_* }
 
-// Type names always start with an uppercase letter (SMOL convention).
-// Using a separate rule avoids treating lowercase variable names as types.
-type_name = @{ !keyword ~ 'A'..'Z' ~ lod_* }
+// Type names are ANY SMOL identifier — parity with the Kotlin reference:
+// While.g4:112 (`NAME : LET LOD*`, letters/underscore start, not a keyword)
+// and While.g4:216-219 (`type : NAME | NAME LT typelist GT | FMU …`).
+// The earlier uppercase-only port ('A'..'Z' ~ lod_*) was a grammar-parity
+// bug: ontology-generated classes such as `newOwlClass_…` declared fine
+// (`class_def` uses `name`) but failed at their first *use* as a type
+// (`List<newOwlClass_…>`, params, field types, `new foo(…)`, `extends`).
+// `type_name` accepts any non-keyword SMOL identifier.  Note that the
+// keyword set behind `!keyword` is NOT identical to Kotlin's NAME token
+// (the two grammars reserve different identifier sets); those keyword-set
+// differences are pre-existing, tracked as a residual, and deliberately
+// out of scope for this fix.
+type_name = @{ !keyword ~ let_ ~ lod_* }
 
 // Boolean / null / unit literals
 true_lit  = @{ "True"  ~ !lod_ }
@@ -200,8 +210,13 @@ classify_stmt = {
     ~ ";"
 }
 
+// Guarded like the statement prefixes below (`!("=" | ".")`): with
+// lowercase types legal, `type_expr` would otherwise commit to the
+// receiver (`c` in `c.x = classify(q);`) and `assignment_target`
+// cannot start at `.`.  The `=` limb also preserves the plain
+// `x = classify(q);` reading, which a `.`-only guard would break.
 classify_assignment = {
-    type_expr? ~ assignment_target ~ "="
+    (type_expr ~ !("=" | "."))? ~ assignment_target ~ "="
 }
 
 assignment_target = {
@@ -233,6 +248,27 @@ destroy_stmt = { destroy_kw ~ "(" ~ expression ~ ")" ~ ";" }
 // `fmu.tick(time);`
 tick_stmt = { expression ~ "." ~ tick_kw ~ "(" ~ expression ~ ")" ~ ";" }
 
+// Statement rules with an optional declaration prefix (`(Type target =)?`)
+// guard the prefix with `!("=" | ".")`, not just `!("=")`: with lowercase
+// type names now legal (Kotlin While.g4 NAME parity, see `type_name`),
+// `type_expr` matches the receiver of a field assignment (`c` in
+// `c.x = 5;`).  ANTLR's adaptive prediction backtracks to the
+// no-declaration reading there; PEG ordered choice commits once the
+// optional matches and `expression` cannot start at `.`, so without the
+// guard the statement would fail to parse outright (real instance:
+// `node.previous = this;`-style targets in the example corpora).  Kotlin's
+// `(declType = type)? target = expression …` never lets `target` begin
+// with `.`, so `=` and `.` are exactly the two tokens separating the
+// declared from the non-declared reading — the guard rejects exactly what
+// Kotlin rejects (it also restores `Foo = 5;` as a plain assignment, the
+// ANTLR no-declType fallback).
+// NB: `super_stmt` deliberately carries NO such guard: its prefix is
+// `type_expr ~ expression ~ "="` and the rule then requires the `super`
+// keyword, so the prefix can only commit to input that genuinely reads
+// `Type target = super(…)` — a dot-qualified target can never satisfy
+// `expression` right after `type_expr`, and when the prefix does not
+// match, a failed `super_stmt` simply falls through to the other
+// statement alternatives.
 super_kw = @{ "super" ~ !lod_ }
 new_kw   = @{ "new"   ~ !lod_ }
 
@@ -243,7 +279,7 @@ super_stmt = {
 }
 
 // assign: `(Type)? lhs = rhs;`
-assign_stmt = { (type_expr ~ !("=")) ? ~ expression ~ "=" ~ expression ~ ";" }
+assign_stmt = { (type_expr ~ !("=" | ".")) ? ~ expression ~ "=" ~ expression ~ ";" }
 
 // method call: `(Type? target =)? receiver.method(args…);`
 // NB: The receiver uses `call_receiver` (no method-call postfixes) so that
@@ -252,7 +288,7 @@ assign_stmt = { (type_expr ~ !("=")) ? ~ expression ~ "=" ~ expression ~ ";" }
 // Port: ANTLR allows `((declType = type)? target=expression ASS)?` so the
 // target may be any expression, not just a plain name.
 call_stmt = {
-    (type_expr ~ !("="))? ~ expression ~ "=" ~ call_receiver ~ "." ~ name ~ "(" ~ arg_list? ~ ")" ~ ";"
+    (type_expr ~ !("=" | "."))? ~ expression ~ "=" ~ call_receiver ~ "." ~ name ~ "(" ~ arg_list? ~ ")" ~ ";"
   |                           call_receiver ~ "." ~ name ~ "(" ~ arg_list? ~ ")" ~ ";"
 }
 
@@ -264,7 +300,7 @@ field_in_receiver = { "." ~ name ~ !("(") }
 
 // create: `(Type target =)? target = new T(args…) (links "desc")?;`
 create_stmt = {
-    (type_expr ~ !("="))? ~ expression ~ "="
+    (type_expr ~ !("=" | "."))? ~ expression ~ "="
     ~ new_kw ~ type_expr ~ "(" ~ arg_list? ~ ")"
     ~ (links_kw ~ expression)?
     ~ ";"
@@ -278,7 +314,7 @@ simulate_kw  = @{ "simulate"  ~ !lod_ }
 
 // access: `(Type target =)? target = access(query, mode?, params…);`
 sparql_stmt = {
-    (type_expr ~ !("="))? ~ expression ~ "="
+    (type_expr ~ !("=" | "."))? ~ expression ~ "="
     ~ access_kw ~ "(" ~ expression
     ~ ("," ~ mode_expression)?
     ~ ("," ~ expression)*
@@ -287,25 +323,25 @@ sparql_stmt = {
 
 // construct: `(Type target =)? target = construct(query, params…);`
 construct_stmt = {
-    (type_expr ~ !("="))? ~ expression ~ "="
+    (type_expr ~ !("=" | "."))? ~ expression ~ "="
     ~ construct_kw ~ "(" ~ expression ~ ("," ~ expression)* ~ ")" ~ ";"
 }
 
 // member: OWL DL membership
 owl_stmt = {
-    (type_expr ~ !("="))? ~ expression ~ "="
+    (type_expr ~ !("=" | "."))? ~ expression ~ "="
     ~ member_kw ~ "(" ~ expression ~ ")" ~ ";"
 }
 
 // validate: SHACL validation
 validate_stmt = {
-    (type_expr ~ !("="))? ~ expression ~ "="
+    (type_expr ~ !("=" | "."))? ~ expression ~ "="
     ~ validate_kw ~ "(" ~ expression ~ ")" ~ ";"
 }
 
 // simulate: load FMU
 simulate_stmt = {
-    (type_expr ~ !("="))? ~ expression ~ "="
+    (type_expr ~ !("=" | "."))? ~ expression ~ "="
     ~ simulate_kw ~ "(" ~ string_lit ~ ("," ~ var_init_list)? ~ ")" ~ ";"
 }
 
