@@ -88,7 +88,3 @@ ariadne       = { workspace = true }
 serde         = { workspace = true }
 serde_json    = { workspace = true }
 
-# TEMP: test against the local fixed oxidowl (unpushed). Remove after pushing
-# oxidowl and running `cargo update -p oxidowl`.
-[patch."https://github.com/sievericcardo/oxidowl"]
-oxidowl = { path = "/Users/riccasi/Documents/GitHub/oxidowl" }
