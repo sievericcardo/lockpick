@@ -1,0 +1,90 @@
+[workspace]
+members = [
+    "crates/smol-checker",
+    "crates/smol-model",
+    "crates/smol-ontology",
+    "crates/smol-parser",
+    "crates/smol-syntax",
+    "crates/smol-verifier"
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+version  = "1.0.0"
+license  = "BSD-3-Clause"
+
+[workspace.dependencies]
+# Intra-workspace
+smol-syntax   = { path = "crates/smol-syntax" }
+smol-parser   = { path = "crates/smol-parser" }
+smol-ontology = { path = "crates/smol-ontology" }
+smol-checker  = { path = "crates/smol-checker" }
+smol-model  = { path = "crates/smol-model" }
+smol-verifier = { path = "crates/smol-verifier" }
+
+# OWL reasoning (local sibling)
+oxidowl = { git = "https://github.com/sievericcardo/oxidowl", version="2.0.0", features = ["sparql-store", "parallel", "cache"] }
+
+# Lexer / parser / diagnostics
+logos    = "0.16.1"
+chumsky  = { version = "1.0.0-alpha.8", features = ["pratt"] }
+ariadne  = "0.6.0"
+pest     = "2.9.2"
+pest_derive = "2.9.2"
+
+# Incremental computation
+salsa = "0.28.5"
+
+# Manifest parsing
+toml  = "1.1.6"
+serde = { version = "1.0.229", features = ["derive"] }
+
+# JSON output (--format json)
+serde_json = "1.0.151"
+
+# File globs
+globwalk = "0.9.1"
+
+# CLI
+clap = { version = "4.6.7", features = ["derive"] }
+
+# Async runtime (required by oxidowl ReasoningService)
+tokio = { version = "1.53.1", features = ["rt", "rt-multi-thread", "macros"] }
+
+# Parallelism
+rayon = "1.12.0"
+
+# Utilities
+thiserror = "2.0.21"
+
+# Model checking (CTL, BDD-based symbolic engine)
+citreelo = "0.2.0"
+
+# Root package (the lockpick binary)
+[package]
+name    = "lockpick"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+default-run = "lockpick"
+
+[[bin]]
+name = "lockpick"
+path = "src/main.rs"
+
+[[bin]]
+name = "lockpick-lsp"
+path = "src/bin/lockpick-lsp.rs"
+
+[lib]
+name = "lockpick"
+path = "src/lib.rs"
+
+[dependencies]
+smol-verifier = { workspace = true }
+clap          = { workspace = true }
+ariadne       = { workspace = true }
+serde         = { workspace = true }
+serde_json    = { workspace = true }
+

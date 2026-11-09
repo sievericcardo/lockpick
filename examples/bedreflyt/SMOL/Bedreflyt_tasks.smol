@@ -1,0 +1,69 @@
+class TaskModel extends BaseModel ()
+
+    override Unit adaptAddition()
+        List<Task> newTasks = construct("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?taskName
+        WHERE {
+            ?step rdf:type <http://purl.org/net/p-plan#Step> ;
+                :taskName ?taskName .
+        }");
+
+        if newTasks != null then
+            print("RECONFIG> Adding new tasks...");
+
+            while newTasks != null do
+                Task newTask = newTasks.content;
+                List<Task> lx = newTasks;
+                newTasks = newTasks.next;
+                newTask.setSupplies();
+                
+                print("RECONFIG> Adding task " ++ newTask.taskName);
+                destroy(lx);
+            end
+
+            print("RECONFIG> New tasks added");
+        end    
+    end
+
+    override Unit adaptRemoval()
+        List<Task> wrongTasks = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj {
+            ?obj a prog:Task ;
+                prog:Task_taskName ?taskName .
+            FILTER NOT EXISTS {
+                ?task rdf:type <http://purl.org/net/p-plan#Step> ;
+                    :taskName ?taskName .
+            }
+        }");
+
+        if wrongTasks != null then
+            print("RECONFIG> Removing wrong tasks...");
+
+            while wrongTasks != null do
+                Task wrongTask = wrongTasks.content;
+                List<Task> lx = wrongTasks;
+                wrongTasks = wrongTasks.next;
+                
+                print("RECONFIG> Removing task " ++ wrongTask.taskName);
+                destroy(wrongTask);
+                destroy(lx);
+            end
+
+            print("RECONFIG> Wrong tasks removed");
+        end
+    end
+
+    override Unit adaptDefect()
+        print("RECONFIG> Checking for defects in the Task(s)");
+        skip;
+        print("RECONFIG> Defects checked for the Task(s)");
+    end
+
+    override Unit adaptRepair()
+        skip;
+    end
+end

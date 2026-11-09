@@ -1,0 +1,99 @@
+class WardModel extends BaseModel ()
+    override Unit adaptAddition()
+        List<Ward> newWards = construct("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
+
+        SELECT DISTINCT ?wardName ?capacityThreshold ?wardHospital ?wardFloor
+        WHERE {
+            ?ward a :Ward ;
+                :wardName ?wardName ;
+                :capacityThreshold ?capacityThreshold ;
+                brick:hasHospital ?hospital ;
+                brick:hasFloor ?floor .
+            ?hospital a brick:Hospital ;
+                :hospitalName ?hospitalName .
+            ?floor a brick:Floor ;
+                :floorNumber ?floorNumber .
+
+            ?wardHospital a prog:Hospital ;
+                prog:Hospital_hospitalName ?hospitalName .
+            ?wardFloor a prog:Floor ;
+                prog:Floor_floorNumber ?floorNumber .
+
+            FILTER NOT EXISTS {
+                ?wardObj a prog:Ward ;
+                    prog:Ward_wardName ?wardName ;
+                    prog:Ward_wardHospital ?wardHospital ;
+                    prog:Ward_wardFloor ?wardFloor .
+            }
+        }");
+
+        if newWards != null then
+            print("RECONFIG> Adding new wards...");
+
+            while newWards != null do
+                Ward newWard = newWards.content;
+                List<Ward> lx = newWards;
+                newWards = newWards.next;
+                
+                print("RECONFIG> Adding ward " ++ newWard.wardName);
+                print("          Capacity threshold: " ++ doubleToString(newWard.capacityThreshold));
+                destroy(lx);
+            end
+
+            print("RECONFIG> New wards added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<Ward> wrongWards = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
+
+        SELECT DISTINCT ?obj {
+            ?obj a prog:Ward ;
+                prog:Ward_wardName ?wardName ;
+                prog:Ward_wardHospital ?hospital ;
+                prog:Ward_wardFloor ?floor .
+            ?hospital a prog:Hospital ;
+                prog:Hospital_hospitalName ?hospitalName .
+            ?floor a prog:Floor ;
+                prog:Floor_floorNumber ?floorNumber .
+            FILTER NOT EXISTS {
+                ?ward a :Ward ;
+                    :wardName ?wardName ;
+                    brick:hasHospital ?hospitalOntology ;
+                    brick:hasFloor ?floorOntology .
+                ?hospitalOntology a brick:Hospital ;
+                    :hospitalName ?hospitalName .
+                ?floorOntology a brick:Floor ;
+                    :floorNumber ?floorNumber .
+            }
+        }");
+
+        if wrongWards != null then
+            print("RECONFIG> Removing wrong wards...");
+
+            while wrongWards != null do
+                Ward wrongWard = wrongWards.content;
+                List<Ward> lx = wrongWards;
+                wrongWards = wrongWards.next;
+                
+                print("RECONFIG> Removing ward " ++ wrongWard.wardName);
+                destroy(wrongWard);
+                destroy(lx);
+            end
+
+            print("RECONFIG> Wrong wards removed");
+        end
+    end
+
+    override Unit adaptDefect()
+        skip;
+    end
+
+    override Unit adaptRepair()
+        skip;
+    end
+end

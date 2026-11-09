@@ -1,0 +1,17 @@
+[package]
+name    = "smol-verifier"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+smol-syntax   = { workspace = true }
+smol-parser   = { workspace = true }
+smol-checker  = { workspace = true }
+smol-model    = { workspace = true }
+smol-ontology = { workspace = true }
+toml          = { workspace = true }
+serde         = { workspace = true }
+globwalk      = { workspace = true }
+thiserror     = { workspace = true }
+rayon         = { workspace = true }

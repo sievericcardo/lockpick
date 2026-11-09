@@ -1,0 +1,208 @@
+name: CI
+
+# Run on every branch, every pull request, and on demand.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# Cancel superseded runs on the same ref (e.g. rapid pushes to a PR).
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+
+jobs:
+  # ─── Formatting ────────────────────────────────────────────────────────────
+  fmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  # ─── Linting ───────────────────────────────────────────────────────────────
+  clippy:
+    name: clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # OxidOWL pulls in Oxigraph with RocksDB, which needs a C++17 compiler,
+      # CMake and libclang at build time.
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            clang \
+            libclang-dev \
+            pkg-config
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: clippy
+
+      # NOTE: the workspace currently has pre-existing lint warnings, so they
+      # are reported but not promoted to errors yet. Once that backlog is
+      # cleared, append `-- -D warnings` to make them fail the job.
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets --locked
+
+  # ─── Tests ─────────────────────────────────────────────────────────────────
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            clang \
+            libclang-dev \
+            pkg-config
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: test
+
+      # Runs unit tests, integration tests, the root `lockpick` API tests and
+      # all doctests across the workspace.
+      - name: Run test suite
+        run: cargo test --workspace --locked
+
+  # ─── Release build + end-to-end smoke tests ────────────────────────────────
+  build-and-smoke:
+    name: build and smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            clang \
+            libclang-dev \
+            pkg-config
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: release
+
+      - name: Build release binaries
+        run: cargo build --release --locked --bin lockpick --bin lockpick-lsp
+
+      - name: Report CLI version
+        run: ./target/release/lockpick --version
+
+      # examples/odrl is the reference project that must check cleanly
+      # (warnings are allowed, errors are not).
+      - name: Check a known-good project
+        run: |
+          ./target/release/lockpick check \
+            --manifest examples/odrl/smol.toml \
+            --format json > /tmp/odrl.json
+          jq -e '.error_count == 0' /tmp/odrl.json
+
+      # examples/error-file.smol intentionally contains type errors: the CLI
+      # must exit with code 1 and still emit a valid JSON document.
+      - name: Verify the CLI rejects an invalid program
+        shell: bash
+        run: |
+          set +e
+          ./target/release/lockpick check \
+            --no-manifest \
+            --files examples/error-file.smol \
+            --format json > /tmp/error-file.json 2> /tmp/error-file.log
+          status=$?
+          set -e
+
+          if [ "$status" -ne 1 ]; then
+            echo "::error::expected exit code 1 for examples/error-file.smol, got $status"
+            cat /tmp/error-file.log
+            exit 1
+          fi
+
+          jq -e '.error_count > 0 and (.diagnostics | length > 0)' /tmp/error-file.json
+
+      - name: Smoke-test the LSP server
+        run: python3 .github/scripts/lsp-smoke-test.py ./target/release/lockpick-lsp
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: lockpick-linux-x86_64
+          path: |
+            target/release/lockpick
+            target/release/lockpick-lsp
+          if-no-files-found: error
+
+  # ─── Documentation ─────────────────────────────────────────────────────────
+  docs:
+    name: rustdoc
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            clang \
+            libclang-dev \
+            pkg-config
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: docs
+
+      - name: Build documentation
+        run: cargo doc --workspace --no-deps --locked

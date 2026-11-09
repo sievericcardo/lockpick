@@ -1,0 +1,66 @@
+class DiagnosisModel extends BaseModel()
+
+    override Unit adaptAddition()
+        List<Diagnosis> newDiagnoses = construct("
+            PREFIX ast: <http://www.smolang.org/bedreflyt/>
+            SELECT DISTINCT ?diagnosisCode {
+                ?x a ast:Diagnosis ;
+                    ast:diagnosisCode ?diagnosisCode .
+                FILTER NOT EXISTS {
+                    ?y a prog:Diagnosis ;
+                        prog:Diagnosis_diagnosisCode ?diagnosisCode .
+                }
+            }");
+
+        if newDiagnoses != null then
+            print("RECONFIG> New Diagnosis(es) detected: repairing the model");
+
+            while newDiagnoses != null do
+                Diagnosis newDiagnosis = newDiagnoses.content;
+                List<Diagnosis> lx = newDiagnoses;
+                newDiagnoses = newDiagnoses.next;
+
+                print("RECONFIG> New diagnosis detected: ");
+                print("          Diagnosis Code: " ++ newDiagnosis.diagnosisCode);
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Diagnosis(es) added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<Diagnosis> wrongDiagnoses = access("
+            PREFIX ast: <http://www.smolang.org/bedreflyt/>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:Diagnosis ;
+                     prog:Diagnosis_diagnosisCode ?diagnosisCode.
+                FILTER NOT EXISTS {
+                    ?y a ast:Diagnosis ;
+                       ast:diagnosisCode ?diagnosisCode.
+                }
+            }");
+
+        if wrongDiagnoses != null then
+            print("RECONFIG> Misconfigured Diagnosis(es) detected: repairing the model");
+            while wrongDiagnoses != null do
+                Diagnosis wrongDiagnosis = wrongDiagnoses.content;
+                List<Diagnosis> lx = wrongDiagnoses;
+                wrongDiagnoses = wrongDiagnoses.next;
+
+                print("RECONFIG> Misconfigured diagnosis to remove: ");
+                print("          Diagnosis Code: " ++ wrongDiagnosis.diagnosisCode);
+
+                destroy(wrongDiagnosis);
+                destroy(lx);
+            end
+
+            print("RECONFIG> Diagnosis(es) removed");
+        end
+    end
+
+    override Unit adaptDefect() skip; end
+
+    override Unit adaptRepair() skip; end
+end

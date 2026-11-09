@@ -1,0 +1,14 @@
+# Build output — the enormous target/ directory must never enter the build context
+target
+
+# VCS and metadata
+.git
+.gitignore
+
+# IDE / editor / tooling
+.idea
+.opencode
+.DS_Store
+
+# rustfmt backup files
+**/*.rs.bk

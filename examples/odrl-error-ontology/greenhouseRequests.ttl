@@ -1,0 +1,1950 @@
+@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
+@prefix dpv: <https://w3id.org/dpv#> .
+@prefix pol: <http://www.smolang.org/greenhouseDT-policy#> .
+@prefix ast: <http://www.smolang.org/greenhouseDT#> .
+
+pol:wateringRequestConstraint a odrl:Constraint ;
+    pol:identifier "urn:uuid:wateringRequestConstraint" ;
+    odrl:leftOperand odrl:purpose ;
+    odrl:rightOperand pol:WateringPurpose .
+
+pol:researchRequestConstraint a odrl:Constraint ;
+    pol:identifier "urn:uuid:researchRequestConstraint" ;
+    odrl:leftOperand odrl:purpose ;
+    odrl:rightOperand dpv:AcademicResearch .
+
+pol:marketingRequestConstraint a odrl:Constraint ;
+    pol:identifier "urn:uuid:marketingRequestConstraint" ;
+    odrl:leftOperand odrl:purpose ;
+    odrl:rightOperand dpv:Marketing .
+
+pol:healthmonitoringRequestConstraint a odrl:Constraint ;
+    pol:identifier "urn:uuid:healthmonitoringRequestConstraint" ;
+    odrl:leftOperand odrl:purpose ;
+    odrl:rightOperand dpv:ImproveHealthcare .
+
+pol:maintenanceRequestConstraint a odrl:Constraint ;
+    pol:identifier "urn:uuid:maintenanceRequestConstraint" ;
+    odrl:leftOperand odrl:purpose ;
+    odrl:rightOperand dpv:Maintenance .
+
+<urn:uuid:plant1-greenhouse-use-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-greenhouse-use-watering-request" ;
+    odrl:permission <urn:uuid:plant1-greenhouse-use-watering-permission> .
+
+<urn:uuid:plant1-greenhouse-use-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-greenhouse-use-watering-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant1-greenhouse-use-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-greenhouse-use-research-request" ;
+    odrl:permission <urn:uuid:plant1-greenhouse-use-research-permission> .
+
+<urn:uuid:plant1-greenhouse-use-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-greenhouse-use-research-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant1-greenhouse-use-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-greenhouse-use-marketing-request" ;
+    odrl:permission <urn:uuid:plant1-greenhouse-use-marketing-permission> .
+
+<urn:uuid:plant1-greenhouse-use-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-greenhouse-use-marketing-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant1-greenhouse-use-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-greenhouse-use-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant1-greenhouse-use-healthmonitoring-permission> .
+
+<urn:uuid:plant1-greenhouse-use-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-greenhouse-use-healthmonitoring-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant1-greenhouse-use-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-greenhouse-use-maintenance-request" ;
+    odrl:permission <urn:uuid:plant1-greenhouse-use-maintenance-permission> .
+
+<urn:uuid:plant1-greenhouse-use-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-greenhouse-use-maintenance-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant1-thirdparty-use-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-thirdparty-use-watering-request" ;
+    odrl:permission <urn:uuid:plant1-thirdparty-use-watering-permission> .
+
+<urn:uuid:plant1-thirdparty-use-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-thirdparty-use-watering-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant1-thirdparty-use-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-thirdparty-use-research-request" ;
+    odrl:permission <urn:uuid:plant1-thirdparty-use-research-permission> .
+
+<urn:uuid:plant1-thirdparty-use-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-thirdparty-use-research-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant1-thirdparty-use-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-thirdparty-use-marketing-request" ;
+    odrl:permission <urn:uuid:plant1-thirdparty-use-marketing-permission> .
+
+<urn:uuid:plant1-thirdparty-use-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-thirdparty-use-marketing-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant1-thirdparty-use-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-thirdparty-use-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant1-thirdparty-use-healthmonitoring-permission> .
+
+<urn:uuid:plant1-thirdparty-use-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-thirdparty-use-healthmonitoring-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant1-thirdparty-use-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-thirdparty-use-maintenance-request" ;
+    odrl:permission <urn:uuid:plant1-thirdparty-use-maintenance-permission> .
+
+<urn:uuid:plant1-thirdparty-use-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-thirdparty-use-maintenance-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant1-riccardo-use-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-riccardo-use-watering-request" ;
+    odrl:permission <urn:uuid:plant1-riccardo-use-watering-permission> .
+
+<urn:uuid:plant1-riccardo-use-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-riccardo-use-watering-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant1-riccardo-use-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-riccardo-use-research-request" ;
+    odrl:permission <urn:uuid:plant1-riccardo-use-research-permission> .
+
+<urn:uuid:plant1-riccardo-use-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-riccardo-use-research-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant1-riccardo-use-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-riccardo-use-marketing-request" ;
+    odrl:permission <urn:uuid:plant1-riccardo-use-marketing-permission> .
+
+<urn:uuid:plant1-riccardo-use-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-riccardo-use-marketing-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant1-riccardo-use-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-riccardo-use-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant1-riccardo-use-healthmonitoring-permission> .
+
+<urn:uuid:plant1-riccardo-use-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-riccardo-use-healthmonitoring-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant1-riccardo-use-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-riccardo-use-maintenance-request" ;
+    odrl:permission <urn:uuid:plant1-riccardo-use-maintenance-permission> .
+
+<urn:uuid:plant1-riccardo-use-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-riccardo-use-maintenance-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant1-hannah-use-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-hannah-use-watering-request" ;
+    odrl:permission <urn:uuid:plant1-hannah-use-watering-permission> .
+
+<urn:uuid:plant1-hannah-use-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-hannah-use-watering-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant1-hannah-use-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-hannah-use-research-request" ;
+    odrl:permission <urn:uuid:plant1-hannah-use-research-permission> .
+
+<urn:uuid:plant1-hannah-use-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-hannah-use-research-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant1-hannah-use-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-hannah-use-marketing-request" ;
+    odrl:permission <urn:uuid:plant1-hannah-use-marketing-permission> .
+
+<urn:uuid:plant1-hannah-use-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-hannah-use-marketing-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant1-hannah-use-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-hannah-use-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant1-hannah-use-healthmonitoring-permission> .
+
+<urn:uuid:plant1-hannah-use-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-hannah-use-healthmonitoring-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant1-hannah-use-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-hannah-use-maintenance-request" ;
+    odrl:permission <urn:uuid:plant1-hannah-use-maintenance-permission> .
+
+<urn:uuid:plant1-hannah-use-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-hannah-use-maintenance-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant1 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant1-greenhouse-share-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-greenhouse-share-watering-request" ;
+    odrl:permission <urn:uuid:plant1-greenhouse-share-watering-permission> .
+
+<urn:uuid:plant1-greenhouse-share-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-greenhouse-share-watering-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant1-greenhouse-share-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-greenhouse-share-research-request" ;
+    odrl:permission <urn:uuid:plant1-greenhouse-share-research-permission> .
+
+<urn:uuid:plant1-greenhouse-share-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-greenhouse-share-research-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant1-greenhouse-share-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-greenhouse-share-marketing-request" ;
+    odrl:permission <urn:uuid:plant1-greenhouse-share-marketing-permission> .
+
+<urn:uuid:plant1-greenhouse-share-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-greenhouse-share-marketing-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant1-greenhouse-share-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-greenhouse-share-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant1-greenhouse-share-healthmonitoring-permission> .
+
+<urn:uuid:plant1-greenhouse-share-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-greenhouse-share-healthmonitoring-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant1-greenhouse-share-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-greenhouse-share-maintenance-request" ;
+    odrl:permission <urn:uuid:plant1-greenhouse-share-maintenance-permission> .
+
+<urn:uuid:plant1-greenhouse-share-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-greenhouse-share-maintenance-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant1-thirdparty-share-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-thirdparty-share-watering-request" ;
+    odrl:permission <urn:uuid:plant1-thirdparty-share-watering-permission> .
+
+<urn:uuid:plant1-thirdparty-share-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-thirdparty-share-watering-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant1-thirdparty-share-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-thirdparty-share-research-request" ;
+    odrl:permission <urn:uuid:plant1-thirdparty-share-research-permission> .
+
+<urn:uuid:plant1-thirdparty-share-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-thirdparty-share-research-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant1-thirdparty-share-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-thirdparty-share-marketing-request" ;
+    odrl:permission <urn:uuid:plant1-thirdparty-share-marketing-permission> .
+
+<urn:uuid:plant1-thirdparty-share-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-thirdparty-share-marketing-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant1-thirdparty-share-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-thirdparty-share-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant1-thirdparty-share-healthmonitoring-permission> .
+
+<urn:uuid:plant1-thirdparty-share-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-thirdparty-share-healthmonitoring-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant1-thirdparty-share-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-thirdparty-share-maintenance-request" ;
+    odrl:permission <urn:uuid:plant1-thirdparty-share-maintenance-permission> .
+
+<urn:uuid:plant1-thirdparty-share-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-thirdparty-share-maintenance-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant1-riccardo-share-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-riccardo-share-watering-request" ;
+    odrl:permission <urn:uuid:plant1-riccardo-share-watering-permission> .
+
+<urn:uuid:plant1-riccardo-share-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-riccardo-share-watering-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant1-riccardo-share-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-riccardo-share-research-request" ;
+    odrl:permission <urn:uuid:plant1-riccardo-share-research-permission> .
+
+<urn:uuid:plant1-riccardo-share-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-riccardo-share-research-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant1-riccardo-share-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-riccardo-share-marketing-request" ;
+    odrl:permission <urn:uuid:plant1-riccardo-share-marketing-permission> .
+
+<urn:uuid:plant1-riccardo-share-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-riccardo-share-marketing-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant1-riccardo-share-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-riccardo-share-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant1-riccardo-share-healthmonitoring-permission> .
+
+<urn:uuid:plant1-riccardo-share-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-riccardo-share-healthmonitoring-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant1-riccardo-share-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-riccardo-share-maintenance-request" ;
+    odrl:permission <urn:uuid:plant1-riccardo-share-maintenance-permission> .
+
+<urn:uuid:plant1-riccardo-share-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-riccardo-share-maintenance-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant1-hannah-share-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-hannah-share-watering-request" ;
+    odrl:permission <urn:uuid:plant1-hannah-share-watering-permission> .
+
+<urn:uuid:plant1-hannah-share-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-hannah-share-watering-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant1-hannah-share-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-hannah-share-research-request" ;
+    odrl:permission <urn:uuid:plant1-hannah-share-research-permission> .
+
+<urn:uuid:plant1-hannah-share-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-hannah-share-research-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant1-hannah-share-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-hannah-share-marketing-request" ;
+    odrl:permission <urn:uuid:plant1-hannah-share-marketing-permission> .
+
+<urn:uuid:plant1-hannah-share-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-hannah-share-marketing-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant1-hannah-share-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-hannah-share-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant1-hannah-share-healthmonitoring-permission> .
+
+<urn:uuid:plant1-hannah-share-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-hannah-share-healthmonitoring-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant1-hannah-share-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant1-hannah-share-maintenance-request" ;
+    odrl:permission <urn:uuid:plant1-hannah-share-maintenance-permission> .
+
+<urn:uuid:plant1-hannah-share-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-hannah-share-maintenance-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant1 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant2-greenhouse-use-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-greenhouse-use-watering-request" ;
+    odrl:permission <urn:uuid:plant2-greenhouse-use-watering-permission> .
+
+<urn:uuid:plant2-greenhouse-use-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-greenhouse-use-watering-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant2-greenhouse-use-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-greenhouse-use-research-request" ;
+    odrl:permission <urn:uuid:plant2-greenhouse-use-research-permission> .
+
+<urn:uuid:plant2-greenhouse-use-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-greenhouse-use-research-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant2-greenhouse-use-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-greenhouse-use-marketing-request" ;
+    odrl:permission <urn:uuid:plant2-greenhouse-use-marketing-permission> .
+
+<urn:uuid:plant2-greenhouse-use-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-greenhouse-use-marketing-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant2-greenhouse-use-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-greenhouse-use-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant2-greenhouse-use-healthmonitoring-permission> .
+
+<urn:uuid:plant2-greenhouse-use-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-greenhouse-use-healthmonitoring-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant2-greenhouse-use-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-greenhouse-use-maintenance-request" ;
+    odrl:permission <urn:uuid:plant2-greenhouse-use-maintenance-permission> .
+
+<urn:uuid:plant2-greenhouse-use-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-greenhouse-use-maintenance-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant2-thirdparty-use-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-thirdparty-use-watering-request" ;
+    odrl:permission <urn:uuid:plant2-thirdparty-use-watering-permission> .
+
+<urn:uuid:plant2-thirdparty-use-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-thirdparty-use-watering-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant2-thirdparty-use-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-thirdparty-use-research-request" ;
+    odrl:permission <urn:uuid:plant2-thirdparty-use-research-permission> .
+
+<urn:uuid:plant2-thirdparty-use-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-thirdparty-use-research-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant2-thirdparty-use-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-thirdparty-use-marketing-request" ;
+    odrl:permission <urn:uuid:plant2-thirdparty-use-marketing-permission> .
+
+<urn:uuid:plant2-thirdparty-use-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-thirdparty-use-marketing-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant2-thirdparty-use-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-thirdparty-use-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant2-thirdparty-use-healthmonitoring-permission> .
+
+<urn:uuid:plant2-thirdparty-use-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-thirdparty-use-healthmonitoring-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant2-thirdparty-use-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-thirdparty-use-maintenance-request" ;
+    odrl:permission <urn:uuid:plant2-thirdparty-use-maintenance-permission> .
+
+<urn:uuid:plant2-thirdparty-use-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-thirdparty-use-maintenance-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant2-riccardo-use-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-riccardo-use-watering-request" ;
+    odrl:permission <urn:uuid:plant2-riccardo-use-watering-permission> .
+
+<urn:uuid:plant2-riccardo-use-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-riccardo-use-watering-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant2-riccardo-use-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-riccardo-use-research-request" ;
+    odrl:permission <urn:uuid:plant2-riccardo-use-research-permission> .
+
+<urn:uuid:plant2-riccardo-use-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-riccardo-use-research-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant2-riccardo-use-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-riccardo-use-marketing-request" ;
+    odrl:permission <urn:uuid:plant2-riccardo-use-marketing-permission> .
+
+<urn:uuid:plant2-riccardo-use-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-riccardo-use-marketing-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant2-riccardo-use-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-riccardo-use-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant2-riccardo-use-healthmonitoring-permission> .
+
+<urn:uuid:plant2-riccardo-use-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-riccardo-use-healthmonitoring-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant2-riccardo-use-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-riccardo-use-maintenance-request" ;
+    odrl:permission <urn:uuid:plant2-riccardo-use-maintenance-permission> .
+
+<urn:uuid:plant2-riccardo-use-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-riccardo-use-maintenance-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant2-hannah-use-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-hannah-use-watering-request" ;
+    odrl:permission <urn:uuid:plant2-hannah-use-watering-permission> .
+
+<urn:uuid:plant2-hannah-use-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-hannah-use-watering-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant2-hannah-use-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-hannah-use-research-request" ;
+    odrl:permission <urn:uuid:plant2-hannah-use-research-permission> .
+
+<urn:uuid:plant2-hannah-use-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-hannah-use-research-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant2-hannah-use-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-hannah-use-marketing-request" ;
+    odrl:permission <urn:uuid:plant2-hannah-use-marketing-permission> .
+
+<urn:uuid:plant2-hannah-use-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-hannah-use-marketing-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant2-hannah-use-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-hannah-use-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant2-hannah-use-healthmonitoring-permission> .
+
+<urn:uuid:plant2-hannah-use-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-hannah-use-healthmonitoring-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant2-hannah-use-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-hannah-use-maintenance-request" ;
+    odrl:permission <urn:uuid:plant2-hannah-use-maintenance-permission> .
+
+<urn:uuid:plant2-hannah-use-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-hannah-use-maintenance-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant2 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant2-greenhouse-share-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-greenhouse-share-watering-request" ;
+    odrl:permission <urn:uuid:plant2-greenhouse-share-watering-permission> .
+
+<urn:uuid:plant2-greenhouse-share-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-greenhouse-share-watering-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant2-greenhouse-share-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-greenhouse-share-research-request" ;
+    odrl:permission <urn:uuid:plant2-greenhouse-share-research-permission> .
+
+<urn:uuid:plant2-greenhouse-share-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-greenhouse-share-research-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant2-greenhouse-share-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-greenhouse-share-marketing-request" ;
+    odrl:permission <urn:uuid:plant2-greenhouse-share-marketing-permission> .
+
+<urn:uuid:plant2-greenhouse-share-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-greenhouse-share-marketing-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant2-greenhouse-share-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-greenhouse-share-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant2-greenhouse-share-healthmonitoring-permission> .
+
+<urn:uuid:plant2-greenhouse-share-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-greenhouse-share-healthmonitoring-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant2-greenhouse-share-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-greenhouse-share-maintenance-request" ;
+    odrl:permission <urn:uuid:plant2-greenhouse-share-maintenance-permission> .
+
+<urn:uuid:plant2-greenhouse-share-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-greenhouse-share-maintenance-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant2-thirdparty-share-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-thirdparty-share-watering-request" ;
+    odrl:permission <urn:uuid:plant2-thirdparty-share-watering-permission> .
+
+<urn:uuid:plant2-thirdparty-share-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-thirdparty-share-watering-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant2-thirdparty-share-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-thirdparty-share-research-request" ;
+    odrl:permission <urn:uuid:plant2-thirdparty-share-research-permission> .
+
+<urn:uuid:plant2-thirdparty-share-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-thirdparty-share-research-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant2-thirdparty-share-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-thirdparty-share-marketing-request" ;
+    odrl:permission <urn:uuid:plant2-thirdparty-share-marketing-permission> .
+
+<urn:uuid:plant2-thirdparty-share-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-thirdparty-share-marketing-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant2-thirdparty-share-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-thirdparty-share-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant2-thirdparty-share-healthmonitoring-permission> .
+
+<urn:uuid:plant2-thirdparty-share-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-thirdparty-share-healthmonitoring-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant2-thirdparty-share-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-thirdparty-share-maintenance-request" ;
+    odrl:permission <urn:uuid:plant2-thirdparty-share-maintenance-permission> .
+
+<urn:uuid:plant2-thirdparty-share-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-thirdparty-share-maintenance-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant2-riccardo-share-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-riccardo-share-watering-request" ;
+    odrl:permission <urn:uuid:plant2-riccardo-share-watering-permission> .
+
+<urn:uuid:plant2-riccardo-share-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-riccardo-share-watering-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant2-riccardo-share-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-riccardo-share-research-request" ;
+    odrl:permission <urn:uuid:plant2-riccardo-share-research-permission> .
+
+<urn:uuid:plant2-riccardo-share-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-riccardo-share-research-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant2-riccardo-share-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-riccardo-share-marketing-request" ;
+    odrl:permission <urn:uuid:plant2-riccardo-share-marketing-permission> .
+
+<urn:uuid:plant2-riccardo-share-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-riccardo-share-marketing-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant2-riccardo-share-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-riccardo-share-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant2-riccardo-share-healthmonitoring-permission> .
+
+<urn:uuid:plant2-riccardo-share-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-riccardo-share-healthmonitoring-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant2-riccardo-share-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-riccardo-share-maintenance-request" ;
+    odrl:permission <urn:uuid:plant2-riccardo-share-maintenance-permission> .
+
+<urn:uuid:plant2-riccardo-share-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-riccardo-share-maintenance-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant2-hannah-share-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-hannah-share-watering-request" ;
+    odrl:permission <urn:uuid:plant2-hannah-share-watering-permission> .
+
+<urn:uuid:plant2-hannah-share-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-hannah-share-watering-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant2-hannah-share-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-hannah-share-research-request" ;
+    odrl:permission <urn:uuid:plant2-hannah-share-research-permission> .
+
+<urn:uuid:plant2-hannah-share-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-hannah-share-research-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant2-hannah-share-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-hannah-share-marketing-request" ;
+    odrl:permission <urn:uuid:plant2-hannah-share-marketing-permission> .
+
+<urn:uuid:plant2-hannah-share-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-hannah-share-marketing-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant2-hannah-share-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-hannah-share-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant2-hannah-share-healthmonitoring-permission> .
+
+<urn:uuid:plant2-hannah-share-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-hannah-share-healthmonitoring-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant2-hannah-share-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant2-hannah-share-maintenance-request" ;
+    odrl:permission <urn:uuid:plant2-hannah-share-maintenance-permission> .
+
+<urn:uuid:plant2-hannah-share-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-hannah-share-maintenance-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant2 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant3-greenhouse-use-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-greenhouse-use-watering-request" ;
+    odrl:permission <urn:uuid:plant3-greenhouse-use-watering-permission> .
+
+<urn:uuid:plant3-greenhouse-use-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-greenhouse-use-watering-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant3-greenhouse-use-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-greenhouse-use-research-request" ;
+    odrl:permission <urn:uuid:plant3-greenhouse-use-research-permission> .
+
+<urn:uuid:plant3-greenhouse-use-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-greenhouse-use-research-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant3-greenhouse-use-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-greenhouse-use-marketing-request" ;
+    odrl:permission <urn:uuid:plant3-greenhouse-use-marketing-permission> .
+
+<urn:uuid:plant3-greenhouse-use-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-greenhouse-use-marketing-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant3-greenhouse-use-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-greenhouse-use-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant3-greenhouse-use-healthmonitoring-permission> .
+
+<urn:uuid:plant3-greenhouse-use-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-greenhouse-use-healthmonitoring-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant3-greenhouse-use-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-greenhouse-use-maintenance-request" ;
+    odrl:permission <urn:uuid:plant3-greenhouse-use-maintenance-permission> .
+
+<urn:uuid:plant3-greenhouse-use-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-greenhouse-use-maintenance-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant3-thirdparty-use-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-thirdparty-use-watering-request" ;
+    odrl:permission <urn:uuid:plant3-thirdparty-use-watering-permission> .
+
+<urn:uuid:plant3-thirdparty-use-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-thirdparty-use-watering-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant3-thirdparty-use-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-thirdparty-use-research-request" ;
+    odrl:permission <urn:uuid:plant3-thirdparty-use-research-permission> .
+
+<urn:uuid:plant3-thirdparty-use-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-thirdparty-use-research-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant3-thirdparty-use-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-thirdparty-use-marketing-request" ;
+    odrl:permission <urn:uuid:plant3-thirdparty-use-marketing-permission> .
+
+<urn:uuid:plant3-thirdparty-use-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-thirdparty-use-marketing-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant3-thirdparty-use-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-thirdparty-use-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant3-thirdparty-use-healthmonitoring-permission> .
+
+<urn:uuid:plant3-thirdparty-use-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-thirdparty-use-healthmonitoring-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant3-thirdparty-use-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-thirdparty-use-maintenance-request" ;
+    odrl:permission <urn:uuid:plant3-thirdparty-use-maintenance-permission> .
+
+<urn:uuid:plant3-thirdparty-use-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-thirdparty-use-maintenance-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant3-riccardo-use-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-riccardo-use-watering-request" ;
+    odrl:permission <urn:uuid:plant3-riccardo-use-watering-permission> .
+
+<urn:uuid:plant3-riccardo-use-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-riccardo-use-watering-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant3-riccardo-use-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-riccardo-use-research-request" ;
+    odrl:permission <urn:uuid:plant3-riccardo-use-research-permission> .
+
+<urn:uuid:plant3-riccardo-use-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-riccardo-use-research-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant3-riccardo-use-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-riccardo-use-marketing-request" ;
+    odrl:permission <urn:uuid:plant3-riccardo-use-marketing-permission> .
+
+<urn:uuid:plant3-riccardo-use-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-riccardo-use-marketing-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant3-riccardo-use-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-riccardo-use-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant3-riccardo-use-healthmonitoring-permission> .
+
+<urn:uuid:plant3-riccardo-use-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-riccardo-use-healthmonitoring-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant3-riccardo-use-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-riccardo-use-maintenance-request" ;
+    odrl:permission <urn:uuid:plant3-riccardo-use-maintenance-permission> .
+
+<urn:uuid:plant3-riccardo-use-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-riccardo-use-maintenance-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant3-hannah-use-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-hannah-use-watering-request" ;
+    odrl:permission <urn:uuid:plant3-hannah-use-watering-permission> .
+
+<urn:uuid:plant3-hannah-use-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-hannah-use-watering-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant3-hannah-use-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-hannah-use-research-request" ;
+    odrl:permission <urn:uuid:plant3-hannah-use-research-permission> .
+
+<urn:uuid:plant3-hannah-use-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-hannah-use-research-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant3-hannah-use-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-hannah-use-marketing-request" ;
+    odrl:permission <urn:uuid:plant3-hannah-use-marketing-permission> .
+
+<urn:uuid:plant3-hannah-use-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-hannah-use-marketing-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant3-hannah-use-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-hannah-use-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant3-hannah-use-healthmonitoring-permission> .
+
+<urn:uuid:plant3-hannah-use-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-hannah-use-healthmonitoring-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant3-hannah-use-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-hannah-use-maintenance-request" ;
+    odrl:permission <urn:uuid:plant3-hannah-use-maintenance-permission> .
+
+<urn:uuid:plant3-hannah-use-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-hannah-use-maintenance-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant3 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant3-greenhouse-share-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-greenhouse-share-watering-request" ;
+    odrl:permission <urn:uuid:plant3-greenhouse-share-watering-permission> .
+
+<urn:uuid:plant3-greenhouse-share-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-greenhouse-share-watering-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant3-greenhouse-share-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-greenhouse-share-research-request" ;
+    odrl:permission <urn:uuid:plant3-greenhouse-share-research-permission> .
+
+<urn:uuid:plant3-greenhouse-share-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-greenhouse-share-research-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant3-greenhouse-share-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-greenhouse-share-marketing-request" ;
+    odrl:permission <urn:uuid:plant3-greenhouse-share-marketing-permission> .
+
+<urn:uuid:plant3-greenhouse-share-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-greenhouse-share-marketing-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant3-greenhouse-share-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-greenhouse-share-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant3-greenhouse-share-healthmonitoring-permission> .
+
+<urn:uuid:plant3-greenhouse-share-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-greenhouse-share-healthmonitoring-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant3-greenhouse-share-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-greenhouse-share-maintenance-request" ;
+    odrl:permission <urn:uuid:plant3-greenhouse-share-maintenance-permission> .
+
+<urn:uuid:plant3-greenhouse-share-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-greenhouse-share-maintenance-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant3-thirdparty-share-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-thirdparty-share-watering-request" ;
+    odrl:permission <urn:uuid:plant3-thirdparty-share-watering-permission> .
+
+<urn:uuid:plant3-thirdparty-share-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-thirdparty-share-watering-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant3-thirdparty-share-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-thirdparty-share-research-request" ;
+    odrl:permission <urn:uuid:plant3-thirdparty-share-research-permission> .
+
+<urn:uuid:plant3-thirdparty-share-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-thirdparty-share-research-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant3-thirdparty-share-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-thirdparty-share-marketing-request" ;
+    odrl:permission <urn:uuid:plant3-thirdparty-share-marketing-permission> .
+
+<urn:uuid:plant3-thirdparty-share-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-thirdparty-share-marketing-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant3-thirdparty-share-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-thirdparty-share-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant3-thirdparty-share-healthmonitoring-permission> .
+
+<urn:uuid:plant3-thirdparty-share-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-thirdparty-share-healthmonitoring-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant3-thirdparty-share-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-thirdparty-share-maintenance-request" ;
+    odrl:permission <urn:uuid:plant3-thirdparty-share-maintenance-permission> .
+
+<urn:uuid:plant3-thirdparty-share-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-thirdparty-share-maintenance-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant3-riccardo-share-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-riccardo-share-watering-request" ;
+    odrl:permission <urn:uuid:plant3-riccardo-share-watering-permission> .
+
+<urn:uuid:plant3-riccardo-share-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-riccardo-share-watering-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant3-riccardo-share-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-riccardo-share-research-request" ;
+    odrl:permission <urn:uuid:plant3-riccardo-share-research-permission> .
+
+<urn:uuid:plant3-riccardo-share-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-riccardo-share-research-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant3-riccardo-share-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-riccardo-share-marketing-request" ;
+    odrl:permission <urn:uuid:plant3-riccardo-share-marketing-permission> .
+
+<urn:uuid:plant3-riccardo-share-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-riccardo-share-marketing-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant3-riccardo-share-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-riccardo-share-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant3-riccardo-share-healthmonitoring-permission> .
+
+<urn:uuid:plant3-riccardo-share-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-riccardo-share-healthmonitoring-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant3-riccardo-share-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-riccardo-share-maintenance-request" ;
+    odrl:permission <urn:uuid:plant3-riccardo-share-maintenance-permission> .
+
+<urn:uuid:plant3-riccardo-share-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-riccardo-share-maintenance-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant3-hannah-share-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-hannah-share-watering-request" ;
+    odrl:permission <urn:uuid:plant3-hannah-share-watering-permission> .
+
+<urn:uuid:plant3-hannah-share-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-hannah-share-watering-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant3-hannah-share-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-hannah-share-research-request" ;
+    odrl:permission <urn:uuid:plant3-hannah-share-research-permission> .
+
+<urn:uuid:plant3-hannah-share-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-hannah-share-research-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant3-hannah-share-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-hannah-share-marketing-request" ;
+    odrl:permission <urn:uuid:plant3-hannah-share-marketing-permission> .
+
+<urn:uuid:plant3-hannah-share-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-hannah-share-marketing-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant3-hannah-share-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-hannah-share-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant3-hannah-share-healthmonitoring-permission> .
+
+<urn:uuid:plant3-hannah-share-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-hannah-share-healthmonitoring-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant3-hannah-share-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant3-hannah-share-maintenance-request" ;
+    odrl:permission <urn:uuid:plant3-hannah-share-maintenance-permission> .
+
+<urn:uuid:plant3-hannah-share-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-hannah-share-maintenance-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant3 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant4-greenhouse-use-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-greenhouse-use-watering-request" ;
+    odrl:permission <urn:uuid:plant4-greenhouse-use-watering-permission> .
+
+<urn:uuid:plant4-greenhouse-use-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-greenhouse-use-watering-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant4-greenhouse-use-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-greenhouse-use-research-request" ;
+    odrl:permission <urn:uuid:plant4-greenhouse-use-research-permission> .
+
+<urn:uuid:plant4-greenhouse-use-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-greenhouse-use-research-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant4-greenhouse-use-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-greenhouse-use-marketing-request" ;
+    odrl:permission <urn:uuid:plant4-greenhouse-use-marketing-permission> .
+
+<urn:uuid:plant4-greenhouse-use-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-greenhouse-use-marketing-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant4-greenhouse-use-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-greenhouse-use-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant4-greenhouse-use-healthmonitoring-permission> .
+
+<urn:uuid:plant4-greenhouse-use-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-greenhouse-use-healthmonitoring-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant4-greenhouse-use-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-greenhouse-use-maintenance-request" ;
+    odrl:permission <urn:uuid:plant4-greenhouse-use-maintenance-permission> .
+
+<urn:uuid:plant4-greenhouse-use-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-greenhouse-use-maintenance-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant4-thirdparty-use-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-thirdparty-use-watering-request" ;
+    odrl:permission <urn:uuid:plant4-thirdparty-use-watering-permission> .
+
+<urn:uuid:plant4-thirdparty-use-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-thirdparty-use-watering-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant4-thirdparty-use-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-thirdparty-use-research-request" ;
+    odrl:permission <urn:uuid:plant4-thirdparty-use-research-permission> .
+
+<urn:uuid:plant4-thirdparty-use-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-thirdparty-use-research-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant4-thirdparty-use-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-thirdparty-use-marketing-request" ;
+    odrl:permission <urn:uuid:plant4-thirdparty-use-marketing-permission> .
+
+<urn:uuid:plant4-thirdparty-use-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-thirdparty-use-marketing-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant4-thirdparty-use-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-thirdparty-use-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant4-thirdparty-use-healthmonitoring-permission> .
+
+<urn:uuid:plant4-thirdparty-use-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-thirdparty-use-healthmonitoring-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant4-thirdparty-use-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-thirdparty-use-maintenance-request" ;
+    odrl:permission <urn:uuid:plant4-thirdparty-use-maintenance-permission> .
+
+<urn:uuid:plant4-thirdparty-use-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-thirdparty-use-maintenance-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant4-riccardo-use-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-riccardo-use-watering-request" ;
+    odrl:permission <urn:uuid:plant4-riccardo-use-watering-permission> .
+
+<urn:uuid:plant4-riccardo-use-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-riccardo-use-watering-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant4-riccardo-use-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-riccardo-use-research-request" ;
+    odrl:permission <urn:uuid:plant4-riccardo-use-research-permission> .
+
+<urn:uuid:plant4-riccardo-use-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-riccardo-use-research-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant4-riccardo-use-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-riccardo-use-marketing-request" ;
+    odrl:permission <urn:uuid:plant4-riccardo-use-marketing-permission> .
+
+<urn:uuid:plant4-riccardo-use-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-riccardo-use-marketing-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant4-riccardo-use-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-riccardo-use-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant4-riccardo-use-healthmonitoring-permission> .
+
+<urn:uuid:plant4-riccardo-use-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-riccardo-use-healthmonitoring-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant4-riccardo-use-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-riccardo-use-maintenance-request" ;
+    odrl:permission <urn:uuid:plant4-riccardo-use-maintenance-permission> .
+
+<urn:uuid:plant4-riccardo-use-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-riccardo-use-maintenance-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant4-hannah-use-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-hannah-use-watering-request" ;
+    odrl:permission <urn:uuid:plant4-hannah-use-watering-permission> .
+
+<urn:uuid:plant4-hannah-use-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-hannah-use-watering-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant4-hannah-use-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-hannah-use-research-request" ;
+    odrl:permission <urn:uuid:plant4-hannah-use-research-permission> .
+
+<urn:uuid:plant4-hannah-use-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-hannah-use-research-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant4-hannah-use-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-hannah-use-marketing-request" ;
+    odrl:permission <urn:uuid:plant4-hannah-use-marketing-permission> .
+
+<urn:uuid:plant4-hannah-use-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-hannah-use-marketing-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant4-hannah-use-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-hannah-use-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant4-hannah-use-healthmonitoring-permission> .
+
+<urn:uuid:plant4-hannah-use-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-hannah-use-healthmonitoring-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant4-hannah-use-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-hannah-use-maintenance-request" ;
+    odrl:permission <urn:uuid:plant4-hannah-use-maintenance-permission> .
+
+<urn:uuid:plant4-hannah-use-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-hannah-use-maintenance-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant4 ;
+    odrl:action odrl:use ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant4-greenhouse-share-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-greenhouse-share-watering-request" ;
+    odrl:permission <urn:uuid:plant4-greenhouse-share-watering-permission> .
+
+<urn:uuid:plant4-greenhouse-share-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-greenhouse-share-watering-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant4-greenhouse-share-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-greenhouse-share-research-request" ;
+    odrl:permission <urn:uuid:plant4-greenhouse-share-research-permission> .
+
+<urn:uuid:plant4-greenhouse-share-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-greenhouse-share-research-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant4-greenhouse-share-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-greenhouse-share-marketing-request" ;
+    odrl:permission <urn:uuid:plant4-greenhouse-share-marketing-permission> .
+
+<urn:uuid:plant4-greenhouse-share-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-greenhouse-share-marketing-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant4-greenhouse-share-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-greenhouse-share-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant4-greenhouse-share-healthmonitoring-permission> .
+
+<urn:uuid:plant4-greenhouse-share-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-greenhouse-share-healthmonitoring-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant4-greenhouse-share-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-greenhouse-share-maintenance-request" ;
+    odrl:permission <urn:uuid:plant4-greenhouse-share-maintenance-permission> .
+
+<urn:uuid:plant4-greenhouse-share-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-greenhouse-share-maintenance-permission" ;
+    odrl:assignee ast:greenhouse ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant4-thirdparty-share-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-thirdparty-share-watering-request" ;
+    odrl:permission <urn:uuid:plant4-thirdparty-share-watering-permission> .
+
+<urn:uuid:plant4-thirdparty-share-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-thirdparty-share-watering-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant4-thirdparty-share-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-thirdparty-share-research-request" ;
+    odrl:permission <urn:uuid:plant4-thirdparty-share-research-permission> .
+
+<urn:uuid:plant4-thirdparty-share-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-thirdparty-share-research-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant4-thirdparty-share-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-thirdparty-share-marketing-request" ;
+    odrl:permission <urn:uuid:plant4-thirdparty-share-marketing-permission> .
+
+<urn:uuid:plant4-thirdparty-share-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-thirdparty-share-marketing-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant4-thirdparty-share-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-thirdparty-share-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant4-thirdparty-share-healthmonitoring-permission> .
+
+<urn:uuid:plant4-thirdparty-share-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-thirdparty-share-healthmonitoring-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant4-thirdparty-share-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-thirdparty-share-maintenance-request" ;
+    odrl:permission <urn:uuid:plant4-thirdparty-share-maintenance-permission> .
+
+<urn:uuid:plant4-thirdparty-share-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-thirdparty-share-maintenance-permission" ;
+    odrl:assignee ast:thirdparty ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant4-riccardo-share-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-riccardo-share-watering-request" ;
+    odrl:permission <urn:uuid:plant4-riccardo-share-watering-permission> .
+
+<urn:uuid:plant4-riccardo-share-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-riccardo-share-watering-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant4-riccardo-share-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-riccardo-share-research-request" ;
+    odrl:permission <urn:uuid:plant4-riccardo-share-research-permission> .
+
+<urn:uuid:plant4-riccardo-share-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-riccardo-share-research-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant4-riccardo-share-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-riccardo-share-marketing-request" ;
+    odrl:permission <urn:uuid:plant4-riccardo-share-marketing-permission> .
+
+<urn:uuid:plant4-riccardo-share-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-riccardo-share-marketing-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant4-riccardo-share-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-riccardo-share-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant4-riccardo-share-healthmonitoring-permission> .
+
+<urn:uuid:plant4-riccardo-share-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-riccardo-share-healthmonitoring-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant4-riccardo-share-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-riccardo-share-maintenance-request" ;
+    odrl:permission <urn:uuid:plant4-riccardo-share-maintenance-permission> .
+
+<urn:uuid:plant4-riccardo-share-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-riccardo-share-maintenance-permission" ;
+    odrl:assignee ast:riccardo ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+
+<urn:uuid:plant4-hannah-share-watering-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-hannah-share-watering-request" ;
+    odrl:permission <urn:uuid:plant4-hannah-share-watering-permission> .
+
+<urn:uuid:plant4-hannah-share-watering-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-hannah-share-watering-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:wateringRequestConstraint .
+
+<urn:uuid:plant4-hannah-share-research-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-hannah-share-research-request" ;
+    odrl:permission <urn:uuid:plant4-hannah-share-research-permission> .
+
+<urn:uuid:plant4-hannah-share-research-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-hannah-share-research-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:researchRequestConstraint .
+
+<urn:uuid:plant4-hannah-share-marketing-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-hannah-share-marketing-request" ;
+    odrl:permission <urn:uuid:plant4-hannah-share-marketing-permission> .
+
+<urn:uuid:plant4-hannah-share-marketing-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-hannah-share-marketing-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:marketingRequestConstraint .
+
+<urn:uuid:plant4-hannah-share-healthmonitoring-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-hannah-share-healthmonitoring-request" ;
+    odrl:permission <urn:uuid:plant4-hannah-share-healthmonitoring-permission> .
+
+<urn:uuid:plant4-hannah-share-healthmonitoring-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-hannah-share-healthmonitoring-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:healthmonitoringRequestConstraint .
+
+<urn:uuid:plant4-hannah-share-maintenance-request> a odrl:Request ;
+    pol:identifier "urn:uuid:plant4-hannah-share-maintenance-request" ;
+    odrl:permission <urn:uuid:plant4-hannah-share-maintenance-permission> .
+
+<urn:uuid:plant4-hannah-share-maintenance-permission> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-hannah-share-maintenance-permission" ;
+    odrl:assignee ast:hannah ;
+    odrl:assignero ast:plant4 ;
+    odrl:action dpv:Share ;
+    odrl:constraintSet ast:plantId, ast:idealMoisture, ast:potId, ast:hasMoisture ;
+    <https://w3id.org/force/sotw#context> pol:maintenanceRequestConstraint .
+

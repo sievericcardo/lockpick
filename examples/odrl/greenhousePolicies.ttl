@@ -1,0 +1,242 @@
+@prefix odrl: <http://www.w3.org/ns/odrl/2/> .
+@prefix dpv: <https://w3id.org/dpv#> .
+@prefix pol: <http://www.smolang.org/greenhouseDT-policy#> .
+@prefix ast: <http://www.smolang.org/greenhouseDT#> .
+
+ast:plant1 a odrl:DataSubject ;
+    pol:identifier "urn:uuid:plant1" ;
+    odrl:description "The Plant1 plant in the greenhouse" ;
+    odrl:label "Plant1" .
+
+ast:plant2 a odrl:DataSubject ;
+    pol:identifier "urn:uuid:plant2" ;
+    odrl:description "The Plant2 plant in the greenhouse" ;
+    odrl:label "Plant2" .
+
+ast:plant3 a odrl:DataSubject ;
+    pol:identifier "urn:uuid:plant3" ;
+    odrl:description "The Plant3 plant in the greenhouse" ;
+    odrl:label "Plant3" .
+
+ast:plant4 a odrl:DataSubject ;
+    pol:identifier "urn:uuid:plant4" ;
+    odrl:description "The Plant4 plant in the greenhouse" ;
+    odrl:label "Plant4" .
+
+ast:greenhouse a odrl:DataController ;
+    pol:identifier "urn:uuid:greenhouse" ;
+    odrl:description "The greenhouse system that is responsible for watering the plants" ;
+    odrl:label "Greenhouse" .
+
+ast:hannah a odrl:DataController ;
+    pol:identifier "urn:uuid:hannah" ;
+    odrl:description "Hannah, a plant doctor who takes care of watering and health of the plants" ;
+    odrl:label "Hannah" .
+
+ast:riccardo a odrl:DataController ;
+    pol:identifier "urn:uuid:riccardo" ;
+    odrl:description "Riccardo, an engineer working on the greenhouse digital twin responsible for system maintenance" ;
+    odrl:label "Riccardo" .
+
+ast:thirdparty a odrl:DataController, dpv:ThirdParty ;
+    pol:identifier "urn:uuid:third-party" ;
+    odrl:description "An external third party accessing plant data for specified purposes" ;
+    odrl:label "ThirdParty" .
+
+odrl:use a odrl:Action ;
+    pol:identifier "urn:uuid:use-action" ;
+    odrl:description "Access the data in the specified assets" ;
+    odrl:label "Use" .
+
+dpv:Share a odrl:Action ;
+    pol:identifier "urn:uuid:share-action" ;
+    odrl:description "Share the data in the specified assets with a thrid party outside of the digital twin" ;
+    odrl:label "Share" .
+
+pol:WateringPurpose a odrl:Purpose ;
+    pol:identifier "urn:uuid:watering-purpose" ;
+    pol:purposeName "Watering" .
+
+dpv:AcademicResearch a odrl:Purpose ;
+    pol:identifier "urn:uuid:research-purpose" ;
+    pol:purposeName "Academic Research" .
+
+dpv:Marketing a odrl:Purpose ;
+    pol:identifier "urn:uuid:marketing-purpose" ;
+    pol:purposeName "Marketing" .
+
+dpv:ImproveHealthcare a odrl:Purpose ;
+    pol:identifier "urn:uuid:health-monitoring-purpose" ;
+    pol:purposeName "Health Monitoring" .
+
+dpv:Maintenance a odrl:Purpose ;
+    pol:identifier "urn:uuid:maintenance-purpose" ;
+    pol:purposeName "Maintenance" .
+
+pol:wateringConstraint a odrl:Constraint ;
+    pol:identifier "urn:uuid:wateringConstraint" ;
+    odrl:leftOperand odrl:purpose ;
+    odrl:operator odrl:isAnyOf ;
+    odrl:rightOperand pol:WateringPurpose .
+
+pol:wateringHealthmonitoringConstraint a odrl:Constraint ;
+    pol:identifier "urn:uuid:wateringHealthmonitoringConstraint" ;
+    odrl:leftOperand odrl:purpose ;
+    odrl:operator odrl:isAnyOf ;
+    odrl:rightOperand pol:WateringPurpose, dpv:ImproveHealthcare .
+
+pol:researchConstraint a odrl:Constraint ;
+    pol:identifier "urn:uuid:researchConstraint" ;
+    odrl:leftOperand odrl:purpose ;
+    odrl:operator odrl:isAnyOf ;
+    odrl:rightOperand dpv:AcademicResearch .
+
+pol:researchMarketingConstraint a odrl:Constraint ;
+    pol:identifier "urn:uuid:researchMarketingConstraint" ;
+    odrl:leftOperand odrl:purpose ;
+    odrl:operator odrl:isAnyOf ;
+    odrl:rightOperand dpv:AcademicResearch, dpv:Marketing .
+
+pol:marketingConstraint a odrl:Constraint ;
+    pol:identifier "urn:uuid:marketingConstraint" ;
+    odrl:leftOperand odrl:purpose ;
+    odrl:operator odrl:isAnyOf ;
+    odrl:rightOperand dpv:Marketing .
+
+pol:healthmonitoringConstraint a odrl:Constraint ;
+    pol:identifier "urn:uuid:healthmonitoringConstraint" ;
+    odrl:leftOperand odrl:purpose ;
+    odrl:operator odrl:isAnyOf ;
+    odrl:rightOperand dpv:ImproveHealthcare .
+
+pol:maintenanceConstraint a odrl:Constraint ;
+    pol:identifier "urn:uuid:maintenanceConstraint" ;
+    odrl:leftOperand odrl:purpose ;
+    odrl:operator odrl:isAnyOf ;
+    odrl:rightOperand dpv:Maintenance .
+
+<urn:uuid:plant1Policy> a odrl:Policy ;
+    pol:identifier "urn:uuid:plant1Policy" ;
+    odrl:assigner ast:plant1 ;
+    odrl:permission <urn:uuid:plant1-greenhouse-watering>, <urn:uuid:plant1-hannah-watering-healthmonitoring>, <urn:uuid:plant1-riccardo-maintenance>, <urn:uuid:plant1-thirdparty-research-marketing> .
+
+<urn:uuid:plant1-greenhouse-watering> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-greenhouse-watering" ;
+    odrl:action odrl:use ;
+    odrl:target pol:greenhouseAssetCollection ;
+    odrl:assignee ast:greenhouse ;
+    odrl:constraint pol:wateringConstraint .
+
+<urn:uuid:plant1-hannah-watering-healthmonitoring> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-hannah-watering-healthmonitoring" ;
+    odrl:action odrl:use ;
+    odrl:target pol:greenhouseAssetCollection ;
+    odrl:assignee ast:hannah ;
+    odrl:constraint pol:wateringHealthmonitoringConstraint .
+
+<urn:uuid:plant1-riccardo-maintenance> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-riccardo-maintenance" ;
+    odrl:action odrl:use ;
+    odrl:target pol:greenhouseAssetCollection ;
+    odrl:assignee ast:riccardo ;
+    odrl:constraint pol:maintenanceConstraint .
+
+<urn:uuid:plant1-thirdparty-research-marketing> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant1-thirdparty-research-marketing" ;
+    odrl:action odrl:use, dpv:Share ;
+    odrl:target pol:greenhouseAssetCollection ;
+    odrl:assignee ast:thirdparty ;
+    odrl:constraint pol:researchMarketingConstraint .
+
+<urn:uuid:plant2Policy> a odrl:Policy ;
+    pol:identifier "urn:uuid:plant2Policy" ;
+    odrl:assigner ast:plant2 ;
+    odrl:permission <urn:uuid:plant2-greenhouse-watering>, <urn:uuid:plant2-hannah-healthmonitoring>, <urn:uuid:plant2-riccardo-maintenance>, <urn:uuid:plant2-thirdparty-research> .
+
+<urn:uuid:plant2-greenhouse-watering> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-greenhouse-watering" ;
+    odrl:action odrl:use ;
+    odrl:target pol:greenhouseAssetCollection ;
+    odrl:assignee ast:greenhouse ;
+    odrl:constraint pol:wateringConstraint .
+
+<urn:uuid:plant2-hannah-healthmonitoring> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-hannah-healthmonitoring" ;
+    odrl:action odrl:use ;
+    odrl:target pol:greenhouseAssetCollection ;
+    odrl:assignee ast:hannah ;
+    odrl:constraint pol:healthmonitoringConstraint .
+
+<urn:uuid:plant2-riccardo-maintenance> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-riccardo-maintenance" ;
+    odrl:action odrl:use ;
+    odrl:target pol:greenhouseAssetCollection ;
+    odrl:assignee ast:riccardo ;
+    odrl:constraint pol:maintenanceConstraint .
+
+<urn:uuid:plant2-thirdparty-research> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant2-thirdparty-research" ;
+    odrl:action odrl:use, dpv:Share ;
+    odrl:target pol:greenhouseAssetCollection ;
+    odrl:assignee ast:thirdparty ;
+    odrl:constraint pol:researchConstraint .
+
+<urn:uuid:plant3Policy> a odrl:Policy ;
+    pol:identifier "urn:uuid:plant3Policy" ;
+    odrl:assigner ast:plant3 ;
+    odrl:permission <urn:uuid:plant3-greenhouse-watering>, <urn:uuid:plant3-hannah-watering-healthmonitoring>, <urn:uuid:plant3-riccardo-maintenance> .
+
+<urn:uuid:plant3-greenhouse-watering> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-greenhouse-watering" ;
+    odrl:action odrl:use ;
+    odrl:target pol:greenhouseAssetCollection ;
+    odrl:assignee ast:greenhouse ;
+    odrl:constraint pol:wateringConstraint .
+
+<urn:uuid:plant3-hannah-watering-healthmonitoring> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-hannah-watering-healthmonitoring" ;
+    odrl:action odrl:use ;
+    odrl:target pol:greenhouseAssetCollection ;
+    odrl:assignee ast:hannah ;
+    odrl:constraint pol:wateringHealthmonitoringConstraint .
+
+<urn:uuid:plant3-riccardo-maintenance> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant3-riccardo-maintenance" ;
+    odrl:action odrl:use ;
+    odrl:target pol:greenhouseAssetCollection ;
+    odrl:assignee ast:riccardo ;
+    odrl:constraint pol:maintenanceConstraint .
+
+<urn:uuid:plant4Policy> a odrl:Policy ;
+    pol:identifier "urn:uuid:plant4Policy" ;
+    odrl:assigner ast:plant4 ;
+    odrl:permission <urn:uuid:plant4-greenhouse-watering>, <urn:uuid:plant4-hannah-watering>, <urn:uuid:plant4-riccardo-maintenance>, <urn:uuid:plant4-thirdparty-marketing> .
+
+<urn:uuid:plant4-greenhouse-watering> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-greenhouse-watering" ;
+    odrl:action odrl:use ;
+    odrl:target pol:greenhouseAssetCollection ;
+    odrl:assignee ast:greenhouse ;
+    odrl:constraint pol:wateringConstraint .
+
+<urn:uuid:plant4-hannah-watering> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-hannah-watering" ;
+    odrl:action odrl:use ;
+    odrl:target pol:greenhouseAssetCollection ;
+    odrl:assignee ast:hannah ;
+    odrl:constraint pol:wateringConstraint .
+
+<urn:uuid:plant4-riccardo-maintenance> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-riccardo-maintenance" ;
+    odrl:action odrl:use ;
+    odrl:target pol:greenhouseAssetCollection ;
+    odrl:assignee ast:riccardo ;
+    odrl:constraint pol:maintenanceConstraint .
+
+<urn:uuid:plant4-thirdparty-marketing> a odrl:Permission ;
+    pol:identifier "urn:uuid:plant4-thirdparty-marketing" ;
+    odrl:action odrl:use, dpv:Share ;
+    odrl:target pol:greenhouseAssetCollection ;
+    odrl:assignee ast:thirdparty ;
+    odrl:constraint pol:marketingConstraint .
+

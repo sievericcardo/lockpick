@@ -1,0 +1,339 @@
+abstract class Twin() end
+
+class Diagnosis extends Twin (
+    String diagnosisCode
+)
+end
+
+class Supply extends Twin (
+    String supplyName
+)
+end
+
+class Task extends Twin (
+    String taskName,
+    Room physicalLocation,
+    List<Supply> supplies
+)
+    Room getPhysicalLocation()
+        Room roomContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?task rdf:type <http://purl.org/net/p-plan#Step> ;
+                :taskName %1 .
+            ?task :isLocatedIn ?room .
+            ?room :roomNumber ?number .
+
+            ?obj a prog:Room ;
+                prog:Room_roomNumber ?number .
+        }", this.taskName);
+
+        Room room = roomContent.content;
+        destroy(roomContent);
+        return room;
+    end
+
+    Unit setSupplies()
+        print("RECONFIG> Setting supplies for task " ++ this.taskName);
+        List<Supply> suppliesContent = construct("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT ?supplyName
+        WHERE {
+            ?task rdf:type <http://purl.org/net/p-plan#Step> ;
+                :taskName %1 ;
+                :requiresSupply ?supplies .
+            
+            ?supplies a :Supply ;
+                rdfs:label ?supplyName .
+        }", this.taskName);
+
+        if suppliesContent != null then
+             print("RECONFIG> Setting supplies for task " ++ this.taskName);
+             this.supplies = suppliesContent;
+
+             while suppliesContent != null do
+                Supply supply = suppliesContent.content;
+                print("RECONFIG> Setting supply " ++ supply.supplyName);
+                suppliesContent = suppliesContent.next;
+             end
+        end
+    end
+end
+
+class TreatmentStep extends Twin (
+    String treatmentName,
+    Task task,
+    Int stepNumber,
+    String previousTask,
+    String nextTask,
+    MonitoringCategory monitoringCategory,
+    Double staffLoad,
+    Double averageDuration
+)
+end
+
+class Treatment extends Twin (
+    String treatmentName,
+    String treatmentDescription,
+    Diagnosis diagnosis,
+    Double frequency,
+    Double weight,
+    TreatmentStep firstTask,
+    TreatmentStep lastTask
+)
+    TreatmentStep getFirstStep()
+        TreatmentStep firstStepContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX pko: <https://w3id.org/pko#>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?treatment a pko:Procedure ;
+                :procedureName %1 ;
+                pko:hasFirstStep ?firstStep .
+            ?firstStep a :TreatmentStep ;
+                pko:stepNumber ?stepNumber ;
+                :hasTask ?firstTaskObj .
+            ?firstTaskObj rdf:type <http://purl.org/net/p-plan#Step> ;
+                :taskName ?taskName .
+            ?obj a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName %1 ;
+                prog:TreatmentStep_stepNumber ?stepNumber ;
+                prog:TreatmentStep_task ?task .
+            ?task a prog:Task ;
+                prog:Task_taskName ?taskName .
+        }", this.treatmentName);
+
+        TreatmentStep firstStep = firstStepContent.content;
+        return firstStep;
+    end
+
+    TreatmentStep getLastStep()
+        TreatmentStep lastStepContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX pko: <https://w3id.org/pko#>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?treatment a pko:Procedure ;
+                :procedureName %1 ;
+                :hasFinalStep ?lastStep .
+            ?lastStep a :TreatmentStep ;
+                pko:stepNumber ?stepNumber ;
+                :hasTask ?lastTaskObj .
+            ?lastTaskObj rdf:type <http://purl.org/net/p-plan#Step> ;
+                :taskName ?taskName  .
+            ?obj a prog:TreatmentStep ;
+                prog:TreatmentStep_treatmentName %1 ;
+                prog:TreatmentStep_stepNumber ?stepNumber ;
+                prog:TreatmentStep_task ?task .
+            ?task a prog:Task ;
+                prog:Task_taskName ?taskName .
+        }", this.treatmentName);
+
+        TreatmentStep lastStep = lastStepContent.content;
+        return lastStep;
+    end
+end
+
+class MonitoringCategory extends Twin (
+    String description,
+    Int category
+)
+end
+
+class City extends Twin (String cityName)
+end
+
+class Hospital extends Twin (
+    String hospitalName,
+    String hospitalCode,
+    City hospitalCity
+)
+    City getHospitalCity()
+        City cityContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+        PREFIX brick: <https://brickschema.org/schema/Brick#>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?hospital a brick:Hospital ;
+                :hospitalName %1 ;
+                :hospitalCode %2 .
+            ?hospital :hasCity ?city .
+            ?city :cityName ?name .
+
+            ?obj a prog:City ;
+                prog:City_cityName ?name .
+        }", this.hospitalName, this.hospitalCode);
+
+        City hospitalCity = cityContent.content;
+        destroy(cityContent);
+        return hospitalCity;
+    end
+end
+
+class Floor extends Twin (
+    Int floorNumber
+)
+end
+
+class Ward extends Twin (
+    String wardName,
+    String wardCode,
+    Double capacityThreshold,
+    Hospital wardHospital,
+    Floor wardFloor
+)
+end
+
+class Room extends Twin (
+    Int roomNumber,
+    Int capacity,
+    Double penalty
+)
+end
+
+class Corridor extends Room (
+    Ward corridorWard,
+    Hospital hospital,
+    Boolean available,
+    MonitoringCategory monitoringCategory
+)
+end
+
+class Office extends Room (
+    Ward officeWard,
+    Hospital hospital,
+    Boolean available,
+    MonitoringCategory monitoringCategory
+)
+end
+
+class Bathroom extends Room (
+    String bathroomName,
+    String bathroomCode
+)
+end
+
+class TreatingRoom extends Room (
+    Ward treatingWard,
+    Hospital hospital,
+    Bathroom bathroom,
+    MonitoringCategory monitoringCategory
+)
+    Bathroom getBathroom()
+        Bathroom bathroomContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?treatingRoom rdf:type <https://w3id.org/rec/building/TreatmentRoom> ;
+                :roomNumber %1 ;
+                :roomCapacity %2 .
+            ?treatingRoom :hasBathroom ?bathroom .
+            ?bathroom :roomNumber ?number .
+
+            ?obj a prog:Bathroom ;
+                prog:Bathroom_roomNumber ?number .
+        }", this.roomNumber, this.capacity);
+
+        Bathroom bathroom = bathroomContent.content;
+        destroy(bathroomContent);
+        return bathroom;
+    end
+end
+
+class Bed extends Twin (
+    Int bedNumber,
+    TreatingRoom bedTreatingRoom,
+    MonitoringCategory monitoringCategory
+)
+    TreatingRoom getBedTreatingRoom()
+        TreatingRoom treatingRoomContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?bed a :Bed ;
+                :bedNumber %1 .
+            ?bed :isAssignRoom ?room .
+            ?room :roomNumber %2 .
+            ?room :roomCapacity %3 .
+
+            ?obj a prog:TreatingRoom ;
+                prog:TreatingRoom_roomNumber %2 ;
+                prog:TreatingRoom_roomCapacity %3 .
+        }", this.bedNumber, this.bedTreatingRoom.roomNumber, this.bedTreatingRoom.capacity);
+
+        TreatingRoom treatingRoom = treatingRoomContent.content;
+        destroy(treatingRoomContent);
+        return treatingRoom;
+    end
+
+    MonitoringCategory getMonitoringCategory()
+        MonitoringCategory monitoringCategoryContent = access("
+        PREFIX : <http://www.smolang.org/bedreflyt/>
+
+        SELECT DISTINCT ?obj
+        WHERE {
+            ?bed a :Bed ;
+                :bedNumber %1 .
+            ?bed :hasMonitoringStatus ?monitoringCategory .
+            ?monitoringCategory :hasMonitoringCode ?code .
+
+            ?obj a prog:MonitoringCategory ;
+                prog:MonitoringCategory_category ?code .
+        }", this.bedNumber);
+
+        MonitoringCategory monitoringCategory = monitoringCategoryContent.content;
+        destroy(monitoringCategoryContent);
+        return monitoringCategory;
+    end
+end
+
+// Task defects
+// class TaskDefectBed extends Twin (Task obj, Int bedNew) end
+// class TaskDefectName extends Twin (Task obj, String taskNameNew) end
+// class TaskDefectDuration extends Twin (Task obj, Double durationAverageNew) end
+
+// // Task dependency defects
+// class TaskDependencyDefectDependency extends Twin (
+//     TaskDependency obj,
+//     String taskDependencyNew) 
+// end
+
+// // Treatments defects
+// class TreatmentDefectFrequency extends Twin (
+//     Treatment obj,
+//     Double frequencyNew)
+// end
+// class TreatmentDefectWeight extends Twin (
+//     Treatment obj,
+//     Double weightNew)
+// end
+
+// // Room category defects
+// class RoomDefectBedCategory extends Twin (RoomCategory obj, Int bedCategoryNew) end
+// class RoomDefectDescription extends Twin (RoomCategory obj, String roomDescriptionNew) end
+
+// // Room defects
+// class RoomDefectRoomNumberModel extends Twin (
+//     Room obj,
+//     Int roomNumberModelNew)
+// end
+// class RoomDefectRoomCategory extends Twin (
+//     Room obj,
+//     Int roomNew)
+// end
+// class RoomDefectCapacity extends Twin (
+//     Room obj,
+//     Int capacityNew)
+// end
+// class RoomDefectBathroom extends Twin (
+//     Room obj,
+//     Int bathroomNew)
+// end

@@ -1,0 +1,64 @@
+class NutrientSensorModel extends BaseModel()
+    override Unit adaptAddition()
+        List<NutrientSensor> newNutrientSensors = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?sensorId {
+                ?sensor a ast:NutrientSensor ;
+                    ast:sensorId ?sensorId .
+                FILTER NOT EXISTS {
+                    ?x a prog:NutrientSensor ;
+                        prog:NutrientSensor_sensorId ?sensorId .
+                }
+            }");
+
+        if newNutrientSensors != null then
+            print("RECONFIG> New Nutrient Sensors(s) detected: repairing the model");
+
+            while newNutrientSensors != null do
+                NutrientSensor newNutrientSensor = newNutrientSensors.content;
+                List<NutrientSensor> lx = newNutrientSensors;
+                newNutrientSensors = newNutrientSensors.next;
+
+                print("RECONFIG> New NutrientSensor detected: ");
+                print("          NutrientSensor Id: " ++ newNutrientSensor.sensorId);
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Nutrient Sensors(s) added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<NutrientSensor> wrongNutrientSensors = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:NutrientSensor ;
+                     prog:NutrientSensor_sensorId ?sensorId.
+                FILTER NOT EXISTS {
+                    ?entity rdf:type ?t ;
+                        ast:sensorId ?sensorId .
+                    ?t rdfs:subClassOf* ast:Sensor .
+                }
+            }");
+
+        if wrongNutrientSensors != null then
+            print("RECONFIG> Misconfigured Nutrient Sensor(s) detected: repairing the model");
+
+            while wrongNutrientSensors != null do
+                NutrientSensor sensor = wrongNutrientSensors.content;
+                print("RECONFIG> Removing Nutrient Sensor with Id: " ++ sensor.sensorId);
+                destroy(sensor);
+                List<NutrientSensor> lx = wrongNutrientSensors;
+                wrongNutrientSensors = wrongNutrientSensors.next;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Nutrient Sensors(s) removed");
+        end
+    end
+
+    override Unit adaptDefect() skip; end
+
+    override Unit adaptBehaviour() skip; end
+end

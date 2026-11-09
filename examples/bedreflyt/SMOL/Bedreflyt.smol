@@ -1,0 +1,87 @@
+abstract class BaseModel (String name)
+    Unit adaptModel()
+        print("RECONFIG> Reconfiguring " ++ this.name);
+        this.adaptDefect();
+        this.adaptRemoval();
+        this.adaptAddition();
+    end
+
+    abstract Unit adaptAddition()
+    abstract Unit adaptRemoval()
+    abstract Unit adaptDefect()
+    abstract Unit adaptRepair()
+end
+
+class AssetModel extends Twin (List<BaseModel> mods)
+    Unit register (BaseModel m)
+        this.mods = new List<BaseModel>(m, this.mods);
+    end
+
+    Unit reconfigure()
+        print("RECONFIG> Reconfiguring the asset model...");
+
+        List<BaseModel> ms = this.mods;
+        while ms != null do
+            ms.content.adaptModel();
+            ms.content.adaptRepair();
+            ms = ms.next;
+        end
+
+        print("RECONFIG> Asset model reconfigured");
+    end
+
+    Unit reconfigureSingleModel(String mod)
+        print("RECONFIG> Reconfiguring the asset model...");
+
+        List<BaseModel> ms = this.mods;
+        while ms != null do
+            if ms.content.name == mod then
+                print("RECONFIG> Reconfiguring " ++ ms.content.name);
+                ms.content.adaptModel();
+                ms.content.adaptRepair();
+            end
+            ms = ms.next;
+        end
+
+        print("RECONFIG> Reconfiguring DONE...");
+    end
+end
+
+main
+    AssetModel assetModel = new AssetModel(null);
+
+
+    TreatmentModel m1 = new TreatmentModel("treatments");
+    TreatmentStepModel m2 = new TreatmentStepModel("treatment steps");
+    // BedModel m3 = new BedModel("beds");
+    RoomModel m4 = new RoomModel("rooms");
+    OfficeModel m13 = new OfficeModel("offices");
+    CorridorModel m14 = new CorridorModel("corridors");
+    // BathroomModel m5 = new BathroomModel("bathrooms");
+    WardModel m6 = new WardModel("wards");
+    FloorModel m7 = new FloorModel("floors");
+    HospitalModel m8 = new HospitalModel("hospitals");
+    CityModel m9 = new CityModel("cities");
+    MonitoringCategoryModel m10 = new MonitoringCategoryModel("monitoring categories");
+    DiagnosisModel m11 = new DiagnosisModel("diagnoses"); 
+    TaskModel m12 = new TaskModel("tasks");
+
+    assetModel.register(m1);
+    assetModel.register(m2);
+    // assetModel.register(m3);
+    assetModel.register(m4);
+    assetModel.register(m13);
+    assetModel.register(m14);
+    // assetModel.register(m5);
+    assetModel.register(m6);
+    assetModel.register(m7);
+    assetModel.register(m8);
+    assetModel.register(m9);
+    assetModel.register(m10);
+    assetModel.register(m11);
+    assetModel.register(m12);
+
+    assetModel.reconfigure();
+
+    breakpoint;
+end

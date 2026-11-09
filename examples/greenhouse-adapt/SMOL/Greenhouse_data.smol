@@ -1,0 +1,498 @@
+abstract class Twin() end
+
+class Sensor extends Twin (String sensorId, String sensorProperty)
+end
+
+class MoistureSensor extends Sensor (Double moisture)
+end
+
+class NutrientSensor extends Sensor (Double nutrient)
+end
+
+class LightSensor extends Sensor (Double lightIntensity)
+end
+
+class TemperatureHumiditySensor extends Sensor (Double temperature, Double humidity)
+end
+
+class HealthState extends Twin (context Plant plant)
+    Unit printInfo()
+        print("Health State for plant " ++ this.plant.plantId ++ ".");
+    end
+end
+
+class Healthy extends HealthState (String name)
+classifies "<ast:Healthy>";
+retrieves "SELECT DISTINCT ?name WHERE {
+    ast:Healthy rdfs:subClassOf ?restriction .
+    ?restriction rdf:type owl:Restriction ;
+                 owl:onProperty ast:healthStateName ;
+                 owl:hasValue ?name .
+}";
+    override Unit printInfo()
+        print("Plant is " ++ this.name ++ ".");
+    end
+end
+
+class Unhealthy extends HealthState (String name)
+classifies "<ast:Unhealthy>";
+retrieves "SELECT DISTINCT ?name WHERE {
+    ast:Unhealthy rdfs:subClassOf ?restriction .
+    ?restriction rdf:type owl:Restriction ;
+                 owl:onProperty ast:healthStateName ;
+                 owl:hasValue ?name .
+}";
+    override Unit printInfo()
+        print("Plant is " ++ this.name ++ ".");
+    end
+end
+
+class Dead extends HealthState (String name)
+classifies "<ast:Dead>";
+retrieves "SELECT DISTINCT ?name WHERE {
+    ast:Dead rdfs:subClassOf ?restriction .
+    ?restriction rdf:type owl:Restriction ;
+                 owl:onProperty ast:healthStateName ;
+                 owl:hasValue ?name .
+}";
+    override Unit printInfo()
+        print("Plant is " ++ this.name ++ ".");
+    end
+end
+
+class Strategy extends Twin()
+end
+
+class WaterStrategy extends Strategy(context Plant plant)
+end
+
+// class HealthyStrategy extends WaterStrategy()
+// classifies "<ast:HealthyStrategy>";
+// end
+
+// class HealthyMoistStrategy extends WaterStrategy()
+// classifies "<ast:HealthyMoistStrategy>";
+// end
+
+// class HealthyThirstStrategy extends WaterStrategy()
+// classifies "<ast:HealthyThirstStrategy>";
+// end
+
+// class UnhealthyStrategy extends WaterStrategy()
+// classifies "<ast:UnhealthyStrategy>";
+// end
+
+// class UnhealthyMoistStrategy extends WaterStrategy()
+// classifies "<ast:UnhealthyMoistStrategy>";
+// end
+
+// class UnhealthyThirstyStrategy extends WaterStrategy()
+// classifies "<ast:UnhealthyThirstyStrategy>";
+// end
+
+/**
+ *  Models a physical plant. It is initially retrieved by
+ *  the asset model, but it can be reconfigured by the program model.
+ *  Each plant is associated with a pot.
+ */
+class Plant extends Twin (
+    hidden String plantId,
+    domain String familyName,
+    hidden String familyNameOut,
+    Pot pot,
+    domain Double moisture,
+    hidden Double moistureOut,
+    domain Double ndvi,
+    hidden Double ndviOut,
+    hidden HealthState healthState,
+    domain String status,
+    hidden String statusOut,
+    hidden WaterStrategy waterStrategy
+)
+links "a ast:Plant ; domain:familyName %familyName ; domain:moisture %moisture ; domain:ndvi %ndvi";
+    Unit printInfo()
+        print("Plant: " ++ this.plantId ++ " has current moisture: " ++ doubleToString(this.moisture) ++ ".");
+    end
+
+    Unit setPotMoisture()
+        String id = this.plantId ++ ".0";
+        // String id = "soil-moisture-sensor" ++ this.pot.potOffset;
+        if this.moisture == null then
+            this.moisture = -1.0;
+        end
+        List<Double> influxReturn = access(
+            "from(bucket: \"GreenHouse\")
+                |> range(start: -30d)
+                |> filter(fn: (r) => r[\"_measurement\"] == \"ast:pot\")
+                |> filter(fn: (r) => r[\"_field\"] == \"moisture\")
+                |> filter(fn: (r) => r[\"plant_id\"] == \"%1\")
+                |> keep(columns: [\"_value\"])
+                |> last()",
+            INFLUXDB("config_local.yml"),
+            id);
+
+        if influxReturn != null then
+            print("Found moisture for plant " ++ this.plantId ++ ": " ++ doubleToString(influxReturn.content));
+            this.moisture = influxReturn.content;
+        end
+
+        print("Moisture checked for plant " ++ this.plantId);
+    end
+
+    Unit setNdvi()
+        String id = this.plantId ++ ".0";
+        if this.ndvi == null then
+            this.ndvi = -1.0;
+        end
+        List<Double> influxReturn = access(
+            "from(bucket: \"GreenHouse\")
+                |> range(start: -30d)
+                |> filter(fn: (r) => r[\"_measurement\"] == \"ast:plant\")
+                |> filter(fn: (r) => r[\"_field\"] == \"ndvi\")
+                |> filter(fn: (r) => r[\"plant_id\"] == \"%1\")
+                |> keep(columns: [\"_value\"])
+                |> last()",
+        INFLUXDB("config_local.yml"),
+        id);
+
+        if influxReturn != null then
+            this.ndvi = influxReturn.content;
+        end
+
+        print("NDVI checked for plant " ++ this.plantId);
+    end
+end
+
+class ThirstyPlant extends Plant ()
+classifies "<ast:ThirstyPlant>";
+    override Unit printInfo()
+        print("Plant: " ++ this.plantId ++ " is thirsty.");
+    end
+end
+
+class OverwateredPlant extends Plant ()
+classifies "<ast:OverwateredPlant>";
+    Unit printInfo()
+        print("Plant: " ++ this.plantId ++ " is overwatered.");
+    end
+end
+
+class MoistPlant extends Plant ()
+classifies "<ast:MoistPlant>";
+    override Unit printInfo()
+        print("Plant: " ++ this.plantId ++ " is moist.");
+    end
+end
+
+/* Models a physical pot. It is initially retrieved by the asset model. Each pot is associated with a moisture sensor. */
+class Pot extends Twin (
+    String potId,
+    String potOffset,
+    MoistureSensor moistureSensor, 
+    NutrientSensor nutrientSensor,
+    Pump pump
+)
+    MoistureSensor getMoistureSensor()
+        List<MoistureSensor> moistureSensors = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj {
+                ?pot a ast:Pot ;
+                     ast:potId %1 ;
+                     ast:hasMoistureSensor ?moistureSensor .
+                ?moistureSensor a ast:MoistureSensor ;
+                     ast:sensorId ?sensorId .
+                ?obj a prog:MoistureSensor ;
+                     prog:MoistureSensor_sensorId ?sensorId .
+            }", this.potId);
+
+        if moistureSensors == null then
+            print("No moisture sensor found in pot " ++ this.potId);
+            return null;
+        else
+            print("Moisture sensor found in pot " ++ this.potId);
+            return moistureSensors.content;
+        end
+    end
+
+    NutrientSensor getNutrientSensor()
+        List<NutrientSensor> nutrientSensors = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj {
+                ?pot a ast:Pot ;
+                     ast:potId %1 ;
+                     ast:hasNutrientSensor ?nutrientSensor .
+                ?nutrientSensor a ast:NutrientSensor ;
+                     ast:sensorId ?sensorId .
+                ?obj a prog:NutrientSensor ;
+                     prog:NutrientSensor_sensorId ?sensorId .
+            }", this.potId);
+
+        if nutrientSensors == null then
+            print("No nutrient sensor found in pot " ++ this.potId);
+            return null;
+        else
+            print("Nutrient sensor found in pot " ++ this.potId);
+            return nutrientSensors.content;
+        end
+    end
+
+    Pump getPump()
+        List<Pump> pumps = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj {
+                ?pot a ast:Pot ;
+                     ast:potId %1 ;
+                     ast:wateredBy ?pump .
+                ?pump a ast:Pump ;
+                     ast:actuatorId ?pumpId .
+                {
+                    ?obj a prog:Pump ;
+                        prog:Pump_actuatorId ?pumpId .
+                } UNION {
+                    ?obj a prog:OperatingPump ;
+                        prog:OperatingPump_actuatorId ?pumpId .
+                } UNION {
+                    ?obj a prog:MaintenancePump ;
+                        prog:MaintenancePump_actuatorId ?pumpId .
+                } UNION {
+                    ?obj a prog:OverheatingPump ;
+                        prog:OverheatingPump_actuatorId ?pumpId .
+                } UNION {
+                    ?obj a prog:UnderheatingPump ;
+                        prog:UnderheatingPump_actuatorId ?pumpId .
+                }
+            }", this.potId);
+
+        if pumps == null then
+            print("No pump found in pot " ++ this.potId);
+            return null;
+        else
+            print("Pump found in pot " ++ this.potId);
+            return pumps.content;
+        end
+    end
+end
+
+/*  Models a physical section of the greenhouse. It is initially retrieved by the asset model.
+ *  Each section contains a list of pots.
+ */
+class Section extends Twin (String sectionId, List<Pot> pots)
+    List<Pot> getPots()
+        List<Pot> pots = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj {
+                ?sections a ast:Section ;
+                     ast:sectionId %1 ;
+                     ast:hasPot ?pots .
+                ?pots a ast:Pot ;
+                     ast:potId ?potId .
+                ?obj a ast:Pot ;
+                     ast:potId ?potId .
+            }", this.sectionId);
+
+        if pots == null then
+            print("No pots found in section " ++ this.sectionId);
+        else
+            print("Pots found in section " ++ this.sectionId);
+        end
+
+        return pots;
+    end
+end
+
+class Actuator extends Twin (String actuatorId)
+end
+
+class LightSwitch extends Actuator (Double lightIntensity)
+end
+
+/*  Models a physical pump. It is initially retrieved by the asset model. */
+class Pump extends Actuator (
+    Int pumpChannel,
+    domain String modelName,
+    hidden String modelNameOut,
+    domain Int pumpLifeTime,
+    hidden Int pumpLifeTimeOut,
+    domain Double temperature, 
+    hidden Double temperatureOut
+)
+links "a ast:Pump ; domain:temperature %temperature ; domain:pumpLifeTime %pumpLifeTime ; domain:modelName %modelName";
+    Unit printInfo()
+        print("Pump: " ++ this.actuatorId ++ " has current temperature: " ++ doubleToString(this.temperature) ++ ".");
+    end
+end
+
+class OperatingPump extends Pump ()
+classifies "<ast:Operational>";
+    override Unit printInfo()
+        print("Pump: " ++ this.actuatorId ++ " is operational.");
+    end
+end
+
+class MaintenancePump extends Pump (hidden Int powerOutput)
+classifies "<ast:Maintenance>";
+retrieves "SELECT DISTINCT ?powerOutput WHERE {
+  %this a prog:Pump ;
+    domain:models ?x .
+  ?x domain:modelName ?modelName .
+  ?pump a ast:Maintenance ;
+    ast:powerOutput ?powerOutput ;
+    ast:modelName ?model .
+  FILTER (?model = ?modelName) .
+}";
+    override Unit printInfo()
+        print("Pump: " ++ this.actuatorId ++ " is in maintenance. Set power to " ++ intToString(this.powerOutput) ++ ".");
+    end
+end
+
+class OverheatingPump extends Pump ()
+classifies "<ast:Overheating>";
+    override Unit printInfo()
+        print("Pump: " ++ this.actuatorId ++ " is overheating.");
+    end
+end
+
+class UnderheatingPump extends Pump ()
+classifies "<ast:Underheating>";
+    override Unit printInfo()
+        print("Pump: " ++ this.actuatorId ++ " is underheating.");
+    end
+end
+
+class WaterBucket extends Twin (
+    String bucketId,
+    Double waterLevel
+) end
+
+class Greenhouse extends Twin (
+    String greenhouseId,
+    List<Section> sections,
+    List<WaterBucket> waterBuckets,
+    LightSensor lightSensor,
+    TemperatureHumiditySensor temperatureHumiditySensor
+)
+    List<Section> getSections()
+        List<Section> sections = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj {
+                ?greenhouse a ast:GreenHouse ;
+                             ast:greenhouseId %1 ;
+                             ast:hasSection ?sections .
+                ?sections a ast:Section ;
+                          ast:sectionId ?sectionId .
+                ?obj a prog:Section ;
+                      prog:Section_sectionId ?sectionId .
+            }", this.greenhouseId);
+
+        if sections == null then
+            print("No sections found in greenhouse " ++ this.greenhouseId);
+        else
+            print("Sections found in greenhouse " ++ this.greenhouseId);
+        end
+
+        return sections;
+    end
+
+    List<WaterBucket> getWaterBuckets()
+        List<WaterBucket> waterBuckets = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj {
+                ?greenhouse a ast:GreenHouse ;
+                             ast:greenhouseId %1 ;
+                             ast:hasWaterBucket ?waterBuckets .
+                ?waterBuckets a ast:WaterBucket ;
+                              ast:bucketId ?bucketId .
+                ?obj a prog:WaterBucket ;
+                      prog:WaterBucket_bucketId ?bucketId .
+            }", this.greenhouseId);
+
+        if waterBuckets == null then
+            print("No water buckets found in greenhouse " ++ this.greenhouseId);
+        else
+            print("Water buckets found in greenhouse " ++ this.greenhouseId);
+        end
+
+        return waterBuckets;
+    end
+
+    LightSensor getLightSensor()
+        List<LightSensor> lightSensors = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj {
+                ?greenhouse a ast:GreenHouse ;
+                             ast:greenhouseId %1 ;
+                             ast:hasLightSensor ?lightSensor .
+                ?lightSensor a ast:LightSensor ;
+                             ast:sensorId ?sensorId .
+                ?obj a prog:LightSensor ;
+                      prog:LightSensor_sensorId ?sensorId .
+            }", this.greenhouseId);
+
+        if lightSensors == null then
+            print("No light sensor found in greenhouse " ++ this.greenhouseId);
+            return null;
+        else
+            print("Light sensor found in greenhouse " ++ this.greenhouseId);
+            return lightSensors.content;
+        end
+    end
+
+    TemperatureHumiditySensor getTemperatureHumiditySensor()
+        List<TemperatureHumiditySensor> temperatureHumiditySensors = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?obj {
+                ?greenhouse a ast:GreenHouse ;
+                             ast:greenhouseId %1 ;
+                             ast:hasTemperatureHumiditySensor ?temperatureHumiditySensor .
+                ?temperatureHumiditySensor a ast:TemperatureHumiditySensor ;
+                                            ast:sensorId ?sensorId .
+                ?obj a prog:TemperatureHumiditySensor ;
+                      prog:TemperatureHumiditySensor_sensorId ?sensorId .
+            }", this.greenhouseId);
+
+        if temperatureHumiditySensors == null then
+            print("No temperature/humidity sensor found in greenhouse " ++ this.greenhouseId);
+            return null;
+        else
+            print("Temperature/humidity sensor found in greenhouse " ++ this.greenhouseId);
+            return temperatureHumiditySensors.content;
+        end
+    end
+end
+
+
+
+// NDVI START
+/* Models the health state of a plant via NDVI */
+// class HealthState extends Twin (String name, Double minNdvi, Double maxNdvi) end
+// NDVI END
+
+/* The following classes are used to store results of CONSTRUCT queries */
+class PumpDefect (Pump obj, Int pumpChannelNew) end
+class PumpDefectWater (Pump obj, Double temperatureNew) end
+class OperatingPumpDefectWater (OperatingPump obj, Double temperatureNew) end
+class MaintenancePumpDefectWater (MaintenancePump obj, Double temperatureNew) end
+class OverheatingPumpDefectWater (OverheatingPump obj, Double temperatureNew) end
+class UnderheatingPumpDefectWater (UnderheatingPump obj, Double temperatureNew) end
+class PumpDefectLifeTime (Pump obj, Int pumpLifeTimeNew) end
+class OperatingPumpDefectLifeTime (OperatingPump obj, Int pumpLifeTimeNew) end
+class MaintenancePumpDefectLifeTime (MaintenancePump obj, Int pumpLifeTimeNew) end
+class OverheatingPumpDefectLifeTime (OverheatingPump obj, Int pumpLifeTimeNew) end
+class UnderheatingPumpDefectLifeTime (UnderheatingPump obj, Int pumpLifeTimeNew) end
+class PumpDefectModelName (Pump obj, String modelNameNew) end
+class OperatingPumpDefectModelName (OperatingPump obj, String modelNameNew) end
+class MaintenancePumpDefectModelName (MaintenancePump obj, String modelNameNew) end
+class OverheatingPumpDefectModelName (OverheatingPump obj, String modelNameNew) end
+class UnderheatingPumpDefectModelName (UnderheatingPump obj, String modelNameNew) end
+class PlantDefect (Plant obj, Double idealMoistureNew) end
+class PlantDefectStatus (Plant obj, String statusNew) end
+class PotDefectShelf (Pot obj, String shelfFloorNew) end
+class PotDefectPosition (Pot obj, String potPositionNew) end
+class PotDefectPump (Pot obj, String pumpIdNew) end
+class PotDefectPlant (Pot obj, String plantIdNew) end
+
+/*
+ *  The follow class is used to store results that are read from the simulation driver.
+ *  Every instance is representing on decision to water a specific plant and pump.
+ */
+class Decision (String plantId, Int pumpChannel, String pumpId) end

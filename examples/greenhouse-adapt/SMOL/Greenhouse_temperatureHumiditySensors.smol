@@ -1,0 +1,64 @@
+class TemperatureHumiditySensorModel extends BaseModel()
+    override Unit adaptAddition()
+        List<TemperatureHumiditySensor> newTemperatureHumiditySensors = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?sensorId {
+                ?sensor a ast:TemperatureHumiditySensor ;
+                    ast:sensorId ?sensorId .
+                FILTER NOT EXISTS {
+                    ?x a prog:TemperatureHumiditySensor ;
+                        prog:TemperatureHumiditySensor_sensorId ?sensorId .
+                }
+            }");
+
+        if newTemperatureHumiditySensors != null then
+            print("RECONFIG> New TemperatureHumidity Sensors(s) detected: repairing the model");
+
+            while newTemperatureHumiditySensors != null do
+                TemperatureHumiditySensor newTemperatureHumiditySensor = newTemperatureHumiditySensors.content;
+                List<TemperatureHumiditySensor> lx = newTemperatureHumiditySensors;
+                newTemperatureHumiditySensors = newTemperatureHumiditySensors.next;
+
+                print("RECONFIG> New TemperatureHumiditySensor detected: ");
+                print("          TemperatureHumiditySensor Id: " ++ newTemperatureHumiditySensor.sensorId);
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> TemperatureHumidity Sensors(s) added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<TemperatureHumiditySensor> wrongTemperatureHumiditySensors = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:TemperatureHumiditySensor ;
+                     prog:TemperatureHumiditySensor_sensorId ?sensorId.
+                FILTER NOT EXISTS {
+                    ?entity rdf:type ?t ;
+                        ast:sensorId ?sensorId .
+                    ?t rdfs:subClassOf* ast:Sensor .
+                }
+            }");
+
+        if wrongTemperatureHumiditySensors != null then
+            print("RECONFIG> Misconfigured TemperatureHumidity Sensor(s) detected: repairing the model");
+
+            while wrongTemperatureHumiditySensors != null do
+                TemperatureHumiditySensor sensor = wrongTemperatureHumiditySensors.content;
+                print("RECONFIG> Removing TemperatureHumidity Sensor with Id: " ++ sensor.sensorId);
+                destroy(sensor);
+                List<TemperatureHumiditySensor> lx = wrongTemperatureHumiditySensors;
+                wrongTemperatureHumiditySensors = wrongTemperatureHumiditySensors.next;
+                destroy(lx);
+            end
+
+            print("RECONFIG> TemperatureHumidity Sensors(s) removed");
+        end
+    end
+
+    override Unit adaptDefect() skip; end
+
+    override Unit adaptBehaviour() skip; end
+end

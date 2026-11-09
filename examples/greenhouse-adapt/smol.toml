@@ -1,0 +1,11 @@
+[project]
+name = "greenhouse-adapt"
+
+[sources]
+files = ["SMOL/*.smol"]
+
+[ontologies]
+files = ["greenhouse-2.0.ttl"]
+
+[entry]
+main = "SMOL/GreenHouse.smol"

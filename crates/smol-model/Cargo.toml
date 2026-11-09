@@ -1,0 +1,12 @@
+[package]
+name    = "smol-model"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+smol-syntax = { workspace = true }
+citreelo   = { workspace = true }
+
+[dev-dependencies]
+smol-parser = { workspace = true }

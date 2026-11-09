@@ -1,0 +1,118 @@
+
+class PotModel extends BaseModel()
+    override Unit adaptAddition()
+        List<Pot> newPots = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?potId ?potOffset {
+                ?x a ast:Pot ;
+                    ast:potId ?potId ;
+                    ast:potOffset ?potOffset .
+                FILTER NOT EXISTS {
+                    ?y a prog:Pot ;
+                        prog:Pot_potId ?potId ; .
+                }
+            }");
+
+        if newPots != null then
+            print("RECONFIG> New Pot(s) detected: repairing the model");
+
+            while newPots != null do
+                Pot newPot = newPots.content;
+                List<Pot> lx = newPots;
+                newPots = newPots.next;
+                destroy(lx);
+
+                print("RECONFIG> New pot detected: ");
+                print("          Pot Id: " ++ newPot.potId);
+                print("          Pot Offset: " ++ newPot.potOffset);
+
+                newPot.moistureSensor = newPot.getMoistureSensor();
+                newPot.nutrientSensor = newPot.getNutrientSensor();
+                newPot.pump = newPot.getPump();
+            end
+
+            print("RECONFIG> Pot(s) added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<Pot> wrongPots = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:Pot ;
+                    prog:Pot_potId ?potId .
+                FILTER NOT EXISTS {
+                    ?y a ast:Pot ;
+                        ast:potId ?potId .
+                }
+            }");
+
+        if wrongPots != null then
+            print("RECONFIG> Misconfigured Pot(s) detected: repairing the model");
+
+            while wrongPots != null do
+                Pot wrongPot = wrongPots.content;
+                List<Pot> lx = wrongPots;
+                wrongPots = wrongPots.next;
+
+                print("RECONFIG> Misconfigured pot to remove: ");
+                print("          Pot Id: " ++ wrongPot.potId);
+
+                destroy(wrongPot);
+                destroy(lx);
+            end
+
+            print("RECONFIG> Pot(s) removed");
+        end
+    end
+
+
+    override Unit adaptDefect()
+        print("RECONFIG> Checking for defects in the Pot(s)");
+        // this.checkPumpChanged();
+        // this.checkPlantChanged();
+        print("RECONFIG> Defects checked for Pot(s)");
+    end
+
+    /* Method to check if the pump of the Pot has changed */
+    Unit checkPumpChanged()
+
+        List<PotDefectPump> changedPots = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT DISTINCT ?obj ?pumpIdNew {
+                ?obj a prog:Pot ;
+                    prog:Pot_shelfFloor ?shelfFloor ;
+                    prog:Pot_potPosition ?potPosition ;
+                    prog:Pot_pump ?pump .
+                ?pump a prog:Pump; prog:Pump_pumpId ?pumpId .
+                ?y a ast:Pot ;
+                    ast:shelfFloor ?shelfFloor ;
+                    ast:potPosition ?potPosition ;
+                    ast:wateredBy ?pump .
+                ?pump a ast:Pump; ast:pumpId ?pumpIdNew .
+                FILTER(?pumpId != ?pumpIdNew)
+            }");
+
+        if changedPots != null then
+            print("RECONFIG> Changed Pot(s) detected: repairing the model");
+
+            while changedPots != null do
+                PotDefectPump pot = changedPots.content;
+                List<PotDefectPump> lx = changedPots;
+                changedPots = changedPots.next;
+                destroy(lx);
+
+                print("RECONFIG> Changed pot to adjust: ");
+                print("          Old Pump Id: " ++ pot.obj.pump.actuatorId);
+                print("          New Pump Id: " ++ pot.pumpIdNew);
+
+                pot.obj.pump.actuatorId = pot.pumpIdNew;
+                destroy(pot);
+            end
+
+            print("RECONFIG> Pot(s) changed");
+        end
+    end
+
+    override Unit adaptBehaviour() skip; end
+end

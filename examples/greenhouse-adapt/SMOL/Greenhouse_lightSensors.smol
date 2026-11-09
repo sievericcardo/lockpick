@@ -1,0 +1,64 @@
+class LightSensorModel extends BaseModel()
+    override Unit adaptAddition()
+        List<LightSensor> newLightSensors = construct("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT ?sensorId {
+                ?sensor a ast:LightSensor ;
+                    ast:sensorId ?sensorId .
+                FILTER NOT EXISTS {
+                    ?x a prog:LightSensor ;
+                        prog:LightSensor_sensorId ?sensorId .
+                }
+            }");
+
+        if newLightSensors != null then
+            print("RECONFIG> New Light Sensors(s) detected: repairing the model");
+
+            while newLightSensors != null do
+                LightSensor newLightSensor = newLightSensors.content;
+                List<LightSensor> lx = newLightSensors;
+                newLightSensors = newLightSensors.next;
+
+                print("RECONFIG> New LightSensor detected: ");
+                print("          LightSensor Id: " ++ newLightSensor.sensorId);
+
+                destroy(lx);
+            end
+
+            print("RECONFIG> Light Sensors(s) added");
+        end
+    end
+
+    override Unit adaptRemoval()
+        List<LightSensor> wrongLightSensors = access("
+            PREFIX ast: <http://www.smolang.org/greenhouseDT#>
+            SELECT DISTINCT ?obj {
+                ?obj a prog:LightSensor ;
+                     prog:LightSensor_sensorId ?sensorId.
+                FILTER NOT EXISTS {
+                    ?entity rdf:type ?t ;
+                        ast:sensorId ?sensorId .
+                    ?t rdfs:subClassOf* ast:Sensor .
+                }
+            }");
+
+        if wrongLightSensors != null then
+            print("RECONFIG> Misconfigured Light Sensor(s) detected: repairing the model");
+
+            while wrongLightSensors != null do
+                LightSensor sensor = wrongLightSensors.content;
+                print("RECONFIG> Removing Light Sensor with Id: " ++ sensor.sensorId);
+                destroy(sensor);
+                List<LightSensor> lx = wrongLightSensors;
+                wrongLightSensors = wrongLightSensors.next;
+                destroy(lx);
+            end
+
+            print("RECONFIG> Light Sensors(s) removed");
+        end
+    end
+
+    override Unit adaptDefect() skip; end
+
+    override Unit adaptBehaviour() skip; end
+end

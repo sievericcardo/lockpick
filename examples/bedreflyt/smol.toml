@@ -1,0 +1,13 @@
+[project]
+name = "bedreflyt"
+
+[sources]
+files = ["SMOL/*.smol"]
+
+[ontologies]
+files = [
+    "bedreflyt-supplies.ttl",
+]
+
+[entry]
+main = "SMOL/Bedreflyt.smol"
