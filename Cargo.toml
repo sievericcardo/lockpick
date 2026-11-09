@@ -24,7 +24,7 @@ smol-model  = { path = "crates/smol-model" }
 smol-verifier = { path = "crates/smol-verifier" }
 
 # OWL reasoning (local sibling)
-oxidowl = { git = "https://github.com/sievericcardo/oxidowl", branch = "enhance-reasoning", features = ["sparql-store", "parallel", "cache"] }
+oxidowl = { git = "https://github.com/sievericcardo/oxidowl", version="2.0.0", features = ["sparql-store", "parallel", "cache"] }
 
 # Lexer / parser / diagnostics
 logos    = "0.16.1"
@@ -87,3 +87,8 @@ clap          = { workspace = true }
 ariadne       = { workspace = true }
 serde         = { workspace = true }
 serde_json    = { workspace = true }
+
+# TEMP: test against the local fixed oxidowl (unpushed). Remove after pushing
+# oxidowl and running `cargo update -p oxidowl`.
+[patch."https://github.com/sievericcardo/oxidowl"]
+oxidowl = { path = "/Users/riccasi/Documents/GitHub/oxidowl" }
