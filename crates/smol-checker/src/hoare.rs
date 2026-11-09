@@ -393,6 +393,7 @@ fn visit_expr_for_calls(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn check_call(
     receiver: &Expr,
     method: &str,

@@ -572,10 +572,10 @@ fn resolve_method_return(
 /// `classifies` annotation — that's the type returned by `classify()`.
 fn findclassify_ty(class: &str, env: &ClassEnv) -> Option<Type> {
     for ancestor in env.ancestors(class) {
-        if let Some(info) = env.get(ancestor) {
-            if info.classifies.is_some() {
-                return Some(Type::Named(info.name.clone()));
-            }
+        if let Some(info) = env.get(ancestor)
+            && info.classifies.is_some()
+        {
+            return Some(Type::Named(info.name.clone()));
         }
     }
     None

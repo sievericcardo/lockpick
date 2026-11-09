@@ -43,7 +43,6 @@ impl ClassMap {
         self.entries.contains_key(name)
     }
 
-    #[must_use]
     pub fn iter(&self) -> impl Iterator<Item = (&String, &ClassEntry)> {
         self.entries.iter()
     }
@@ -64,10 +63,10 @@ impl ClassMap {
     #[must_use]
     pub fn field(&self, class: &str, name: &str) -> Option<&FieldDecl> {
         for anc in self.ancestors(class) {
-            if let Some(entry) = self.get(&anc) {
-                if let Some(f) = entry.decl.fields.iter().find(|f| f.name == name) {
-                    return Some(f);
-                }
+            if let Some(entry) = self.get(&anc)
+                && let Some(f) = entry.decl.fields.iter().find(|f| f.name == name)
+            {
+                return Some(f);
             }
         }
         None
@@ -83,10 +82,10 @@ impl ClassMap {
     #[must_use]
     pub fn classifies_iri(&self, class: &str) -> Option<String> {
         for anc in self.ancestors(class) {
-            if let Some(entry) = self.get(&anc) {
-                if let Some(ann) = &entry.decl.classifies {
-                    return Some(ann.iri.clone());
-                }
+            if let Some(entry) = self.get(&anc)
+                && let Some(ann) = &entry.decl.classifies
+            {
+                return Some(ann.iri.clone());
             }
         }
         None
@@ -99,10 +98,10 @@ impl ClassMap {
         for anc in self.ancestors(class) {
             if let Some(entry) = self.get(&anc) {
                 for f in &entry.decl.fields {
-                    if f.modifier == FieldModifier::Context {
-                        if let Type::Named(n) = &f.ty {
-                            return Some(n.clone());
-                        }
+                    if f.modifier == FieldModifier::Context
+                        && let Type::Named(n) = &f.ty
+                    {
+                        return Some(n.clone());
                     }
                 }
             }
@@ -182,7 +181,7 @@ pub fn state_root(map: &ClassMap, name: &str) -> Option<String> {
         }
         let has_classifies: bool = map
             .get(&ancestor)
-            .map_or(false, |e| e.decl.classifies.is_some());
+            .is_some_and(|e| e.decl.classifies.is_some());
         if !has_classifies {
             return Some(ancestor);
         }
@@ -223,10 +222,10 @@ pub fn extract(map: &ClassMap) -> Extracted {
     }
 
     for state in &states {
-        if !state.root.is_empty() {
-            if let Some(root) = roots_map.get_mut(&state.root) {
-                root.states.push(state.name.clone());
-            }
+        if !state.root.is_empty()
+            && let Some(root) = roots_map.get_mut(&state.root)
+        {
+            root.states.push(state.name.clone());
         }
     }
 
@@ -553,9 +552,9 @@ pub fn build_program_ts(
         labels[node.id] = node.labels.clone();
     }
     // citreelo requires a total transition relation: self-loop terminal nodes.
-    for i in 0..n {
-        if successors[i].is_empty() {
-            successors[i].push(i);
+    for (i, node_successors) in successors.iter_mut().enumerate() {
+        if node_successors.is_empty() {
+            node_successors.push(i);
         }
     }
 

@@ -642,15 +642,15 @@ fn parse_while_stmt(pair: Pair<Rule>) -> Stmt {
 /// recognise list-typed loop variables so checks like "while loop does not
 /// advance" can fire.
 fn decl_or_assign(span: Span, ty: Option<Type>, target: Expr, rhs: Expr) -> Stmt {
-    if let Some(ty) = ty {
-        if let Expr::Var(name, _) = &target {
-            return Stmt::VarDecl {
-                ty,
-                name: name.clone(),
-                init: rhs,
-                span,
-            };
-        }
+    if let Some(ty) = ty
+        && let Expr::Var(name, _) = &target
+    {
+        return Stmt::VarDecl {
+            ty,
+            name: name.clone(),
+            init: rhs,
+            span,
+        };
     }
     Stmt::Assign {
         lhs: target,
@@ -804,7 +804,7 @@ fn parse_create_stmt(pair: Pair<Rule>) -> Stmt {
         args,
         span,
     };
-    let target = target.unwrap_or_else(|| Expr::Null(span));
+    let target = target.unwrap_or(Expr::Null(span));
     decl_or_assign(span, decl_ty, target, rhs)
 }
 
@@ -812,7 +812,7 @@ fn parse_sparql_stmt(pair: Pair<Rule>) -> Stmt {
     let span = span_from_pair(&pair);
     let (ty, exprs) = collect_assignment_parts(&pair);
 
-    let target = exprs.first().cloned().unwrap_or_else(|| Expr::Null(span));
+    let target = exprs.first().cloned().unwrap_or(Expr::Null(span));
     let rest: Vec<Expr> = exprs.into_iter().skip(1).collect();
     let sparql = match rest.first() {
         Some(Expr::StrLit(s, _)) => s.clone(),
@@ -837,7 +837,7 @@ fn parse_construct_stmt(pair: Pair<Rule>) -> Stmt {
     let span = span_from_pair(&pair);
     let (ty, exprs) = collect_assignment_parts(&pair);
 
-    let target = exprs.first().cloned().unwrap_or_else(|| Expr::Null(span));
+    let target = exprs.first().cloned().unwrap_or(Expr::Null(span));
     let args: Vec<Expr> = exprs.into_iter().skip(1).collect();
     let sparql = match args.first() {
         Some(Expr::StrLit(s, _)) => s.clone(),
@@ -851,7 +851,7 @@ fn parse_owl_stmt(pair: Pair<Rule>) -> Stmt {
     let span = span_from_pair(&pair);
     let (ty, exprs) = collect_assignment_parts(&pair);
 
-    let target = exprs.first().cloned().unwrap_or_else(|| Expr::Null(span));
+    let target = exprs.first().cloned().unwrap_or(Expr::Null(span));
     let query = match exprs.get(1) {
         Some(Expr::StrLit(s, _)) => s.clone(),
         _ => String::new(),
@@ -1384,7 +1384,7 @@ fn extract_jml_annotations(src: &str) -> Vec<JmlAnnotation> {
         } else if src[i..].starts_with("//@") {
             let start = i;
             let rest = &src[i + 3..];
-            let end = rest.find('\n').map_or(rest.len(), |p| p);
+            let end = rest.find('\n').unwrap_or(rest.len());
             push_jml(&mut out, rest[..end].trim().to_owned(), start);
             i += 3 + end;
             continue;
@@ -1518,10 +1518,10 @@ fn attach_decreases_to_enclosing_while(file: &mut File, annot: &JmlAnnotation) -
             }
         }
     }
-    if let Some(main) = file.main.as_mut() {
-        if attach_decreases_in_stmts(main, annot) {
-            return true;
-        }
+    if let Some(main) = file.main.as_mut()
+        && attach_decreases_in_stmts(main, annot)
+    {
+        return true;
     }
     false
 }
@@ -1547,24 +1547,24 @@ fn attach_decreases_in_stmts(stmts: &mut [Stmt], annot: &JmlAnnotation) -> bool 
             Stmt::While { body, .. } => Some(body),
             _ => None,
         };
-        if let Some(body) = nested {
-            if attach_decreases_in_stmts(body, annot) {
-                return true;
-            }
+        if let Some(body) = nested
+            && attach_decreases_in_stmts(body, annot)
+        {
+            return true;
         }
     }
     for stmt in stmts.iter_mut() {
         if let Stmt::While {
             span, decreases, ..
         } = stmt
+            && decreases.is_none()
+            && span_contains(*span, annot.offset)
         {
-            if decreases.is_none() && span_contains(*span, annot.offset) {
-                if let Some(expr) = parse_jml_expr(&annot.body) {
-                    *decreases = Some(Box::new(expr));
-                    return true;
-                }
-                return false;
+            if let Some(expr) = parse_jml_expr(&annot.body) {
+                *decreases = Some(Box::new(expr));
+                return true;
             }
+            return false;
         }
     }
     false
@@ -1586,10 +1586,10 @@ fn attach_decreases_to_following_while(
         });
     if let Some(&(_, ci, mi)) = target {
         let body = &mut file.classes[ci].methods[mi].body;
-        if let Some(slot) = first_empty_decreases_after(body, annot.offset) {
-            if let Some(expr) = parse_jml_expr(&annot.body) {
-                *slot = Some(Box::new(expr));
-            }
+        if let Some(slot) = first_empty_decreases_after(body, annot.offset)
+            && let Some(expr) = parse_jml_expr(&annot.body)
+        {
+            *slot = Some(Box::new(expr));
         }
     }
 }

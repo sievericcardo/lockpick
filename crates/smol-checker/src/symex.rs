@@ -141,7 +141,7 @@ fn finish_interval(lo: Option<i128>, hi: Option<i128>) -> (Interval, bool) {
         return (Interval::top(), true);
     }
     let in_range = |v: i128| v >= i64::MIN as i128 && v <= i64::MAX as i128;
-    if lo.map_or(true, in_range) && hi.map_or(true, in_range) {
+    if lo.is_none_or(in_range) && hi.is_none_or(in_range) {
         (
             Interval {
                 lo: lo.map(|v| v as i64),
@@ -874,13 +874,11 @@ fn is_int_expr(expr: &Expr, int_vars: &HashSet<String>) -> bool {
         Expr::IntLit(..) => true,
         Expr::Var(name, _) => int_vars.contains(name.as_str()),
         Expr::BinOp {
-            op, left, right, ..
-        } => match op {
-            BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod => {
-                is_int_expr(left, int_vars) && is_int_expr(right, int_vars)
-            }
-            _ => false,
-        },
+            op: BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod,
+            left,
+            right,
+            ..
+        } => is_int_expr(left, int_vars) && is_int_expr(right, int_vars),
         Expr::UnaryOp {
             op: smol_syntax::ast::UnaryOp::Neg,
             expr,

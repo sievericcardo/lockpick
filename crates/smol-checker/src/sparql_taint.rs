@@ -64,7 +64,7 @@ impl TSet {
     fn param(name: &str) -> Self {
         let mut s = Self::default();
         s.params.insert(name.to_owned());
-        return s;
+        s
     }
 
     fn query() -> Self {
@@ -112,10 +112,12 @@ fn local_classes(stmts: &[Stmt]) -> HashMap<String, String> {
 fn collect_locals(stmts: &[Stmt], map: &mut HashMap<String, String>) {
     for stmt in stmts {
         match stmt {
-            Stmt::VarDecl { ty, name, .. } => {
-                if let Type::Named(c) = ty {
-                    map.insert(name.clone(), c.clone());
-                }
+            Stmt::VarDecl {
+                ty: Type::Named(c),
+                name,
+                ..
+            } => {
+                map.insert(name.clone(), c.clone());
             }
             Stmt::If {
                 then_body,
@@ -164,11 +166,7 @@ fn receiver_class(
 }
 
 /// Resolve `(holder, method)` to the declaring class + formal parameter names.
-fn resolve_callee<'e>(
-    holder: &str,
-    method: &str,
-    env: &'e ClassEnv,
-) -> Option<(String, Vec<String>)> {
+fn resolve_callee(holder: &str, method: &str, env: &ClassEnv) -> Option<(String, Vec<String>)> {
     let mut current = holder;
     loop {
         let info = env.get(current)?;

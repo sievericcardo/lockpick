@@ -28,7 +28,7 @@ end
 "#;
     let p = write_tmp("lockpick_sources_parity.smol", src);
 
-    let from_files = verify_files(&[p.clone()], &[]);
+    let from_files = verify_files(std::slice::from_ref(&p), &[]);
     let from_sources = verify_sources(&[(p.clone(), src.to_string())], &[]);
     let _ = std::fs::remove_file(&p);
 

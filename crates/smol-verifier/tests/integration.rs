@@ -137,7 +137,8 @@ end
     std::fs::write(&tmp, src).unwrap();
 
     let properties = vec!["AG Healthy".to_owned()];
-    let diags = smol_verifier::verify_files_with_properties(&[tmp.clone()], &[], &properties);
+    let diags =
+        smol_verifier::verify_files_with_properties(std::slice::from_ref(&tmp), &[], &properties);
     let _ = std::fs::remove_file(&tmp);
 
     assert!(
@@ -170,7 +171,8 @@ end
     std::fs::write(&tmp, src).unwrap();
 
     let properties = vec!["EF Healthy".to_owned()];
-    let diags = smol_verifier::verify_files_with_properties(&[tmp.clone()], &[], &properties);
+    let diags =
+        smol_verifier::verify_files_with_properties(std::slice::from_ref(&tmp), &[], &properties);
     let _ = std::fs::remove_file(&tmp);
 
     assert!(
@@ -194,7 +196,7 @@ end
     let tmp = std::env::temp_dir().join("smol_test_unknown_class.smol");
     std::fs::write(&tmp, smol_src).unwrap();
 
-    let diags = smol_verifier::verify_files(&[tmp.clone()], &[]);
+    let diags = smol_verifier::verify_files(std::slice::from_ref(&tmp), &[]);
     let _ = std::fs::remove_file(&tmp);
 
     let has_unknown = diags.iter().any(|d| d.code == DiagnosticCode::UnknownClass);
@@ -222,7 +224,7 @@ end
     let tmp = std::env::temp_dir().join("smol_test_abstract_inst.smol");
     std::fs::write(&tmp, smol_src).unwrap();
 
-    let diags = smol_verifier::verify_files(&[tmp.clone()], &[]);
+    let diags = smol_verifier::verify_files(std::slice::from_ref(&tmp), &[]);
     let _ = std::fs::remove_file(&tmp);
 
     let has_err = diags
@@ -250,7 +252,7 @@ end
     let tmp = std::env::temp_dir().join("smol_test_override.smol");
     std::fs::write(&tmp, smol_src).unwrap();
 
-    let diags = smol_verifier::verify_files(&[tmp.clone()], &[]);
+    let diags = smol_verifier::verify_files(std::slice::from_ref(&tmp), &[]);
     let _ = std::fs::remove_file(&tmp);
 
     let has_err = diags

@@ -55,17 +55,17 @@ pub fn build_class_env(files: &[File]) -> (ClassEnv, Vec<Diagnostic>) {
     // Validate superclass references
     for file in files {
         for cls in &file.classes {
-            if let Some(parent) = &cls.extends {
-                if !env.contains(parent) {
-                    diags.push(
-                        Diagnostic::error(
-                            DiagnosticCode::UnknownClass,
-                            format!("class `{}` extends unknown class `{}`", cls.name, parent),
-                        )
-                        .with_file(&file.path)
-                        .with_span(cls.span),
-                    );
-                }
+            if let Some(parent) = &cls.extends
+                && !env.contains(parent)
+            {
+                diags.push(
+                    Diagnostic::error(
+                        DiagnosticCode::UnknownClass,
+                        format!("class `{}` extends unknown class `{}`", cls.name, parent),
+                    )
+                    .with_file(&file.path)
+                    .with_span(cls.span),
+                );
             }
         }
     }

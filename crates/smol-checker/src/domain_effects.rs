@@ -80,10 +80,12 @@ fn local_classes(stmts: &[Stmt]) -> HashMap<String, String> {
 fn collect_locals(stmts: &[Stmt], map: &mut HashMap<String, String>) {
     for stmt in stmts {
         match stmt {
-            Stmt::VarDecl { ty, name, .. } => {
-                if let Type::Named(c) = ty {
-                    map.insert(name.clone(), c.clone());
-                }
+            Stmt::VarDecl {
+                ty: Type::Named(c),
+                name,
+                ..
+            } => {
+                map.insert(name.clone(), c.clone());
             }
             Stmt::If {
                 then_body,

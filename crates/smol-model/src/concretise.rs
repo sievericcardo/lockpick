@@ -247,10 +247,10 @@ pub fn maps_to_initial(
             }
         }
         // IRI match via the entity's own `classifies` annotation.
-        if let Some(iri) = map.classifies_iri(class) {
-            if state_iris.contains(iri.as_str()) {
-                return true;
-            }
+        if let Some(iri) = map.classifies_iri(class)
+            && state_iris.contains(iri.as_str())
+        {
+            return true;
         }
     }
     // Linked IRIs collected during simulation match a known state IRI.

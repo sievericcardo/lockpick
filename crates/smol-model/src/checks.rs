@@ -347,24 +347,24 @@ impl BodyChecker<'_> {
                 port,
                 span,
             } => {
-                if let ResolvedType::Fmo(ports) = resolver.resolve_expression(receiver) {
-                    if !ports.contains(port) {
-                        self.diags.push(
-                            Diagnostic::error(
-                                DiagnosticCode::FmoPortUnknown,
-                                format!(
-                                    "FMO port `{port}` is not declared; available ports: {}",
-                                    if ports.is_empty() {
-                                        "(none)".to_owned()
-                                    } else {
-                                        ports.join(", ")
-                                    }
-                                ),
-                            )
-                            .with_file(self.file)
-                            .with_span(*span),
-                        );
-                    }
+                if let ResolvedType::Fmo(ports) = resolver.resolve_expression(receiver)
+                    && !ports.contains(port)
+                {
+                    self.diags.push(
+                        Diagnostic::error(
+                            DiagnosticCode::FmoPortUnknown,
+                            format!(
+                                "FMO port `{port}` is not declared; available ports: {}",
+                                if ports.is_empty() {
+                                    "(none)".to_owned()
+                                } else {
+                                    ports.join(", ")
+                                }
+                            ),
+                        )
+                        .with_file(self.file)
+                        .with_span(*span),
+                    );
                 }
                 self.walk_expr(resolver, receiver);
             }
@@ -399,28 +399,26 @@ impl BodyChecker<'_> {
                 args,
                 span,
             } => {
-                if method == "port" {
-                    if let ResolvedType::Fmo(ports) = resolver.resolve_expression(receiver) {
-                        if let Some(Expr::StrLit(port_name, _)) = args.first() {
-                            if !ports.contains(port_name) {
-                                self.diags.push(
-                                    Diagnostic::error(
-                                        DiagnosticCode::FmoPortUnknown,
-                                        format!(
-                                            "FMO port `{port_name}` is not declared; available ports: {}",
-                                            if ports.is_empty() {
-                                                "(none)".to_owned()
-                                            } else {
-                                                ports.join(", ")
-                                            }
-                                        ),
-                                    )
-                                        .with_file(self.file)
-                                        .with_span(*span),
-                                );
-                            }
-                        }
-                    }
+                if method == "port"
+                    && let ResolvedType::Fmo(ports) = resolver.resolve_expression(receiver)
+                    && let Some(Expr::StrLit(port_name, _)) = args.first()
+                    && !ports.contains(port_name)
+                {
+                    self.diags.push(
+                        Diagnostic::error(
+                            DiagnosticCode::FmoPortUnknown,
+                            format!(
+                                "FMO port `{port_name}` is not declared; available ports: {}",
+                                if ports.is_empty() {
+                                    "(none)".to_owned()
+                                } else {
+                                    ports.join(", ")
+                                }
+                            ),
+                        )
+                        .with_file(self.file)
+                        .with_span(*span),
+                    );
                 }
                 self.walk_expr(resolver, receiver);
                 for a in args {
@@ -593,19 +591,15 @@ fn is_advanced(body: &[Stmt], var: &str) -> bool {
 fn stmt_advances(stmt: &Stmt, var: &str) -> bool {
     match stmt {
         Stmt::Assign { lhs, rhs, .. } => {
-            if let Expr::Var(lhs_name, _) = lhs {
-                if lhs_name == var {
-                    if let Expr::Field {
-                        receiver, field, ..
-                    } = rhs
-                    {
-                        if field == "next" {
-                            if let Expr::Var(rec, _) = receiver.as_ref() {
-                                return rec == var;
-                            }
-                        }
-                    }
-                }
+            if let Expr::Var(lhs_name, _) = lhs
+                && lhs_name == var
+                && let Expr::Field {
+                    receiver, field, ..
+                } = rhs
+                && field == "next"
+                && let Expr::Var(rec, _) = receiver.as_ref()
+            {
+                return rec == var;
             }
             false
         }

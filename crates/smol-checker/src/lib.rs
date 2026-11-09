@@ -22,7 +22,7 @@
 //!    integer overflow (E2021), definite division-by-zero (E2022), and
 //!    loop-termination side conditions (E5012, via `smol-model`)
 //! 10. **Hoare contracts** — weakest-precondition VCs over JML `requires`/
-//!    `ensures` comments discharged by a syntactic prover (E6001–E6004)
+//!     `ensures` comments discharged by a syntactic prover (E6001–E6004)
 
 pub mod adapts;
 pub mod body_pass;

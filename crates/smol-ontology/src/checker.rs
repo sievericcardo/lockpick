@@ -256,18 +256,18 @@ pub fn check_ontology(
         // Validate against an empty data graph (structural check of shapes).
         match with_suppressed_output(|| ShaclValidator::new(&shapes_ttl, "")) {
             Ok(mut v) => {
-                if let Ok(report) = v.validate() {
-                    if !report.conforms {
-                        for violation in &report.results {
-                            let msg = violation
-                                .messages
-                                .first()
-                                .map_or("(no message)", |m| m.value.as_str());
-                            diags.push(Diagnostic::error(
-                                DiagnosticCode::ShaclViolation,
-                                format!("SHACL violation in `{}`: {}", shapes_path.display(), msg),
-                            ));
-                        }
+                if let Ok(report) = v.validate()
+                    && !report.conforms
+                {
+                    for violation in &report.results {
+                        let msg = violation
+                            .messages
+                            .first()
+                            .map_or("(no message)", |m| m.value.as_str());
+                        diags.push(Diagnostic::error(
+                            DiagnosticCode::ShaclViolation,
+                            format!("SHACL violation in `{}`: {}", shapes_path.display(), msg),
+                        ));
                     }
                 }
             }
@@ -337,11 +337,11 @@ fn extract_ttl_prefixes(ttl: &str) -> HashMap<String, String> {
         if let Some(colon_pos) = rest.find(':') {
             let prefix_name = rest[..colon_pos].trim();
             let after_colon = rest[colon_pos + 1..].trim();
-            if let Some(iri_start) = after_colon.find('<') {
-                if let Some(iri_end) = after_colon[iri_start..].find('>') {
-                    let iri = &after_colon[iri_start + 1..iri_start + iri_end];
-                    out.insert(prefix_name.to_owned(), iri.to_owned());
-                }
+            if let Some(iri_start) = after_colon.find('<')
+                && let Some(iri_end) = after_colon[iri_start..].find('>')
+            {
+                let iri = &after_colon[iri_start + 1..iri_start + iri_end];
+                out.insert(prefix_name.to_owned(), iri.to_owned());
             }
         }
     }
@@ -458,8 +458,8 @@ fn extract_angle_iris(s: &str) -> Vec<String> {
 /// - a bare local name — returned unchanged.
 ///
 /// Returns `None` (after emitting a warning) when the prefix is unresolved.
-fn resolve_iri<'a>(
-    iri: &'a str,
+fn resolve_iri(
+    iri: &str,
     prefix_map: &HashMap<String, String>,
     file: &File,
     span: Span,
@@ -1563,6 +1563,9 @@ fn element_in_store(store: &SparqlStore, iri: &str) -> bool {
     store.execute_ask(&query).unwrap_or(true)
 }
 
+/// Resources extracted from a SPARQL query: `(prefixed, full_iris, declared)`.
+type SparqlRefs = (Vec<(String, String)>, Vec<String>, Vec<(String, String)>);
+
 /// Extract the RDF resources referenced by a SPARQL query:
 ///
 /// - `prefixed`: `(prefix, local)` pairs, e.g. `ast:Pump` or the default
@@ -1574,9 +1577,7 @@ fn element_in_store(store: &SparqlStore, iri: &str) -> bool {
 ///
 /// PREFIX/BASE declaration IRIs, string literals, comments, blank nodes and
 /// variables are skipped.
-fn extract_sparql_refs(
-    sparql: &str,
-) -> (Vec<(String, String)>, Vec<String>, Vec<(String, String)>) {
+fn extract_sparql_refs(sparql: &str) -> SparqlRefs {
     let bytes = sparql.as_bytes();
     let mut i = 0;
     let mut prefixed = Vec::new();
