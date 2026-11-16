@@ -1929,8 +1929,8 @@ checksum = "7e036b411754132fd6b74e94b74e9a13c5cf606fa93d1885c35860d3060820b1"
 
 [[package]]
 name = "oxidowl"
-version = "2.0.0"
-source = "git+https://github.com/sievericcardo/oxidowl#ffa5e4be2201c2b57f69a441c122967dc2385ddf"
+version = "2.1.0"
+source = "git+https://github.com/sievericcardo/oxidowl?tag=v2.1.1#5514264a4df67fdb690936dca637592cc59296b8"
 dependencies = [
  "chrono",
  "clap",
