@@ -24,9 +24,7 @@ smol-model  = { path = "crates/smol-model" }
 smol-verifier = { path = "crates/smol-verifier" }
 
 # OWL reasoning (local sibling)
-# `tag` pins the release; `version` must match the package version *inside*
-# that tag (the v2.1.1 tag still declares 2.1.0).
-oxidowl = { git = "https://github.com/sievericcardo/oxidowl", tag = "v2.1.1", version = "2.1", features = ["sparql-store", "parallel", "cache"] }
+oxidowl = { git = "https://github.com/sievericcardo/oxidowl", version = "2.1.1", features = ["sparql-store", "parallel", "cache"] }
 
 # Lexer / parser / diagnostics
 logos    = "0.16.1"
